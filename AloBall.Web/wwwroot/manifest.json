@@ -1,0 +1,16 @@
+{
+  "name": "AloBall - Nền tảng Đội bóng",
+  "short_name": "AloBall",
+  "description": "Nền tảng quản lý đội bóng, điểm danh thông minh và bắt đối giao lưu phong trào",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f7f2",
+  "theme_color": "#082f24",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

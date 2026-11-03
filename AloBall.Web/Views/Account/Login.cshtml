@@ -1,0 +1,21 @@
+@model AloBall.Web.Controllers.LoginViewModel
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment HostEnvironment
+@{ ViewData["Title"] = "Đăng nhập"; }
+<div class="auth-layout">
+    <section class="auth-story"><span class="eyebrow">WELCOME TO THE CLUB</span><h1>Đồng đội<br />đang <em>chờ bạn.</em></h1><p>Về với đội, xem lịch ra sân và tiếp tục hành trình cùng AloBall.</p><span class="auth-mark" aria-hidden="true">AB.</span></section>
+    <section class="auth-form"><span class="eyebrow">KHÔNG GIAN CỦA BẠN</span><h2>Đăng nhập</h2><p>Một tài khoản, kết nối mọi đội bóng.</p>
+        <form asp-action="Login" method="post">
+            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="mb-3"><label asp-for="Email" class="form-label">Email</label><input asp-for="Email" type="email" class="form-control" placeholder="ban@example.com" autocomplete="username" required /><span asp-validation-for="Email" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Password" class="form-label">Mật khẩu</label><input asp-for="Password" type="password" class="form-control" placeholder="Nhập mật khẩu" autocomplete="current-password" required /><span asp-validation-for="Password" class="text-danger"></span></div>
+            <div class="form-check mb-4"><input asp-for="RememberMe" class="form-check-input" /><label asp-for="RememberMe" class="form-check-label small">Ghi nhớ đăng nhập</label></div>
+            <button type="submit" class="btn btn-arena-primary">Vào sân cùng AloBall <i class="bi bi-arrow-right"></i></button>
+        </form>
+        <div class="auth-switch">Mới đến AloBall? <a asp-action="Register" asp-route-returnUrl="@ViewData["ReturnUrl"]">Tạo tài khoản</a></div>
+        @if(HostEnvironment.EnvironmentName == "Development") {
+        <details class="demo-accounts"><summary>Tài khoản dùng thử trong môi trường phát triển</summary><p>Lãnh đội: <code>owner@klbfc.vn</code><br />Mật khẩu: <code>Owner@123456</code></p><p>Thành viên: <code>member@klbfc.vn</code><br />Mật khẩu: <code>Member@123456</code></p></details>
+        }
+    </section>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

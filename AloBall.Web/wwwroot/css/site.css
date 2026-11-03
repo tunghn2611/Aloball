@@ -1,0 +1,722 @@
+/* ==========================================================================
+   ALOBALL DESIGN SYSTEM TOKENS & MOBILE-FIRST STYLES
+   ========================================================================== */
+
+:root {
+  /* Brand Palette - Modern Football Green */
+  --ab-primary: #166534;
+  --ab-primary-hover: #14532D;
+  --ab-primary-light: #f0fdf4;
+  --ab-primary-border: #bbf7d0;
+  --ab-primary-dark: #14532D;
+
+  /* Neutral Dark / Charcoal */
+  --ab-dark: #0f172a;
+  --ab-slate: #334155;
+  --ab-muted: #475569;
+  --ab-border: #e2e8f0;
+  --ab-bg: #f8fafc;
+  --ab-card-bg: #ffffff;
+
+  /* Semantic State Palette */
+  --ab-warning-bg: #fffbeb;
+  --ab-warning-text: #b45309;
+  --ab-warning-border: #fde68a;
+
+  --ab-danger-bg: #fef2f2;
+  --ab-danger-text: #b91c1c;
+  --ab-danger-border: #fecaca;
+
+  --ab-info-bg: #eff6ff;
+  --ab-info-text: #1d4ed8;
+  --ab-info-border: #bfdbfe;
+
+  /* Elevation */
+  --ab-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --ab-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --ab-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  /* Touch & Metrics */
+  --ab-touch-min: 44px;
+  --ab-radius-sm: 8px;
+  --ab-radius-md: 12px;
+  --ab-radius-lg: 16px;
+  --ab-radius-pill: 9999px;
+}
+
+/* Base Typography & Safe Areas */
+html {
+  font-size: 15px;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--ab-dark);
+  background-color: var(--ab-bg);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom AloBall Classes */
+.ab-bg-main {
+  background-color: var(--ab-bg);
+}
+
+.ab-card {
+  background: var(--ab-card-bg);
+  border: 1px solid var(--ab-border);
+  border-radius: var(--ab-radius-md);
+  box-shadow: var(--ab-shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ab-card:hover {
+  box-shadow: var(--ab-shadow-md);
+}
+
+/* Button & Touch Target standard >= 44px */
+.btn-ab-primary {
+  background-color: var(--ab-primary);
+  border-color: var(--ab-primary);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: var(--ab-radius-sm);
+  min-height: var(--ab-touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-ab-primary:hover, .btn-ab-primary:focus {
+  background-color: var(--ab-primary-hover);
+  border-color: var(--ab-primary-hover);
+  color: #ffffff;
+}
+
+.btn-ab-outline {
+  border: 1px solid var(--ab-border);
+  background: #ffffff;
+  color: var(--ab-slate);
+  font-weight: 500;
+  min-height: var(--ab-touch-min);
+  border-radius: var(--ab-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  white-space: nowrap;
+}
+
+.btn-ab-outline:hover {
+  background: var(--ab-bg);
+  border-color: var(--ab-slate);
+  color: var(--ab-dark);
+}
+
+/* Forms */
+.form-control, .form-select {
+  min-height: var(--ab-touch-min);
+  font-size: 16px !important; /* Ngăn iOS tự động zoom in khi focus */
+  border: 1px solid var(--ab-border);
+  border-radius: var(--ab-radius-sm);
+  color: var(--ab-dark);
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--ab-primary);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+
+/* Badges */
+.ab-badge-role {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--ab-radius-pill);
+}
+
+.ab-badge-owner {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.ab-badge-manager {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+.ab-badge-member {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Empty State Component */
+.ab-empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: #ffffff;
+  border-radius: var(--ab-radius-md);
+  border: 1px dashed var(--ab-border);
+}
+
+.ab-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--ab-primary-light);
+  color: var(--ab-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+/* Team Logo & Avatar Placeholders */
+.ab-team-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--ab-radius-md);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.ab-player-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+/* Mobile-First Navigation Bar */
+.ab-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: #ffffff;
+  border-top: 1px solid var(--ab-border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1040;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.ab-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--ab-muted);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 500;
+  height: 100%;
+}
+
+.ab-nav-item i {
+  font-size: 1.25rem;
+  margin-bottom: 2px;
+}
+
+.ab-nav-item.active {
+  color: var(--ab-primary);
+  font-weight: 700;
+}
+
+/* Desktop App Container with Sidebar */
+@media (min-width: 992px) {
+  .ab-desktop-layout {
+    display: flex;
+    min-height: calc(100vh - 60px);
+  }
+
+  .ab-sidebar {
+    width: 250px;
+    background: #ffffff;
+    border-right: 1px solid var(--ab-border);
+    flex-shrink: 0;
+    padding: 1.5rem 1rem;
+  }
+
+  .ab-main-content {
+    flex-grow: 1;
+    padding: 2rem 2.5rem;
+    max-width: 1200px;
+  }
+
+  .ab-bottom-nav {
+    display: none !important;
+  }
+}
+
+/* Landing Page Specific Rules */
+.ab-container-landing {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .ab-container-landing {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .ab-container-landing {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.ab-section-space {
+  margin-bottom: 2.25rem;
+}
+
+@media (min-width: 992px) {
+  .ab-section-space {
+    margin-bottom: 4rem;
+  }
+}
+
+/* Hero Typography */
+.ab-hero-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ab-dark);
+}
+
+@media (min-width: 576px) {
+  .ab-hero-title {
+    font-size: 2.2rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .ab-hero-title {
+    font-size: 2.6rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .ab-hero-title {
+    font-size: 3.25rem;
+  }
+}
+
+.ab-hero-desc {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ab-muted);
+}
+
+/* Sân bóng minh họa nhìn từ trên xuống bằng SVG/CSS */
+.ab-pitch-wrap {
+  width: 100%;
+  max-width: 290px;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
+  background: #15803d;
+  border: 2px solid #86efac;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.15);
+}
+
+@media (min-width: 768px) {
+  .ab-pitch-wrap {
+    max-width: 380px;
+  }
+}
+
+@media (min-width: 992px) {
+  .ab-pitch-wrap {
+    max-width: 440px;
+  }
+}
+
+.ab-pitch-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.ab-pitch-line-center {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateY(-50%);
+}
+
+.ab-pitch-circle-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 70px;
+  height: 70px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ab-pitch-goal-top {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100px;
+  height: 38px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-top: none;
+  transform: translateX(-50%);
+}
+
+.ab-pitch-goal-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 100px;
+  height: 38px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-bottom: none;
+  transform: translateX(-50%);
+}
+
+.ab-pitch-player {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+}
+
+.ab-pitch-player.team-home {
+  background: #facc15;
+  border: 2px solid #ffffff;
+}
+
+.ab-pitch-player.team-away {
+  background: #38bdf8;
+  border: 2px solid #ffffff;
+}
+
+/* ==========================================================================
+   CAHN-INSPIRED SPORTS UI COMPONENTS (MATCHES, HERO BANNER, SQUAD & CLUBS)
+   ========================================================================== */
+
+/* Typography Sports Heading */
+.ab-sports-heading {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ab-dark);
+}
+
+/* Hero Sports Banner (Gọn gàng, chuẩn bóng đá, không bị quá cao) */
+.ab-hero-sports {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #092c15 0%, #14532d 50%, #064e3b 100%);
+  color: #ffffff;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 10px 25px -5px rgba(22, 101, 52, 0.25);
+  margin-bottom: 2rem;
+}
+
+.ab-hero-sports-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 85% 30%, rgba(34, 197, 94, 0.2) 0%, transparent 60%),
+              linear-gradient(90deg, rgba(5, 46, 22, 0.95) 0%, rgba(5, 46, 22, 0.85) 55%, rgba(5, 46, 22, 0.6) 100%);
+  z-index: 1;
+}
+
+.ab-hero-sports-content {
+  position: relative;
+  z-index: 2;
+  padding: 2.25rem 1.5rem;
+  max-width: 720px;
+}
+
+@media (min-width: 992px) {
+  .ab-hero-sports {
+    min-height: 320px;
+  }
+  .ab-hero-sports-content {
+    padding: 2.75rem 2.5rem;
+  }
+}
+
+/* Sports Tabs */
+.ab-nav-pills .nav-link {
+  color: var(--ab-dark);
+  background-color: #ffffff;
+  border: 1px solid var(--ab-border);
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.ab-nav-pills .nav-link:hover {
+  background-color: #f8fafc;
+  color: var(--ab-primary);
+}
+
+.ab-nav-pills .nav-link.active {
+  background-color: var(--ab-primary) !important;
+  border-color: var(--ab-primary) !important;
+  color: #ffffff !important;
+}
+
+.ab-hero-sports-title {
+  font-size: 1.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+  word-break: break-word;
+}
+
+@media (min-width: 576px) {
+  .ab-hero-sports-title {
+    font-size: 2.1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .ab-hero-sports-title {
+    font-size: 2.75rem;
+  }
+}
+
+/* Match Fixture Cards (Lịch đấu & Kết quả phong cách CAHN) */
+.ab-match-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--ab-border);
+  box-shadow: var(--ab-shadow-sm);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-match-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ab-shadow-md);
+}
+
+.ab-match-card-header {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 0.6rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ab-match-card-body {
+  padding: 1.25rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ab-match-team {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+}
+
+.ab-match-team-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--ab-primary-light);
+  color: var(--ab-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+  border: 1px solid var(--ab-primary-border);
+}
+
+.ab-match-team-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ab-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.ab-match-score-wrap {
+  text-align: center;
+  flex-shrink: 0;
+  padding: 0 0.5rem;
+}
+
+.ab-match-score {
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 1.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 8px;
+  display: inline-block;
+  letter-spacing: 2px;
+}
+
+.ab-match-vs {
+  font-style: italic;
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: #eab308;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.ab-match-card-footer {
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--ab-border);
+  font-size: 0.75rem;
+  color: var(--ab-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Player Squad Cards (Thẻ cầu thủ chuyên nghiệp) */
+.ab-player-card {
+  background: #ffffff;
+  border: 1px solid var(--ab-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--ab-shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.ab-player-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--ab-shadow-md);
+  border-color: var(--ab-primary-border);
+}
+
+.ab-player-card-photo {
+  height: 160px;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ab-player-card-number {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: rgba(15, 23, 42, 0.12);
+  line-height: 1;
+}
+
+.ab-player-card-body {
+  padding: 1rem 0.75rem;
+  flex-grow: 1;
+}
+
+.ab-player-card-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ab-dark);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.ab-player-card-pos {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--ab-primary-light);
+  color: var(--ab-primary);
+  border: 1px solid var(--ab-primary-border);
+}
+
+/* Team Public Profile Hero Banner */
+.ab-club-hero {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #064e3b 100%);
+  color: #ffffff;
+  padding: 2.5rem 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--ab-shadow-md);
+}
+
+@media (min-width: 768px) {
+  .ab-club-hero {
+    padding: 3.5rem 2.5rem;
+  }
+}

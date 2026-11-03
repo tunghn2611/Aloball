@@ -1,0 +1,27 @@
+@model AloBall.Web.Models.PlayerProfileInput
+@{ ViewData["Title"] = Model.Id.HasValue ? "Chỉnh sửa cầu thủ" : "Thêm cầu thủ"; }
+@await Html.PartialAsync("_TeamNavigation", Model.TeamId)
+<div class="workspace-heading"><div><span class="eyebrow">Cầu thủ & áo đấu</span><h1>@ViewData["Title"]</h1><p>Nhập một lần, dùng cho đội hình, đặt áo và Giữ Lửa.</p></div></div>
+<form method="post" class="arena-card editor-panel mx-auto" style="max-width:900px">
+    <input asp-for="Id" type="hidden" /><input asp-for="TeamId" type="hidden" />
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <section class="editor-section"><h2>01. Hồ sơ cầu thủ</h2><div class="row g-3 mt-1">
+        <div class="col-md-8"><label asp-for="FullName" class="form-label">Họ và tên</label><input asp-for="FullName" class="form-control" required maxlength="100" /></div>
+        <div class="col-md-4"><label asp-for="KitNumber" class="form-label">Số áo</label><input asp-for="KitNumber" class="form-control" min="0" max="999" /></div>
+        <div class="col-md-6"><label asp-for="Position" class="form-label">Vị trí thi đấu</label><select asp-for="Position" class="form-select"><option value="">Chưa chọn</option>@foreach(var position in new[]{"Thủ môn", "Hậu vệ", "Trung vệ", "Tiền vệ", "Tiền đạo"}) { <option>@position</option> }@if (!string.IsNullOrEmpty(Model.Position) && !new[]{"Thủ môn", "Hậu vệ", "Trung vệ", "Tiền vệ", "Tiền đạo"}.Contains(Model.Position)) { <option>@Model.Position</option> }</select></div>
+        <div class="col-6 col-md-3"><label asp-for="HeightCm" class="form-label">Chiều cao (cm)</label><input asp-for="HeightCm" type="number" step="0.1" min="50" max="250" class="form-control" /></div>
+        <div class="col-6 col-md-3"><label asp-for="WeightKg" class="form-label">Cân nặng (kg)</label><input asp-for="WeightKg" type="number" step="0.1" min="15" max="250" class="form-control" /></div>
+    </div></section>
+    <section class="editor-section"><h2>02. Thông tin đặt áo</h2><p>Xuất cả đội ra Excel khi cần đặt đồng phục.</p><div class="row g-3">
+        <div class="col-md-6"><label asp-for="ShirtName" class="form-label">Tên in trên áo</label><input asp-for="ShirtName" class="form-control" placeholder="NGUYEN AN" maxlength="50" /></div>
+        <div class="col-6 col-md-3"><label asp-for="ShirtSize" class="form-label">Size áo</label><input asp-for="ShirtSize" class="form-control" list="kitSizes" placeholder="M" maxlength="20" /></div>
+        <div class="col-6 col-md-3"><label asp-for="ShortSize" class="form-label">Size quần</label><input asp-for="ShortSize" class="form-control" list="kitSizes" placeholder="M" maxlength="20" /></div>
+        <datalist id="kitSizes">@foreach(var size in new[]{"XS","S","M","L","XL","XXL","3XL"}) { <option value="@size"></option> }</datalist>
+    </div></section>
+    <section class="editor-section"><h2>03. Trạng thái & công khai</h2><p>Thông tin đặt áo chỉ dùng trong nội bộ đội.</p><div class="row g-2">
+    @foreach(var field in new[]{ ("IsActive","Đang sinh hoạt cùng đội"), ("IsPublicProfile","Hiện trong danh sách công khai"), ("PublicKitNumber","Công khai số áo"), ("PublicPosition","Công khai vị trí"), ("PublicHeightWeight","Công khai chiều cao, cân nặng") }) {
+        <div class="col-md-6"><div class="form-check">@Html.CheckBox(field.Item1, (bool)Model.GetType().GetProperty(field.Item1)!.GetValue(Model)!, new { @class = "form-check-input", id = field.Item1 })<label for="@field.Item1" class="form-check-label">@field.Item2</label></div></div>
+    }
+    </div></section>
+    <div class="editor-footer"><a asp-action="Players" asp-route-teamId="@Model.TeamId" class="btn btn-arena-outline">Hủy</a><button type="submit" class="btn btn-arena-primary">Lưu cầu thủ</button></div>
+</form>

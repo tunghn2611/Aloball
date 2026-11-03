@@ -1,0 +1,220 @@
+@model AloBall.Web.Data.Entities.MatchmakingPost
+@{
+    bool isDirectChallenge = Model.PostType == AloBall.Web.Data.Entities.MatchmakingPostType.DirectChallenge;
+    ViewData["Title"] = isDirectChallenge ? $"Lời Mời Thách Đấu: {Model.Team.Name} vs {Model.TargetTeam?.Name}" : $"Kèo Giao Hữu: {Model.Team.Name}";
+    bool isHostManager = ViewBag.IsHostManager ?? false;
+    bool isTargetManager = ViewBag.IsTargetManager ?? false;
+    var managedTeams = ViewBag.ManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+}
+
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="page-heading">
+            <a asp-action="Index" class="btn btn-arena-outline btn-sm px-2 py-1"><i class="bi bi-arrow-left"></i></a>
+            <h1 class="fw-bold mb-0 text-dark">
+                @(isDirectChallenge ? "Chi Tiết Lời Mời Giao Hữu Đích Danh" : "Chi Tiết Kèo Giao Lưu")
+            </h1>
+        </div>
+
+        @if (isDirectChallenge)
+        {
+            <div class="alert alert-warning border-warning d-flex align-items-center gap-3 p-3 mb-3 rounded-3">
+                <i class="bi bi-shield-lock-fill fs-2 text-warning flex-shrink-0"></i>
+                <div>
+                    <h6 class="fw-bold text-dark mb-1">Kèo Thách Đấu Trực Tiếp (Riêng Tư)</h6>
+                    <span class="small text-muted">
+                        Kèo này được gửi đích danh từ <strong>@Model.Team.Name</strong> tới <strong>@(Model.TargetTeam?.Name ?? "Đội bạn")</strong> và không công khai trên Sàn tìm đối chung.
+                    </span>
+                </div>
+            </div>
+        }
+
+        <!-- Post Detail Card -->
+        <div class="read-only-note"><i class="bi bi-geo-alt me-2"></i>@(Model.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.HomePitch ? "Đội đăng tin đá sân nhà" : Model.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.AwayPitch ? "Đội đăng tin đi khách" : "Linh hoạt thỏa thuận sân")</div>
+        <div class="arena-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="arena-team-avatar">
+                        @Model.Team.Name.Substring(0, Math.Min(2, Model.Team.Name.Length))
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h3 class="fw-bold mb-0 text-dark">@Model.Team.Name</h3>
+                            @if (isDirectChallenge)
+                            {
+                                <span class="badge bg-warning text-dark border">
+                                    <i class="bi bi-arrow-right me-1"></i> Mời @Model.TargetTeam?.Name
+                                </span>
+                            }
+                        </div>
+                        <div class="text-warning small mt-1">
+                            <i class="bi bi-star-fill"></i> @Model.Team.AverageRating (@Model.Team.ValidReviewCount lượt đánh giá)
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    @if (isDirectChallenge)
+                    {
+                        <span class="badge bg-warning-subtle text-dark border border-warning px-3 py-2 rounded-pill fw-bold">
+                            <i class="bi bi-send-check me-1"></i> Lời Mời Đích Danh
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-info-subtle text-primary border border-info-subtle px-3 py-2 rounded-pill fw-bold">
+                            <i class="bi bi-globe me-1"></i> Kèo Công Khai
+                        </span>
+                    }
+                    <span class="badge @(Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open ? "bg-success" : "bg-secondary") fs-6 px-3 py-2 rounded-pill ms-1">
+                        @(Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open ? "Đang chờ phản hồi" : "Đã chốt kèo")
+                    </span>
+                </div>
+            </div>
+
+            <div class="p-3 bg-light rounded-3 mb-3">
+                <div class="row g-2">
+                    <div class="col-6 col-md-4">
+                        <small class="text-muted d-block">Ngày thi đấu</small>
+                        <strong class="text-dark">@Model.MatchDate.ToString("dd/MM/yyyy")</strong>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <small class="text-muted d-block">Khung giờ</small>
+                        <strong class="text-dark">@Model.StartTime.ToString(@"hh\:mm") - @Model.EndTime.ToString(@"hh\:mm")</strong>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <small class="text-muted d-block">Loại sân</small>
+                        <strong class="text-dark">Sân @Model.PitchType</strong>
+                    </div>
+                    <div class="col-12 col-md-6 mt-2">
+                        <small class="text-muted d-block">Địa điểm sân</small>
+                        <strong class="text-dark"><i class="bi bi-geo-alt-fill text-danger me-1"></i>@(Model.PitchName ?? Model.Area)</strong>
+                    </div>
+                    <div class="col-6 col-md-3 mt-2">
+                        <small class="text-muted d-block">Trình độ mong muốn</small>
+                        <strong class="text-primary">@Model.DesiredLevel</strong>
+                    </div>
+                    <div class="col-6 col-md-3 mt-2">
+                        <small class="text-muted d-block">Tiền sân</small>
+                        <strong class="text-success">@Model.CostSharing</strong>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Notes))
+            {
+                <div class="mb-3">
+                    <small class="text-muted d-block fw-semibold mb-1">Lời nhắn từ đội đăng:</small>
+                    <p class="text-dark fst-italic mb-0">"@Model.Notes"</p>
+                </div>
+            }
+
+            <!-- Nút gửi đề nghị thách đấu nếu không phải chủ bài đăng và là kèo công khai -->
+            @if (!isDirectChallenge && !isHostManager && Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open)
+            {
+                @if (User.Identity?.IsAuthenticated != true)
+                {
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-arena-primary w-100">
+                        Đăng nhập để gửi đề nghị giao lưu
+                    </a>
+                }
+                else if (managedTeams.Any())
+                {
+                    <div class="border-top pt-3">
+                        <h6 class="fw-bold text-dark mb-2">Gửi đề nghị thách đấu / giao lưu</h6>
+                        <form asp-action="SendProposal" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="postId" value="@Model.Id" />
+                            <div class="row g-2 mb-2">
+                                <div class="col-12 col-md-6">
+                                    <label class="small text-muted">Chọn đội của bạn:</label>
+                                    <select name="challengingTeamId" class="form-select" required>
+                                        @foreach (var t in managedTeams)
+                                        {
+                                            <option value="@t.Id">@t.Name (@t.AverageRating ⭐)</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <label class="small text-muted">Lời nhắn:</label>
+                                    <input type="text" name="message" class="form-control" placeholder="Bên em nhận kèo giao lưu nhé..." />
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-arena-primary w-100">Gửi Thách Đấu</button>
+                        </form>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info py-2 small mb-0">
+                        Bạn cần là Quản lý/Chủ sở hữu của một đội bóng không bị hạn chế để gửi đề nghị bắt đối.
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Danh sách Đề nghị giao lưu (Chủ bài đăng có thể Chốt đối thủ) -->
+        <div class="arena-card p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-envelope-paper-heart text-danger me-2"></i>Các đề nghị giao lưu (@Model.Proposals.Count)
+            </h5>
+
+            @if (!Model.Proposals.Any())
+            {
+                <div class="text-center py-4 bg-light rounded-3 text-muted small">
+                    Chưa có đội nào gửi đề nghị cho kèo này.
+                </div>
+            }
+            else
+            {
+                <div class="list-group list-group-flush">
+                    @foreach (var prop in Model.Proposals)
+                    {
+                        <div class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="fw-bold mb-0 text-dark">@prop.ChallengingTeam.Name</h6>
+                                    <span class="text-warning small"><i class="bi bi-star-fill"></i> @prop.ChallengingTeam.AverageRating</span>
+                                </div>
+                                <small class="text-muted">Gửi lúc: @prop.CreatedAt.ToString("dd/MM HH:mm")</small>
+                                @if (!string.IsNullOrEmpty(prop.Message))
+                                {
+                                    <p class="small text-dark mb-0 mt-1">"@prop.Message"</p>
+                                }
+                            </div>
+
+                            <div>
+                                @if (prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Accepted)
+                                {
+                                    <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">Đã Chốt</span>
+                                }
+                                else if (prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Pending && Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open)
+                                {
+                                    bool canAccept = (!isDirectChallenge && isHostManager) || (isDirectChallenge && isTargetManager);
+                                    if (canAccept)
+                                    {
+                                        <form asp-action="AcceptProposal" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="postId" value="@Model.Id" />
+                                            <input type="hidden" name="proposalId" value="@prop.Id" />
+                                            <button type="submit" class="btn btn-arena-primary btn-sm px-3" onclick="return confirm('@(isDirectChallenge ? "Bạn có đồng ý nhận lời mời thách đấu này và lên lịch thi đấu chính thức?" : "Bạn có chắc chắn muốn chốt đối với đội này?")')">
+                                                <i class="bi bi-check-lg me-1"></i> @(isDirectChallenge ? "Đồng Ý Nhận Kèo" : "Chốt Kèo Này")
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Chờ phản hồi</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">@prop.Status</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,40 @@
+@model List<AloBall.Web.Data.Entities.MatchGame>
+@using AloBall.Web.Data.Entities
+@{
+    var team = (Team)ViewBag.Team;
+    bool isManager = ViewBag.IsManager ?? false;
+    ViewData["Title"] = "Trận đấu & thành tích";
+    MatchCategory? category = ViewBag.Category;
+}
+@await Html.PartialAsync("_TeamNavigation", team.Id)
+<div class="workspace-heading"><div><span class="eyebrow">Hành trình của @team.Name</span><h1>Trận đấu & thành tích</h1><p>Mỗi trận đấu là một phần câu chuyện của đội.</p></div>@if(isManager) { <a asp-action="Schedule" asp-route-teamId="@team.Id" class="btn btn-arena-primary"><i class="bi bi-plus-lg"></i> Thêm trận đấu</a> }</div>
+<form method="get" class="d-flex gap-2 mb-3"><input type="hidden" name="teamId" value="@team.Id" /><label class="visually-hidden" for="category">Loại trận</label><select name="category" id="category" class="form-select" style="max-width:250px"><option value="">Tất cả trận đấu</option><option value="0" selected="@(category == MatchCategory.Internal)">Nội bộ hằng tuần</option><option value="1" selected="@(category == MatchCategory.Friendly)">Giao hữu đối ngoại</option><option value="2" selected="@(category == MatchCategory.Tournament)">Đá giải</option></select><button class="btn btn-arena-outline">Lọc</button></form>
+<div class="arena-card px-4">
+@if(!Model.Any()) { <div class="empty-state"><i class="bi bi-calendar2-event"></i><h3>Chưa có trận đấu</h3><p>Thêm trận giải hoặc tạo trận nội bộ từ một buổi sinh hoạt.</p><a asp-controller="Attendance" asp-action="Sessions" asp-route-teamId="@team.Id" class="btn btn-arena-outline">Đến lịch sinh hoạt</a></div> }
+@foreach(var match in Model) {
+    var title = match.Category == MatchCategory.Internal ? "Nội bộ · Bên A – Bên B" : $"{match.TeamA.Name} – {match.TeamB?.Name ?? match.TeamBExternalName}";
+    <article class="fixture-row"><div class="d-flex gap-3 align-items-center"><div class="date-chip"><strong>@match.MatchDateTime.ToString("dd")</strong><small>@match.MatchDateTime.ToString("MM/yyyy")</small></div><div><span class="eyebrow">@(match.Category == MatchCategory.Tournament ? "Đá giải" : match.Category == MatchCategory.Friendly ? "Giao hữu" : "Nội bộ")</span><div class="fw-bold">@title</div><div class="small text-muted">@match.MatchDateTime.ToString("HH:mm") · @match.PitchName</div>@if(!string.IsNullOrWhiteSpace(match.Notes)) { <div class="small text-muted">@match.Notes</div> }</div></div><div class="d-flex align-items-center gap-3">@if(match.Status == MatchStatus.Completed) { <span class="score-pill">@match.ScoreA : @match.ScoreB</span> } else { <span class="badge bg-light text-dark border">@(match.Status == MatchStatus.Cancelled ? "Đã hủy" : "Chờ kết quả")</span> }<a asp-action="Detail" asp-route-id="@match.Id" class="btn btn-arena-outline btn-sm">Chi tiết →</a></div></article>
+}
+</div>
+<div class="section-heading"><h2>Phòng truyền thống</h2><span class="small text-muted">@team.Achievements.Count thành tích</span></div>
+<div class="row g-3">
+@foreach(var award in team.Achievements.OrderByDescending(a=>a.IsFeatured).ThenByDescending(a=>a.SeasonOrYear)) {
+<div class="col-lg-6"><article class="award-card @(award.IsFeatured ? "featured" : "")"><span class="eyebrow">@(award.IsFeatured ? "Thành tích tốt nhất" : "Dấu mốc của đội") · @award.SeasonOrYear</span><h3 class="h5 fw-bold mt-2"><i class="bi bi-trophy me-2"></i>@award.TitleOrRank</h3><p class="mb-2">@award.TournamentName</p>
+@if(isManager) {
+    <details class="mt-3"><summary class="small text-success">Chỉnh sửa thành tích</summary><form asp-controller="Teams" asp-action="SaveAchievement" method="post" class="mt-3"><input type="hidden" name="Id" value="@award.Id" /><input type="hidden" name="TeamId" value="@team.Id" />
+    <label class="form-label" for="name_@award.Id">Tên giải</label><input id="name_@award.Id" name="TournamentName" value="@award.TournamentName" class="form-control mb-2" required />
+    <label class="form-label" for="year_@award.Id">Mùa giải</label><input id="year_@award.Id" name="SeasonOrYear" value="@award.SeasonOrYear" class="form-control mb-2" required />
+    <label class="form-label" for="rank_@award.Id">Danh hiệu</label><input id="rank_@award.Id" name="TitleOrRank" value="@award.TitleOrRank" class="form-control mb-2" required />
+    <div class="form-check"><input type="checkbox" id="featured_@award.Id" name="IsFeatured" value="true" checked="@award.IsFeatured" class="form-check-input" /><label for="featured_@award.Id" class="form-check-label">Thành tích tốt nhất</label></div><button class="btn btn-arena-primary btn-sm mt-2">Lưu thay đổi</button></form>
+    <form asp-controller="Teams" asp-action="DeleteAchievement" method="post" class="mt-2" onsubmit="return confirm('Xóa thành tích này?')"><input type="hidden" name="id" value="@award.Id" /><button class="btn btn-outline-danger btn-sm">Xóa thành tích</button></form></details>
+}
+</article></div> }
+@if(!team.Achievements.Any()) { <div class="col-12"><div class="arena-card empty-state"><i class="bi bi-award"></i><h3>Những chiếc cúp đang chờ đội bạn</h3><p class="mb-0">Lưu lại thành tích từng giải để mọi người cùng tự hào.</p></div></div> }
+</div>
+@if(isManager) {
+<details class="arena-card editor-panel mt-4"><summary class="fw-bold text-success">+ Thêm thành tích</summary><form asp-controller="Teams" asp-action="SaveAchievement" method="post" class="mt-3"><input type="hidden" name="TeamId" value="@team.Id" /><div class="row g-3">
+<div class="col-md-5"><label for="awardName" class="form-label">Tên giải</label><input id="awardName" name="TournamentName" class="form-control" required maxlength="150" /></div>
+<div class="col-md-3"><label for="awardYear" class="form-label">Mùa giải / năm</label><input id="awardYear" name="SeasonOrYear" class="form-control" required maxlength="40" /></div>
+<div class="col-md-4"><label for="awardRank" class="form-label">Danh hiệu / thứ hạng</label><input id="awardRank" name="TitleOrRank" class="form-control" placeholder="Vô địch, Á quân…" required maxlength="150" /></div>
+<div class="col-12"><div class="form-check"><input id="awardFeatured" type="checkbox" name="IsFeatured" value="true" class="form-check-input" /><label for="awardFeatured" class="form-check-label">Đánh dấu thành tích tốt nhất của đội</label></div></div></div><button class="btn btn-arena-primary mt-3">Lưu thành tích</button></form></details>
+}

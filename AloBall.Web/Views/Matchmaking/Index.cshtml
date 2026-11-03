@@ -1,0 +1,125 @@
+@model IEnumerable<AloBall.Web.Data.Entities.MatchmakingPost>
+@{
+    ViewData["Title"] = "Tìm đối giao lưu";
+    var managedTeams = ViewBag.ManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+}
+<header class="page-heading editorial-heading">
+    <div><span class="eyebrow">KẾT NỐI TRÊN SÂN</span><h1>Một trận hay.<br />Một người bạn mới.</h1><p>Tìm đội phù hợp và hẹn nhau một trận bóng đẹp.</p></div>
+    @if (User.Identity?.IsAuthenticated == true && managedTeams.Any())
+    { <button class="btn btn-arena-primary" data-bs-toggle="modal" data-bs-target="#newPostModal"><i class="bi bi-plus-lg"></i> Đăng lịch giao lưu</button> }
+</header>
+<div class="market-layout">
+    <aside class="market-filter arena-card">
+        <span class="eyebrow">CHỌN TRẬN CỦA BẠN</span><h2>Tìm lịch phù hợp</h2>
+        <form method="get" class="d-grid gap-3">
+            <div><label class="form-label" for="filterArea">Khu vực hoặc sân</label><input id="filterArea" name="area" value="@ViewBag.SelectedArea" class="form-control" placeholder="Ví dụ: Cầu Giấy" /></div>
+            <div><label class="form-label" for="filterDate">Ngày thi đấu</label><input id="filterDate" type="date" name="date" value="@ViewBag.SelectedDate" class="form-control" /></div>
+            <div><label class="form-label" for="filterPitch">Loại sân</label><select id="filterPitch" name="pitchType" class="form-select"><option value="">Tất cả loại sân</option>@foreach (var type in new[] { "5 người", "7 người", "11 người" }) { <option value="@type" selected="@(ViewBag.SelectedPitchType == type)">Sân @type</option> }</select></div>
+            <button class="btn btn-arena-dark" type="submit"><i class="bi bi-search"></i> Tìm trận</button><a asp-action="Index" class="text-center small text-muted">Xóa bộ lọc</a>
+        </form>
+        <div class="filter-note"><i class="bi bi-stars"></i><p>Giao lưu có trách nhiệm.<br />Đánh giá sau mỗi trận giúp cộng đồng tìm được những đối thủ phù hợp.</p></div>
+    </aside>
+    <section><div class="section-heading"><h2>Lịch đang tìm đối</h2><span class="count-tag">@Model.Count() lời hẹn</span></div>
+    @if (!Model.Any()) { <div class="arena-empty-state"><i class="bi bi-calendar2-plus"></i><h3>Chưa có lịch phù hợp</h3><p>Thử khu vực hoặc ngày khác, hoặc đăng lịch của đội bạn.</p></div> }
+    @foreach (var post in Model)
+    {
+        <article class="invitation-card">
+            <div class="invitation-date"><strong>@post.MatchDate.ToString("dd")</strong><span>THÁNG @post.MatchDate.ToString("MM")</span></div>
+            <div class="invitation-main"><div class="d-flex align-items-center gap-2 mb-2"><span class="badge bg-success-subtle text-success">Đang tìm đối</span><span class="small text-muted">@post.PitchType · @(post.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.AwayPitch ? "Đi khách" : post.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.HomePitch ? "Sân nhà" : "Linh hoạt")</span></div>
+                <h2>@post.Team.Name</h2><div class="invitation-meta"><span><i class="bi bi-clock"></i> @post.StartTime.ToString(@"hh\:mm") – @post.EndTime.ToString(@"hh\:mm")</span><span><i class="bi bi-geo-alt"></i> @(post.PitchName ?? post.Area)</span></div>
+                <div class="invitation-meta"><span>Trình độ: @post.DesiredLevel</span><span>Tiền sân: @post.CostSharing</span><span><i class="bi bi-star-fill"></i> @post.Team.AverageRating.ToString("0.0") · @post.Team.ValidReviewCount đánh giá</span></div>
+                @if (!string.IsNullOrWhiteSpace(post.Notes)) { <p class="small text-muted mt-2 mb-0">@post.Notes</p> }
+            </div>
+            <a asp-action="Details" asp-route-id="@post.Id" class="btn btn-arena-outline">Xem lịch <i class="bi bi-arrow-up-right"></i></a>
+        </article>
+    }
+    </section>
+</div>
+<!-- Modal Đăng Tin Tìm Đối Mới -->
+@if (User.Identity?.IsAuthenticated == true && managedTeams.Any())
+{
+    <div class="modal fade" id="newPostModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Đăng Tin Tìm Đối Giao Hữu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="CreatePost" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chọn đội bóng của bạn <span class="text-danger">*</span></label>
+                            <select name="teamId" class="form-select" required>
+                                @foreach (var t in managedTeams)
+                                {
+                                    <option value="@t.Id">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Ngày thi đấu <span class="text-danger">*</span></label>
+                                <input type="date" name="matchDate" class="form-control" value="@DateTime.Today.AddDays(2).ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label fw-semibold">Bắt đầu</label>
+                                <input type="time" name="startTime" class="form-control" value="19:30" required />
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label fw-semibold">Kết thúc</label>
+                                <input type="time" name="endTime" class="form-control" value="21:00" required />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Khu vực <span class="text-danger">*</span></label>
+                                <input type="text" name="area" class="form-control" placeholder="Cầu Giấy, Hà Nội" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Tên sân cụ thể</label>
+                                <input type="text" name="pitchName" class="form-control" placeholder="Sân PVV, Sân Thành Phát..." />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-4">
+                                <label class="form-label fw-semibold">Loại sân</label>
+                                <select name="pitchType" class="form-select">
+                                    <option value="7 người" selected>7 người</option>
+                                    <option value="5 người">5 người</option>
+                                    <option value="11 người">11 người</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label fw-semibold">Trình độ</label>
+                                <select name="desiredLevel" class="form-select">
+                                    <option value="Trung bình - Khá" selected>TB - Khá</option>
+                                    <option value="Trung bình yếu">TB yếu</option>
+                                    <option value="Khá cứng">Khá cứng</option>
+                                    <option value="Phủi">Phủi cứng</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label fw-semibold">Tiền sân</label>
+                                <select name="costSharing" class="form-select">
+                                    <option value="50-50" selected>Chia đôi 50/50</option>
+                                    <option value="Thua trả">Thua trả</option>
+                                    <option value="Bên mời trả">Bên mời trả</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Ghi chú & Thỏa thuận</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Giao lưu vui vẻ, sau trận trà đá/bia cỏ..."></textarea>
+                        </div>
+                        <div class="mb-3"><label for="postPitchArrangement" class="form-label">Sân nhà hay đi khách?</label><select id="postPitchArrangement" name="pitchArrangement" class="form-select"><option value="2">Linh hoạt thỏa thuận</option><option value="0">Đá sân nhà</option><option value="1">Đi khách</option></select><div class="form-text">Chọn sân nhà: nhập tên sân hoặc dùng sân đã lưu trong hồ sơ đội.</div></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">Đăng Kèo Ngay</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

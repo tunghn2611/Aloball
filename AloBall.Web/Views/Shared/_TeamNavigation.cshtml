@@ -1,0 +1,12 @@
+@model Guid
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+}
+<nav class="club-nav" aria-label="Quản lý đội bóng">
+    <a class="@(controller == "Teams" && action == "Dashboard" ? "active" : "")" asp-controller="Teams" asp-action="Dashboard" asp-route-id="@Model"><i class="bi bi-grid-1x2"></i> Tổng quan</a>
+    <a class="@(controller == "Teams" && (action == "Players" || action == "PlayerEditor") ? "active" : "")" asp-controller="Teams" asp-action="Players" asp-route-teamId="@Model"><i class="bi bi-people"></i> Cầu thủ & áo đấu</a>
+    <a class="@(controller == "Attendance" ? "active" : "")" asp-controller="Attendance" asp-action="Sessions" asp-route-teamId="@Model"><i class="bi bi-calendar-week"></i> Sinh hoạt</a>
+    <a class="@(controller == "Matches" ? "active" : "")" asp-controller="Matches" asp-action="Index" asp-route-teamId="@Model"><i class="bi bi-trophy"></i> Trận đấu & giải</a>
+    <a class="@(controller == "FireKeeping" ? "active" : "")" asp-controller="FireKeeping" asp-action="Index" asp-route-teamId="@Model"><i class="bi bi-fire"></i> Giữ Lửa</a>
+</nav>

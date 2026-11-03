@@ -1,0 +1,643 @@
+@model AloBall.Web.Data.Entities.MatchGame
+@{
+    var teamAPlayers = Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999).ToList();
+    var allFormations = AloBall.Web.Services.TeamDivision.FormationRegistry.AllFormations;
+    var currentFormation = AloBall.Web.Services.TeamDivision.FormationRegistry.GetByCode(Model.FormationCode, Model.PitchType);
+}
+
+<div class="division-studio mb-4" id="divisionContainer">
+    <!-- Header & Action Controls -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <span class="eyebrow">BẢNG CHIẾN THUẬT</span><h2 class="mt-2">Chia đội. Sẵn sàng ra sân.</h2>
+            <small class="text-muted">Cân bằng vị trí theo sơ đồ chiến thuật & Khóa người & Quản lý dự bị</small>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSettingsModal()" style="min-height: 44px;">
+                <i class="bi bi-gear-fill me-1"></i> Thiết lập quân số
+            </button>
+            <button type="button" class="btn btn-arena-outline btn-sm fw-semibold" id="btnRunDivision" onclick="runAutoDivision()" style="min-height: 44px;">
+                <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Chia đội tự động
+            </button>
+            <button type="button" class="btn btn-arena-primary btn-sm px-3 fw-bold shadow-sm" id="btnConfirmDivision" onclick="saveConfirmedDivision()" style="min-height: 44px;">
+                <i class="bi bi-floppy-fill me-1"></i> Lưu đội hình
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Banner / Diagnostic Message -->
+    <div id="divisionAlert" class="alert d-none py-2 px-3 mb-3 small" role="alert"></div>
+
+    <!-- Sơ đồ chiến thuật & Thông tin tỷ lệ sở trường -->
+    <div class="row g-2 align-items-center mb-3">
+        <div class="col-12 col-md-5">
+            <label for="selFormation" class="form-label small fw-bold mb-1">Sơ đồ thi đấu:</label>
+            <select id="selFormation" class="form-select form-select-sm" style="min-height: 44px;" onchange="onFormationChange()">
+                @foreach (var f in allFormations)
+                {
+                    if (f.Code == currentFormation.Code)
+                    {
+                        <option value="@f.Code" data-capacity="@(f.PlayersPerSide * 2)" selected>@f.Name (@f.PitchType - @(f.PlayersPerSide * 2) người đá chính)</option>
+                    }
+                    else
+                    {
+                        <option value="@f.Code" data-capacity="@(f.PlayersPerSide * 2)">@f.Name (@f.PitchType - @(f.PlayersPerSide * 2) người đá chính)</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <div class="col-12 col-md-7">
+            <div class="p-2 bg-white rounded border d-flex justify-content-around text-center small">
+                <div>
+                    <span class="text-muted d-block">Đá chính</span>
+                    <strong class="text-primary fs-6" id="txtStarterCount">@(currentFormation.PlayersPerSide * 2)</strong>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <span class="text-muted d-block">Dự bị</span>
+                    <strong class="text-warning fs-6" id="txtSubCount">0</strong>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <span class="text-muted d-block">Đúng sở trường</span>
+                    <strong class="text-success fs-6" id="txtPrimaryRatio">--</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tap-to-Swap Banner 안내 (khi đang chọn 1 cầu thủ) -->
+    <div id="swapNotice" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between">
+        <div class="small">
+            <i class="bi bi-arrow-left-right me-1"></i> Đang chọn: <strong id="swapSourceName">--</strong>. Hãy chạm vào cầu thủ thứ hai để hoán đổi!
+        </div>
+        <button type="button" class="btn btn-sm btn-link text-decoration-none py-0" onclick="cancelSwapSelection()">Hủy</button>
+    </div>
+
+    <!-- Mobile Navigation Tabs (Touch-friendly >= 44px) -->
+    <ul class="nav nav-pills nav-fill mb-3 d-md-none" id="divisionTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold py-2" id="tab-sideA" data-bs-toggle="pill" data-bs-target="#pane-sideA" type="button" role="tab" style="min-height: 44px;">
+                Bên A <span class="badge bg-primary ms-1" id="badgeCountA">0</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-2" id="tab-sideB" data-bs-toggle="pill" data-bs-target="#pane-sideB" type="button" role="tab" style="min-height: 44px;">
+                Bên B <span class="badge bg-warning text-dark ms-1" id="badgeCountB">0</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-2" id="tab-subs" data-bs-toggle="pill" data-bs-target="#pane-subs" type="button" role="tab" style="min-height: 44px;">
+                Dự bị <span class="badge bg-secondary ms-1" id="badgeCountSub">0</span>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Division Lineup Slots Container -->
+    <div class="tab-content" id="divisionTabContent">
+        <!-- Desktop Grid / Mobile Tab Panes -->
+        <div class="row g-3">
+            <!-- Cột Bên A -->
+            <div class="col-12 col-md-5 tab-pane fade show active d-md-block" id="pane-sideA" role="tabpanel">
+                <div class="card border-primary-subtle shadow-sm h-100">
+                    <div class="card-header bg-primary-subtle text-primary fw-bold py-2 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)</span>
+                        <span class="badge bg-primary" id="headerCountA">0</span>
+                    </div>
+                    <div class="card-body p-2" id="slotsAContainer" style="min-height: 250px;">
+                        <!-- Slots dynamically rendered via JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột Bên B -->
+            <div class="col-12 col-md-5 tab-pane fade d-md-block" id="pane-sideB" role="tabpanel">
+                <div class="card border-warning-subtle shadow-sm h-100">
+                    <div class="card-header bg-warning-subtle text-dark fw-bold py-2 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)</span>
+                        <span class="badge bg-warning text-dark" id="headerCountB">0</span>
+                    </div>
+                    <div class="card-body p-2" id="slotsBContainer" style="min-height: 250px;">
+                        <!-- Slots dynamically rendered via JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cột Dự bị -->
+            <div class="col-12 col-md-2 tab-pane fade d-md-block" id="pane-subs" role="tabpanel">
+                <div class="card border-secondary-subtle shadow-sm h-100">
+                    <div class="card-header bg-light text-muted fw-bold py-2 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-person-fill-gear me-1"></i> Dự bị</span>
+                        <span class="badge bg-secondary" id="headerCountSub">0</span>
+                    </div>
+                    <div class="card-body p-2" id="subsContainer" style="min-height: 250px;">
+                        <!-- Substitutes rendered via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Thiết lập quân số tham gia & Chỉ định dự bị -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold text-dark">
+                    <i class="bi bi-people-fill text-primary me-2"></i>Chọn Danh Sách Tham Gia & Dự Bị
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div id="participantGuidance" class="alert alert-info py-2 small mb-3" role="status" aria-live="polite"></div>
+                <p class="small text-muted">Tích Dự bị cho người vào sân sau. Bỏ tích Tham gia nếu cầu thủ vắng mặt. Có thể đổi sơ đồ bên ngoài nếu muốn tăng số người đá chính.</p>
+
+                <div class="table-responsive" style="max-height: 350px;">
+                    <table class="table table-sm table-hover align-middle small mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width: 44px;" class="text-center">Tham gia</th>
+                                <th>Cầu thủ</th>
+                                <th>Vị trí sở trường</th>
+                                <th style="width: 80px;" class="text-center">Dự bị</th>
+                                <th style="width: 110px;" class="text-center">Khóa bên</th>
+                                <th style="width: 120px;" class="text-center">Khóa vị trí</th>
+                            </tr>
+                        </thead>
+                        <tbody id="participantTableBody">
+                            @foreach (var p in teamAPlayers)
+                            {
+                                var existingLineup = Model.Lineups.FirstOrDefault(l => l.PlayerId == p.Id);
+                                bool isParticipant = existingLineup != null || !Model.Lineups.Any();
+                                bool isSub = existingLineup != null && !existingLineup.IsStarting;
+                                // A saved assignment is not a manager-requested lock for the next draw.
+                                string lockedSide = "";
+                                string lockedSlot = "";
+
+                                <tr id="row-p-@p.Id" data-player-id="@p.Id" data-player-name="@p.FullName">
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input chk-participant" aria-label="Tham gia: @p.FullName" value="@p.Id" @(isParticipant ? "checked" : "") style="width: 22px; height: 22px;" onchange="updateParticipantStats()" />
+                                    </td>
+                                    <td>
+                                        <strong>#@(p.KitNumber?.ToString() ?? "-") @p.FullName</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">@(p.Position ?? "Chưa rõ")</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input chk-substitute" aria-label="Dự bị: @p.FullName" value="@p.Id" @(isSub ? "checked" : "") style="width: 22px; height: 22px;" onchange="updateParticipantStats()" />
+                                    </td>
+                                    <td class="text-center">
+                                        <select class="form-select form-select-sm sel-lock-side">
+                                            <option value="">--</option>
+                                            <option value="A" selected="@(lockedSide == "A")">Bên A</option>
+                                            <option value="B" selected="@(lockedSide == "B")">Bên B</option>
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <select class="form-select form-select-sm sel-lock-slot">
+                                            <option value="">--</option>
+                                            <option value="GK" selected="@(lockedSlot == "GK")">Thủ môn (GK)</option>
+                                            <option value="CB_L" selected="@(lockedSlot == "CB_L")">Hậu vệ T</option>
+                                            <option value="CB_R" selected="@(lockedSlot == "CB_R")">Hậu vệ P</option>
+                                            <option value="MF_L" selected="@(lockedSlot == "MF_L")">Tiền vệ T</option>
+                                            <option value="MF_C" selected="@(lockedSlot == "MF_C")">Tiền vệ Giữa</option>
+                                            <option value="MF_R" selected="@(lockedSlot == "MF_R")">Tiền vệ P</option>
+                                            <option value="FW" selected="@(lockedSlot == "FW")">Tiền đạo</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between py-2">
+                <div class="small">
+                    Đã chọn tham gia: <strong class="text-primary" id="modalCountSelected">0</strong> | Dự bị: <strong class="text-warning" id="modalCountSubs">0</strong>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-arena-outline btn-sm" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" id="btnApplyParticipants" class="btn btn-arena-primary btn-sm px-4 fw-bold" onclick="applyParticipantsAndDivide()">Xác nhận & chia đội</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State management
+    const matchId = '@Model.Id';
+    let currentRevision = @Model.LineupRevision;
+    let currentFormationCode = '@currentFormation.Code';
+    let selectedPlayerForSwap = null; // { playerId, side, slotCode, name }
+
+    // Dữ liệu đội hình đang hiển thị (in-memory state)
+    let stateSideA = []; // Array of { slotCode, slotName, category, playerId, playerName, kitNumber, isPrimary, isSecondary, isLockedSide, isLockedSlot }
+    let stateSideB = [];
+    let stateSubs = [];  // Array of { playerId, playerName, kitNumber, designatedSide }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        initInitialState();
+        updateParticipantStats();
+    });
+
+    function initInitialState() {
+        // Nạp từ Model.Lineups hiện có
+        @foreach (var l in Model.Lineups)
+        {
+            if (l.IsStarting && l.TeamSide == "A")
+            {
+                <text>
+                stateSideA.push({
+                    slotCode: '@(l.AssignedSlotCode ?? "SLOT")',
+                    slotName: '@(l.AssignedPosition ?? l.AssignedSlotCode ?? "Vị trí")',
+                    category: 'MF',
+                    playerId: '@l.PlayerId',
+                    playerName: '@Html.Raw(l.Player?.FullName ?? "")',
+                    kitNumber: @(l.Player?.KitNumber?.ToString() ?? "null"),
+                    isPrimary: true,
+                    isSecondary: false,
+                    isLockedSide: false,
+                    isLockedSlot: false
+                });
+                </text>
+            }
+            else if (l.IsStarting && l.TeamSide == "B")
+            {
+                <text>
+                stateSideB.push({
+                    slotCode: '@(l.AssignedSlotCode ?? "SLOT")',
+                    slotName: '@(l.AssignedPosition ?? l.AssignedSlotCode ?? "Vị trí")',
+                    category: 'MF',
+                    playerId: '@l.PlayerId',
+                    playerName: '@Html.Raw(l.Player?.FullName ?? "")',
+                    kitNumber: @(l.Player?.KitNumber?.ToString() ?? "null"),
+                    isPrimary: true,
+                    isSecondary: false,
+                    isLockedSide: false,
+                    isLockedSlot: false
+                });
+                </text>
+            }
+            else if (!l.IsStarting)
+            {
+                <text>
+                stateSubs.push({
+                    playerId: '@l.PlayerId',
+                    playerName: '@Html.Raw(l.Player?.FullName ?? "")',
+                    kitNumber: @(l.Player?.KitNumber?.ToString() ?? "null"),
+                    designatedSide: '@(l.TeamSide ?? "")'
+                });
+                </text>
+            }
+        }
+
+        renderAllSlots();
+    }
+
+    function toggleSettingsModal() {
+        updateParticipantStats();
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('settingsModal'));
+        modal.show();
+    }
+
+    function applyParticipantsAndDivide() {
+        if (!updateParticipantStats()) return;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('settingsModal')).hide();
+        runAutoDivision();
+    }
+
+    function onFormationChange() {
+        currentFormationCode = document.getElementById('selFormation').value;
+        runAutoDivision();
+    }
+
+    function updateParticipantStats() {
+        document.querySelectorAll('#participantTableBody tr').forEach(row => {
+            const participating = row.querySelector('.chk-participant').checked;
+            const substitute = row.querySelector('.chk-substitute');
+            if (!participating) substitute.checked = false;
+            substitute.disabled = !participating;
+        });
+        const checkedParticipants = document.querySelectorAll('.chk-participant:checked');
+        const checkedSubs = document.querySelectorAll('.chk-substitute:checked');
+
+        const totalSelected = checkedParticipants.length;
+        const totalSubs = checkedSubs.length;
+
+        document.getElementById('modalCountSelected').innerText = totalSelected;
+        document.getElementById('modalCountSubs').innerText = totalSubs;
+        const capacity = Number(document.getElementById('selFormation').selectedOptions[0].dataset.capacity);
+        const starters = totalSelected - totalSubs;
+        const difference = starters - capacity;
+        const guidance = document.getElementById('participantGuidance');
+        const summary = `${totalSelected} người tham gia · ${starters}/${capacity} suất đá chính · ${totalSubs} dự bị. `;
+        guidance.textContent = summary + (difference > 0
+            ? `Chọn thêm ${difference} người dự bị để tiếp tục chia đội.`
+            : difference < 0
+                ? `Cần thêm ${-difference} người đá chính: chọn thêm người tham gia, bỏ chọn dự bị hoặc đổi sơ đồ.`
+                : 'Đã đủ quân số. Sẵn sàng chia đội.');
+        guidance.className = `alert alert-${difference === 0 ? 'success' : 'info'} py-2 small mb-3`;
+        document.getElementById('btnApplyParticipants').disabled = difference !== 0;
+        return difference === 0;
+    }
+
+    // 1. Chạy chia đội tự động (AJAX Call to MatchesController.PreviewAutoDivision)
+    async function runAutoDivision() {
+        showAlert(null);
+        if (!updateParticipantStats()) {
+            toggleSettingsModal();
+            return;
+        }
+        const btn = document.getElementById('btnRunDivision');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tính toán...';
+
+        showAlert(null);
+
+        // Thu thập danh sách tham gia, dự bị và khóa từ modal/table
+        const participantIds = [];
+        const explicitSubIds = [];
+        const lockedSides = {};
+        const lockedSlots = {};
+
+        document.querySelectorAll('#participantTableBody tr').forEach(row => {
+            const pId = row.dataset.playerId;
+            const isPart = row.querySelector('.chk-participant').checked;
+            const isSub = row.querySelector('.chk-substitute').checked;
+            const side = row.querySelector('.sel-lock-side').value;
+            const slot = row.querySelector('.sel-lock-slot').value;
+
+            if (isPart) {
+                participantIds.push(pId);
+                if (isSub) explicitSubIds.push(pId);
+                if (side) lockedSides[pId] = side;
+                if (slot) lockedSlots[pId] = slot;
+            }
+        });
+
+        try {
+            const res = await fetch('/Matches/PreviewAutoDivision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    matchId: matchId,
+                    formationCode: document.getElementById('selFormation').value,
+                    participantPlayerIds: participantIds,
+                    explicitSubstitutePlayerIds: explicitSubIds,
+                    lockedTeamSides: lockedSides,
+                    lockedSlotCodes: lockedSlots,
+                    seed: Math.floor(Math.random() * 100000)
+                })
+            });
+
+            const json = await res.json();
+            if (json.success && json.data) {
+                const data = json.data;
+                stateSideA = data.teamASlots;
+                stateSideB = data.teamBSlots;
+                stateSubs = data.substitutes;
+
+                renderAllSlots();
+                showAlert(`Chia đội thành công! Đã tối ưu ${data.totalPrimaryMatches} vị trí đúng sở trường chính.`, 'success');
+
+                const totalStarters = stateSideA.length + stateSideB.length;
+                document.getElementById('txtPrimaryRatio').innerText = `${data.totalPrimaryMatches}/${totalStarters}`;
+            } else {
+                const msg = json.data?.diagnosticMessage || json.message || 'Không thể chia đội thỏa mãn.';
+                const suggestions = json.data?.remediationSuggestions?.join(' ') || '';
+                showAlert(`${msg} ${suggestions}`, 'danger');
+            }
+        } catch (err) {
+            showAlert('Lỗi kết nối máy chủ: ' + err.message, 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-lightning-charge-fill text-warning me-1"></i> Chia đội tự động';
+        }
+    }
+
+    // 2. Render trực quan các ô vị trí (Touch targets >= 44px)
+    function renderAllSlots() {
+        const contA = document.getElementById('slotsAContainer');
+        const contB = document.getElementById('slotsBContainer');
+        const contSub = document.getElementById('subsContainer');
+
+        contA.innerHTML = stateSideA.map((s, idx) => renderSlotItem(s, 'A', idx)).join('');
+        contB.innerHTML = stateSideB.map((s, idx) => renderSlotItem(s, 'B', idx)).join('');
+        contSub.innerHTML = stateSubs.map((s, idx) => renderSubItem(s, idx)).join('');
+
+        document.getElementById('headerCountA').innerText = `${stateSideA.length} người`;
+        document.getElementById('headerCountB').innerText = `${stateSideB.length} người`;
+        document.getElementById('headerCountSub').innerText = `${stateSubs.length} người`;
+
+        document.getElementById('badgeCountA').innerText = stateSideA.length;
+        document.getElementById('badgeCountB').innerText = stateSideB.length;
+        document.getElementById('badgeCountSub').innerText = stateSubs.length;
+
+        document.getElementById('txtStarterCount').innerText = stateSideA.length + stateSideB.length;
+        document.getElementById('txtSubCount').innerText = stateSubs.length;
+    }
+
+    function renderSlotItem(s, side, idx) {
+        const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === s.playerId;
+        const borderClass = isSelected ? 'border-primary border-2 shadow-sm bg-primary-subtle' : 'border';
+        const primaryBadge = s.isPrimaryPosition 
+            ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Đúng vị trí</span>' 
+            : '<span class="badge bg-warning-subtle text-dark border border-warning-subtle">Vị trí phụ</span>';
+
+        return `
+            <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center cursor-pointer player-touch-card" 
+                 style="min-height: 48px; background-color: #fff;"
+                 onclick="handleTapPlayer('${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-dark rounded-circle px-2 py-1" style="min-width: 26px;">#${s.kitNumber ?? '-'}</span>
+                    <div>
+                        <strong class="text-dark d-block">${escapeHtml(s.playerName)}</strong>
+                        <small class="text-muted"><span class="badge bg-light text-secondary border me-1">${s.slotCode}</span> ${s.slotName}</small>
+                    </div>
+                </div>
+                <div class="text-end">
+                    ${primaryBadge}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSubItem(s, idx) {
+        const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === s.playerId;
+        const borderClass = isSelected ? 'border-primary border-2 shadow-sm bg-primary-subtle' : 'border';
+
+        return `
+            <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center cursor-pointer player-touch-card"
+                 style="min-height: 48px; background-color: #f8f9fa;"
+                 onclick="handleTapPlayer('${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')">
+                <div>
+                    <strong class="text-dark d-block">#${s.kitNumber ?? '-'} ${escapeHtml(s.playerName)}</strong>
+                    <span class="badge bg-secondary">Dự bị</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // 3. Cơ chế Chạm để đổi (Tap-to-Swap)
+    function handleTapPlayer(playerId, side, slotCode, name) {
+        if (!selectedPlayerForSwap) {
+            // Chọn người thứ nhất
+            selectedPlayerForSwap = { playerId, side, slotCode, name };
+            document.getElementById('swapSourceName').innerText = name;
+            document.getElementById('swapNotice').classList.remove('d-none');
+            document.getElementById('swapNotice').classList.add('d-flex');
+            renderAllSlots();
+            return;
+        }
+
+        // Đã có người thứ nhất, chạm người thứ hai -> Hoán đổi
+        if (selectedPlayerForSwap.playerId === playerId) {
+            cancelSwapSelection();
+            return;
+        }
+
+        executeSwap(selectedPlayerForSwap, { playerId, side, slotCode, name });
+        cancelSwapSelection();
+    }
+
+    function cancelSwapSelection() {
+        selectedPlayerForSwap = null;
+        document.getElementById('swapNotice').classList.add('d-none');
+        document.getElementById('swapNotice').classList.remove('d-flex');
+        renderAllSlots();
+    }
+
+    function executeSwap(first, second) {
+        // Hoán đổi giữa 2 vị trí đá chính hoặc giữa đá chính và dự bị
+        let p1 = null, p2 = null;
+
+        // Tìm đối tượng p1
+        if (first.side === 'A') p1 = stateSideA.find(x => x.playerId === first.playerId);
+        else if (first.side === 'B') p1 = stateSideB.find(x => x.playerId === first.playerId);
+        else p1 = stateSubs.find(x => x.playerId === first.playerId);
+
+        // Tìm đối tượng p2
+        if (second.side === 'A') p2 = stateSideA.find(x => x.playerId === second.playerId);
+        else if (second.side === 'B') p2 = stateSideB.find(x => x.playerId === second.playerId);
+        else p2 = stateSubs.find(x => x.playerId === second.playerId);
+
+        if (!p1 || !p2) return;
+
+        // Nếu cả 2 đều đá chính
+        if (first.side !== 'SUB' && second.side !== 'SUB') {
+            const tempId = p1.playerId;
+            const tempName = p1.playerName;
+            const tempKit = p1.kitNumber;
+
+            p1.playerId = p2.playerId;
+            p1.playerName = p2.playerName;
+            p1.kitNumber = p2.kitNumber;
+
+            p2.playerId = tempId;
+            p2.playerName = tempName;
+            p2.kitNumber = tempKit;
+        } else if (first.side !== 'SUB' && second.side === 'SUB') {
+            // p1 đá chính, p2 dự bị -> Hoán đổi người
+            const starter = p1;
+            const sub = p2;
+
+            const tempId = starter.playerId;
+            const tempName = starter.playerName;
+            const tempKit = starter.kitNumber;
+
+            starter.playerId = sub.playerId;
+            starter.playerName = sub.playerName;
+            starter.kitNumber = sub.kitNumber;
+
+            sub.playerId = tempId;
+            sub.playerName = tempName;
+            sub.kitNumber = tempKit;
+        } else if (first.side === 'SUB' && second.side !== 'SUB') {
+            // p1 dự bị, p2 đá chính
+            const sub = p1;
+            const starter = p2;
+
+            const tempId = starter.playerId;
+            const tempName = starter.playerName;
+            const tempKit = starter.kitNumber;
+
+            starter.playerId = sub.playerId;
+            starter.playerName = sub.playerName;
+            starter.kitNumber = sub.kitNumber;
+
+            sub.playerId = tempId;
+            sub.playerName = tempName;
+            sub.kitNumber = tempKit;
+        }
+
+        renderAllSlots();
+        showAlert(`Đã hoán đổi vị trí giữa ${first.name} và ${second.name}.`, 'info');
+    }
+
+    // 4. Lưu chính thức đội hình (ConfirmInternalDivision)
+    async function saveConfirmedDivision() {
+        const btn = document.getElementById('btnConfirmDivision');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang lưu...';
+
+        const assignments = [];
+        stateSideA.forEach(s => assignments.push({ playerId: s.playerId, teamSide: 'A', slotCode: s.slotCode }));
+        stateSideB.forEach(s => assignments.push({ playerId: s.playerId, teamSide: 'B', slotCode: s.slotCode }));
+
+        const subs = stateSubs.map(s => ({ playerId: s.playerId, designatedSide: s.designatedSide || null }));
+
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+        try {
+            const res = await fetch('/Matches/ConfirmInternalDivision', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({
+                    matchId: matchId,
+                    formationCode: currentFormationCode,
+                    expectedRevision: currentRevision,
+                    submissionToken: crypto.randomUUID(),
+                    assignments: assignments,
+                    substitutes: subs
+                })
+            });
+
+            const json = await res.json();
+            if (json.success) {
+                currentRevision = json.newRevision;
+                showAlert('Đã lưu đội hình chia đội thành công vào hệ thống!', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert(json.message || 'Lỗi khi lưu đội hình.', 'danger');
+            }
+        } catch (err) {
+            showAlert('Lỗi kết nối khi lưu: ' + err.message, 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-floppy-fill me-1"></i> Lưu đội hình';
+        }
+    }
+
+    function showAlert(msg, type = 'info') {
+        const el = document.getElementById('divisionAlert');
+        if (!msg) {
+            el.classList.add('d-none');
+            return;
+        }
+        el.className = `alert alert-${type} py-2 px-3 mb-3 small d-block`;
+        el.innerHTML = msg;
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+</script>

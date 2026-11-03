@@ -1,0 +1,101 @@
+@model IEnumerable<AloBall.Web.Data.Entities.ReviewDisputeAppeal>
+@{
+    ViewData["Title"] = "Platform Admin - Quản Trị Đánh Giá & Blacklist";
+    var blacklistedTeams = ViewBag.BlacklistedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ CỘNG ĐỒNG</span><h1>Giữ sân chơi công bằng.</h1>
+        <p class="text-muted small mb-0">Xử lý khiếu nại đánh giá đối thủ, điều phối và gỡ Blacklist</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Danh sách Đội Bị Blacklist -->
+    <div class="col-12 col-lg-5">
+        <div class="arena-card p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-slash-circle-fill text-danger me-2"></i>Đội Bị Hạn Chế Bắt Đối (@blacklistedTeams.Count())
+            </h5>
+            @if (!blacklistedTeams.Any())
+            {
+                <div class="text-center py-4 text-muted small bg-light rounded-3">
+                    Hiện không có đội bóng nào bị hạn chế bắt đối.
+                </div>
+            }
+            else
+            {
+                <div class="list-group list-group-flush">
+                    @foreach (var t in blacklistedTeams)
+                    {
+                        <div class="list-group-item px-0 py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark">@t.Name</h6>
+                                <span class="badge bg-danger">Blacklisted</span>
+                            </div>
+                            <small class="text-danger d-block mt-1">Lý do: @t.MatchmakingRestrictionReason</small>
+                            <small class="text-muted">Đánh giá TB: @t.AverageRating ⭐ (@t.ValidReviewCount lượt)</small>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Danh sách Khiếu nại Cần Xử lý -->
+    <div class="col-12 col-lg-7">
+        <div class="arena-card p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Yêu Cầu Giải Trình & Khiếu Nại
+            </h5>
+            @if (!Model.Any())
+            {
+                <div class="text-center py-4 text-muted small bg-light rounded-3">
+                    Chưa có khiếu nại nào từ các đội bóng.
+                </div>
+            }
+            else
+            {
+                @foreach (var appeal in Model)
+                {
+                    <div class="border rounded-3 p-3 mb-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">CLB Khiếu Nại: @appeal.Team.Name</h6>
+                                <small class="text-muted">Trận gặp: @appeal.Review.ReviewerTeam.Name (@appeal.CreatedAt.ToString("dd/MM/yyyy HH:mm"))</small>
+                            </div>
+                            <span class="badge @(appeal.IsResolved ? "bg-success" : "bg-warning text-dark")">
+                                @(appeal.IsResolved ? "Đã xử lý" : "Chờ thẩm định")
+                            </span>
+                        </div>
+
+                        <div class="p-2 bg-white rounded-2 mb-2 small">
+                            <div><strong>Nội dung đánh giá đối thủ (1 sao):</strong> "@appeal.Review.Comment"</div>
+                            <div class="mt-1 text-primary"><strong>Giải trình của đội:</strong> "@appeal.AppealReason"</div>
+                        </div>
+
+                        @if (!appeal.IsResolved)
+                        {
+                            <form asp-action="ResolveAppeal" method="post" class="mt-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="appealId" value="@appeal.Id" />
+                                <div class="mb-2">
+                                    <input type="text" name="adminNote" class="form-control form-control-sm" placeholder="Ghi chú thẩm định của Platform Admin..." required />
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" name="invalidateReview" value="true" class="btn btn-success btn-sm flex-grow-1">
+                                        <i class="bi bi-check-lg me-1"></i> Chấp Thuận & Vô Hiệu 1 Sao (Gỡ Blacklist)
+                                    </button>
+                                    <button type="submit" name="invalidateReview" value="false" class="btn btn-outline-danger btn-sm flex-grow-1">
+                                        <i class="bi bi-x-lg me-1"></i> Bác Khiếu Nại (Giữ Blacklist)
+                                    </button>
+                                </div>
+                            </form>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>

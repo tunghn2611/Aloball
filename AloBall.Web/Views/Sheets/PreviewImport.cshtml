@@ -1,0 +1,85 @@
+@model List<AloBall.Web.Services.SheetsImportPreviewItem>
+@{
+    Guid teamId = ViewBag.TeamId;
+    ViewData["Title"] = "Xem Trước Thay Đổi Nhập Excel";
+}
+
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="page-heading">
+            <a asp-controller="Teams" asp-action="Players" asp-route-teamId="@teamId" class="btn btn-arena-outline btn-sm px-2 py-1"><i class="bi bi-arrow-left"></i></a>
+            <h1 class="fw-bold mb-0 text-dark">Xem Trước (Preview) Dữ Liệu Từ Excel</h1>
+        </div>
+
+        <div class="arena-card p-4">
+            <div class="alert alert-info py-2 small mb-3">
+                <i class="bi bi-info-circle-fill me-1"></i> Hệ thống chỉ kiểm tra các thay đổi về <strong>Tên in áo</strong>, <strong>Size áo</strong>, <strong>Size quần</strong> và ánh xạ bằng <strong>PlayerId</strong> chính xác. Các ô trống hoặc dòng bị xóa trên Excel không làm mất dữ liệu gốc của đội bóng.
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="text-center py-4 text-muted">
+                    Không tìm thấy sự thay đổi nào so với dữ liệu hiện tại trong hệ thống.
+                </div>
+            }
+            else
+            {
+                <form asp-action="ApplyImport" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@teamId" />
+
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered align-middle">
+                            <thead class="bg-light small text-muted">
+                                <tr>
+                                    <th>Cầu thủ</th>
+                                    <th>Trường thay đổi</th>
+                                    <th>Giá trị hiện tại</th>
+                                    <th>Giá trị mới từ Excel</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.Count; i++)
+                                {
+                                    var item = Model[i];
+                                    <tr class="@(item.HasConflictOrError ? "table-danger" : "")">
+                                        <td>
+                                            <input type="hidden" name="approvedChanges[@i].PlayerId" value="@item.PlayerId" />
+                                            <input type="hidden" name="approvedChanges[@i].PlayerName" value="@item.PlayerName" />
+                                            <input type="hidden" name="approvedChanges[@i].FieldName" value="@item.FieldName" />
+                                            <input type="hidden" name="approvedChanges[@i].CurrentValue" value="@item.CurrentValue" />
+                                            <input type="hidden" name="approvedChanges[@i].NewValue" value="@item.NewValue" />
+                                            <input type="hidden" name="approvedChanges[@i].HasConflictOrError" value="@item.HasConflictOrError.ToString().ToLower()" />
+                                            <strong>@item.PlayerName</strong>
+                                        </td>
+                                        <td><span class="badge bg-secondary-subtle text-secondary">@item.FieldName</span></td>
+                                        <td><code>@item.CurrentValue</code></td>
+                                        <td class="fw-bold text-success">@item.NewValue</td>
+                                        <td>
+                                            @if (item.HasConflictOrError)
+                                            {
+                                                <span class="badge bg-danger">@item.ErrorMessage</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Hợp lệ</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a asp-controller="Teams" asp-action="Players" asp-route-teamId="@teamId" class="btn btn-arena-outline flex-grow-1">Hủy Bỏ</a>
+                        <button type="submit" class="btn btn-arena-primary flex-grow-1">
+                            <i class="bi bi-check2-circle me-1"></i> Xác Nhận Cập Nhật (@Model.Count(c => !c.HasConflictOrError) mục)
+                        </button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>

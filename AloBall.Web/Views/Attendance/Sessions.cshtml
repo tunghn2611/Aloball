@@ -1,0 +1,80 @@
+@model IEnumerable<AloBall.Web.Data.Entities.AttendanceSession>
+@{
+    var team = ViewBag.Team as AloBall.Web.Data.Entities.Team;
+    string period = ViewBag.Period as string ?? DateTime.Today.ToString("yyyy-MM");
+    ViewData["Title"] = $"Chuyên cần & Điểm danh - {team?.Name}";
+    bool isManager = ViewBag.IsManager ?? false;
+}
+
+@await Html.PartialAsync("_TeamNavigation", team!.Id)
+<header class="page-heading"><div><span class="eyebrow">LỊCH SINH HOẠT · @team?.Name</span><h1>Tuần này, ra sân nhé.</h1><p>Lên lịch, chốt quân số và theo dõi chuyên cần của đội.</p></div>
+@if (isManager) { <div class="d-flex gap-2"><a asp-controller="Sheets" asp-action="ExportAttendance" asp-route-teamId="@team?.Id" asp-route-period="@period" class="btn btn-arena-outline"><i class="bi bi-download"></i> Báo cáo</a><button class="btn btn-arena-primary" data-bs-toggle="modal" data-bs-target="#createSessionModal"><i class="bi bi-plus-lg"></i> Tạo buổi mới</button></div> }</header>
+<div class="attendance-toolbar"><p><strong>@Model.Count() buổi sinh hoạt</strong> trong tháng đang xem</p><form method="get" class="d-flex align-items-center gap-2"><input type="hidden" name="teamId" value="@team?.Id" /><label for="sessionPeriod" class="visually-hidden">Tháng sinh hoạt</label><input id="sessionPeriod" type="month" name="period" value="@period" class="form-control" /><button class="btn btn-arena-dark" type="submit">Xem</button></form></div>
+@if (!Model.Any()) { <div class="arena-empty-state"><i class="bi bi-calendar2-plus"></i><h3>Một lịch mới đang chờ</h3><p>Tháng @period chưa có buổi sinh hoạt. Lãnh đội có thể tạo buổi đầu tiên để hẹn cả đội ra sân.</p></div> }
+<div class="session-timeline">
+@foreach (var s in Model) {
+    var present = s.Records.Count(r => r.Actual == AloBall.Web.Data.Entities.ActualStatus.Present);
+    var checkedCount = s.Records.Count(r => r.Actual == AloBall.Web.Data.Entities.ActualStatus.Present || r.Actual == AloBall.Web.Data.Entities.ActualStatus.Absent);
+    <article class="session-item"><div class="session-date"><strong>@s.SessionDateTime.ToString("dd")</strong><small>THÁNG @s.SessionDateTime.ToString("MM")</small></div><div><span class="badge @(s.Status == AloBall.Web.Data.Entities.SessionStatus.Finalized ? "bg-success-subtle text-success" : "bg-warning-subtle text-dark")">@(s.Status == AloBall.Web.Data.Entities.SessionStatus.Finalized ? "Đã chốt điểm danh" : "Đang mở")</span><h2>@s.Title</h2><div class="session-info"><span><i class="bi bi-clock"></i> @s.SessionDateTime.ToString("HH:mm")</span><span><i class="bi bi-geo-alt"></i> @(s.PitchName ?? "Chưa chọn sân") · @s.PitchType</span></div><p class="small text-muted mt-2 mb-0">Chốt quân số: @s.ResponseDeadline.ToString("dd/MM · HH:mm")</p></div><div class="session-progress"><div><strong>@present</strong><small>Có mặt</small></div><div><strong>@checkedCount/@s.Records.Count</strong><small>Đã điểm danh</small></div><a asp-action="Detail" asp-route-id="@s.Id" class="btn btn-arena-outline">Mở buổi <i class="bi bi-arrow-right"></i></a></div></article>
+}
+</div>
+<!-- Modal Tạo Buổi Mới -->
+@if (isManager)
+{
+    <div class="modal fade" id="createSessionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Tạo Buổi Tập / Thi Đấu Mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="CreateSession" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề buổi <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" value="Trận đấu nội bộ / giao lưu" required />
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-7">
+                                <label class="form-label fw-semibold">Sân bóng</label>
+                                <input type="text" name="pitchName" class="form-control" placeholder="VD: Sân bóng Chùa Láng" />
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label fw-semibold">Loại sân</label>
+                                <select name="pitchType" class="form-select">
+                                    <option value="7 người" selected>Sân 7</option>
+                                    <option value="5 người">Sân 5</option>
+                                    <option value="11 người">Sân 11</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Thời gian thi đấu <span class="text-danger">*</span></label>
+                                <input type="datetime-local" name="sessionDateTime" class="form-control" value="@DateTime.Today.AddDays(2).AddHours(19).ToString("yyyy-MM-ddTHH:mm")" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Hạn chốt quân số</label>
+                                <input type="datetime-local" name="responseDeadline" class="form-control" value="@DateTime.Today.AddDays(2).AddHours(12).ToString("yyyy-MM-ddTHH:mm")" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Kỳ thống kê (YYYY-MM)</label>
+                            <input type="text" name="statisticalPeriod" class="form-control" value="@period" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Ghi chú dặn dò</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Ví dụ: Mang 2 màu áo sáng tối, đúng giờ khởi động..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">Khởi Tạo Buổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

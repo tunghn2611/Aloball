@@ -1,0 +1,18 @@
+@model AloBall.Web.Controllers.RegisterViewModel
+@{ ViewData["Title"] = "Tạo tài khoản"; }
+<div class="auth-layout">
+    <section class="auth-story"><span class="eyebrow">YOUR NEXT CHAPTER</span><h1>Trận cầu hay<br />bắt đầu từ<br /><em>một kết nối.</em></h1><p>Tham gia AloBall, tạo đội của bạn và giữ đam mê ra sân mỗi tuần.</p><span class="auth-mark" aria-hidden="true">01.</span></section>
+    <section class="auth-form"><span class="eyebrow">GIA NHẬP CỘNG ĐỒNG</span><h2>Tạo tài khoản</h2><p>Rất vui được có bạn trong đội.</p>
+        <form asp-action="Register" method="post">
+            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="mb-3"><label asp-for="FullName" class="form-label">Họ và tên</label><input asp-for="FullName" class="form-control" autocomplete="name" placeholder="Tên đồng đội sẽ gọi bạn" required /><span asp-validation-for="FullName" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Email" class="form-label">Email</label><input asp-for="Email" type="email" class="form-control" autocomplete="username" placeholder="ban@example.com" required /><span asp-validation-for="Email" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Password" class="form-label">Mật khẩu</label><input asp-for="Password" type="password" class="form-control" autocomplete="new-password" placeholder="Tạo mật khẩu của bạn" required /><span asp-validation-for="Password" class="text-danger"></span></div>
+            <div class="mb-4"><label asp-for="ConfirmPassword" class="form-label">Nhập lại mật khẩu</label><input asp-for="ConfirmPassword" type="password" class="form-control" autocomplete="new-password" placeholder="Xác nhận mật khẩu" required /><span asp-validation-for="ConfirmPassword" class="text-danger"></span></div>
+            <button type="submit" class="btn btn-arena-primary">Tạo tài khoản <i class="bi bi-arrow-right"></i></button>
+        </form>
+        <div class="auth-switch">Đã là đồng đội? <a asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]">Đăng nhập</a></div>
+    </section>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

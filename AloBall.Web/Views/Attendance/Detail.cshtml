@@ -1,0 +1,359 @@
+@model AloBall.Web.Data.Entities.AttendanceSession
+@{
+    ViewData["Title"] = $"Điểm danh: {Model.Title}";
+    bool isManager = ViewBag.IsManager ?? false;
+    int total = Model.Records.Count;
+    int present = Model.Records.Count(r => r.Actual == AloBall.Web.Data.Entities.ActualStatus.Present);
+    int absent = Model.Records.Count(r => r.Actual == AloBall.Web.Data.Entities.ActualStatus.Absent);
+    int checkedCount = present + absent;
+}
+
+@await Html.PartialAsync("_TeamNavigation", Model.TeamId)
+<div class="row justify-content-center">
+    <div class="col-12">
+        <!-- Top Sticky Save Bar (Hiện khi có thay đổi chưa lưu) -->
+        <div id="unsavedAlert" class="alert alert-warning d-none sticky-top shadow-sm py-2 mb-3 d-flex justify-content-between align-items-center" style="top: 70px; z-index: 1020;">
+            <div class="small fw-semibold">
+                <i class="bi bi-exclamation-circle-fill me-1"></i> Có thay đổi chưa lưu lên máy chủ!
+            </div>
+            <button class="btn btn-warning btn-sm fw-bold px-3" onclick="saveAllChanges()">
+                <i class="bi bi-floppy-fill me-1"></i> Lưu ngay
+            </button>
+        </div>
+
+        <!-- Session Header Card -->
+        <div class="session-overview mb-4">
+            <div class="session-overview-heading">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <a asp-action="Sessions" asp-route-teamId="@Model.TeamId" class="btn btn-arena-outline btn-sm px-2 py-0"><i class="bi bi-arrow-left"></i></a>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                            <i class="bi bi-calendar-event me-1"></i> @Model.SessionDateTime.ToString("dd/MM/yyyy HH:mm")
+                        </span>
+                    </div>
+                    <h1 class="fw-bold mb-1 text-dark">@Model.Title</h1>
+                    @if (!string.IsNullOrEmpty(Model.PitchName))
+                    {
+                        <div class="mb-1 text-dark small">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>@Model.PitchName</strong> <span class="badge bg-light text-secondary border">@Model.PitchType</span>
+                        </div>
+                    }
+                    <div class="text-muted small">
+                        <i class="bi bi-clock-history me-1"></i> Hạn chốt quân số: <strong class="text-danger">@Model.ResponseDeadline.ToString("dd/MM HH:mm")</strong>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <span class="badge @(Model.Status == AloBall.Web.Data.Entities.SessionStatus.Finalized ? "bg-primary" : "bg-warning text-dark") fs-6 px-3 py-2 rounded-pill">
+                        @(Model.Status == AloBall.Web.Data.Entities.SessionStatus.Finalized ? "Đã chốt sổ" : "Đang mở")
+                    </span>
+                    @if (isManager)
+                    {
+                        <button id="btnSaveHeader" class="btn btn-arena-primary btn-sm mt-2 w-100 shadow-sm" onclick="saveAllChanges()">
+                            <i class="bi bi-floppy2-fill me-1"></i> Lưu điểm danh
+                        </button>
+                        @if (Model.Status == AloBall.Web.Data.Entities.SessionStatus.Draft)
+                        {
+                            <form asp-action="FinalizeSession" method="post" class="mt-1" onsubmit="return confirm('Chốt sổ điểm danh và ghi nhận +2 AB cho cầu thủ có mặt?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <button type="submit" class="btn btn-success btn-sm w-100">
+                                    <i class="bi bi-check-all me-1"></i> Chốt sổ (+AB)
+                                </button>
+                            </form>
+                        }
+
+                        <!-- Nút Chuyển sang Chia đội / Trận đấu nội bộ -->
+                        <form asp-action="CreateMatchForSession" method="post" class="mt-1">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="sessionId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold shadow-sm">
+                                <i class="bi bi-diagram-3-fill me-1"></i> @(Model.MatchId.HasValue ? "Vào trận & Chia đội" : "Tạo trận & Chia đội")
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="p-2 bg-light rounded-3 d-flex justify-content-around text-center my-2">
+                <div>
+                    <small class="text-muted d-block">Tổng số</small>
+                    <strong class="fs-5 text-dark">@total</strong>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <small class="text-muted d-block">Có mặt</small>
+                    <strong class="fs-5 text-success" id="count-present">@present</strong>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <small class="text-muted d-block">Vắng mặt</small>
+                    <strong class="fs-5 text-danger" id="count-absent">@absent</strong>
+                </div>
+                <div class="border-start"></div>
+                <div>
+                    <small class="text-muted d-block">Tiến độ</small>
+                    <strong class="fs-5 text-primary" id="count-checked">@checkedCount / @total</strong>
+                </div>
+            </div>
+
+            <!-- Filter & Search (Mobile Optimized) -->
+            <div class="row g-2 mt-2">
+                <div class="col-7">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="playerSearch" class="form-control border-start-0" placeholder="Tìm tên cầu thủ..." onkeyup="filterPlayers()" />
+                    </div>
+                </div>
+                <div class="col-5">
+                    <select id="statusFilter" class="form-select" onchange="filterPlayers()">
+                        <option value="all">Tất cả (@total)</option>
+                        <option value="unrecorded">Chưa ĐD</option>
+                        <option value="present">Có mặt</option>
+                        <option value="absent">Vắng mặt</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        @Html.AntiForgeryToken()
+
+        <!-- Player Attendance List (Interactive Client-side state before bulk save) -->
+        <div id="playerList" class="attendance-grid">
+            @foreach (var record in Model.Records.OrderBy(r => r.Player.KitNumber ?? 999))
+            {
+                <div class="arena-card p-3 mb-2 player-item" 
+                     id="card-@record.Id"
+                     data-id="@record.Id"
+                     data-name="@record.Player.FullName.ToLower()"
+                     data-response="@((int)record.Response)"
+                     data-actual="@((int)record.Actual)">
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary rounded-circle px-2 py-1 fs-6">
+                                @(record.Player.KitNumber?.ToString() ?? "-")
+                            </span>
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">@record.Player.FullName</h6>
+                                <small class="text-muted">@(record.Player.Position ?? "Cầu thủ")</small>
+                            </div>
+                        </div>
+
+                        <!-- Căn cứ quy chế & Dự kiến phạt -->
+                        <div class="text-end" id="fine-badge-@record.Id">
+                            @if (record.FineAmount > 0)
+                            {
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fw-bold fs-6">
+                                    +@record.FineAmount.ToString("N0")đ
+                                </span>
+                            }
+                            else if (record.NeedsConfirmation)
+                            {
+                                <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1">
+                                    Cần xác nhận
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success-subtle text-success px-2 py-1">
+                                    <i class="bi bi-check2"></i> 0đ
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- 1. Phản hồi báo quân -->
+                    @if (isManager) { <div class="mb-2">
+                        <small class="text-muted d-block mb-1" style="font-size: 11px;">1. Phản hồi báo quân:</small>
+                        <div class="btn-group w-100" role="group">
+                            <button type="button" class="btn btn-sm resp-btn resp-1 @(record.Response == AloBall.Web.Data.Entities.ResponseStatus.Attending ? "btn-success" : "btn-arena-outline") py-2"
+                                    onclick="setRecordResponse('@record.Id', 1)" style="min-height: 44px;">
+                                <i class="bi bi-check-circle"></i> Đi được
+                            </button>
+                            <button type="button" class="btn btn-sm resp-btn resp-2 @(record.Response == AloBall.Web.Data.Entities.ResponseStatus.Excused ? "btn-warning text-dark" : "btn-arena-outline") py-2"
+                                    onclick="setRecordResponse('@record.Id', 2)" style="min-height: 44px;">
+                                <i class="bi bi-envelope-slash"></i> Báo bận
+                            </button>
+                            <button type="button" class="btn btn-sm resp-btn resp-3 @(record.Response == AloBall.Web.Data.Entities.ResponseStatus.NoResponse ? "btn-dark" : "btn-arena-outline") py-2"
+                                    onclick="setRecordResponse('@record.Id', 3)" style="min-height: 44px;">
+                                <i class="bi bi-dash-circle"></i> K.Phản hồi
+                            </button>
+                        </div>
+                    </div>
+
+                    }
+                    @if (!isManager) { <div class="small text-muted mb-2">Báo quân: @record.Response · Điểm danh: @(record.Actual == AloBall.Web.Data.Entities.ActualStatus.Present ? "Có mặt" : record.Actual == AloBall.Web.Data.Entities.ActualStatus.Absent ? "Vắng" : "Chưa điểm danh")</div> }
+                    <!-- 2. Điểm danh tại sân (Lãnh đạo) -->
+                    @if (isManager)
+                    {
+                        <div>
+                            <small class="text-muted d-block mb-1" style="font-size: 11px;">2. Điểm danh tại sân (Lãnh đạo):</small>
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-sm actual-btn actual-1 @(record.Actual == AloBall.Web.Data.Entities.ActualStatus.Present ? "btn-primary" : "btn-arena-outline") py-2 fw-bold"
+                                        onclick="setRecordActual('@record.Id', 1)" style="min-height: 44px;">
+                                    <i class="bi bi-person-check-fill"></i> Có mặt
+                                </button>
+                                <button type="button" class="btn btn-sm actual-btn actual-2 @(record.Actual == AloBall.Web.Data.Entities.ActualStatus.Absent ? "btn-danger" : "btn-arena-outline") py-2 fw-bold"
+                                        onclick="setRecordActual('@record.Id', 2)" style="min-height: 44px;">
+                                    <i class="bi bi-person-x-fill"></i> Vắng mặt
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(record.PenaltyReason))
+                    {
+                        <div class="mt-2 text-muted small bg-light p-2 rounded-2" style="font-size: 12px;">
+                            <i class="bi bi-info-circle me-1"></i> @record.PenaltyReason
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Pending changes map
+    const pendingChanges = {};
+
+    function filterPlayers() {
+        const query = document.getElementById('playerSearch').value.toLowerCase();
+        const filter = document.getElementById('statusFilter').value;
+        const items = document.querySelectorAll('.player-item');
+
+        items.forEach(el => {
+            const name = el.getAttribute('data-name');
+            const actual = el.getAttribute('data-actual');
+
+            let matchName = name.includes(query);
+            let matchStatus = true;
+
+            if (filter === 'present') matchStatus = (actual === '1');
+            else if (filter === 'absent') matchStatus = (actual === '2');
+            else if (filter === 'unrecorded') matchStatus = (actual === '0');
+
+            el.style.display = (matchName && matchStatus) ? 'block' : 'none';
+        });
+    }
+
+    function markUnsaved() {
+        document.getElementById('unsavedAlert').classList.remove('d-none');
+        const btn = document.getElementById('btnSaveHeader');
+        if (btn) {
+            btn.classList.add('btn-warning');
+            btn.classList.remove('btn-arena-primary');
+            btn.innerHTML = '<i class="bi bi-floppy2-fill me-1"></i> Lưu thay đổi';
+        }
+    }
+
+    function setRecordResponse(recordId, status) {
+        const card = document.getElementById(`card-${recordId}`);
+        card.setAttribute('data-response', status);
+
+        // Update UI buttons visually
+        const btns = card.querySelectorAll('.resp-btn');
+        btns.forEach(b => {
+            b.classList.remove('btn-success', 'btn-warning', 'btn-dark', 'text-dark');
+            b.classList.add('btn-arena-outline');
+        });
+
+        const activeBtn = card.querySelector(`.resp-${status}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('btn-arena-outline');
+            if (status === 1) activeBtn.classList.add('btn-success');
+            else if (status === 2) activeBtn.classList.add('btn-warning', 'text-dark');
+            else if (status === 3) activeBtn.classList.add('btn-dark');
+        }
+
+        if (!pendingChanges[recordId]) pendingChanges[recordId] = {};
+        pendingChanges[recordId].responseStatus = status;
+
+        markUnsaved();
+    }
+
+    function setRecordActual(recordId, status) {
+        const card = document.getElementById(`card-${recordId}`);
+        card.setAttribute('data-actual', status);
+
+        const btns = card.querySelectorAll('.actual-btn');
+        btns.forEach(b => {
+            b.classList.remove('btn-primary', 'btn-danger');
+            b.classList.add('btn-arena-outline');
+        });
+
+        const activeBtn = card.querySelector(`.actual-${status}`);
+        if (activeBtn) {
+            activeBtn.classList.remove('btn-arena-outline');
+            if (status === 1) activeBtn.classList.add('btn-primary');
+            else if (status === 2) activeBtn.classList.add('btn-danger');
+        }
+
+        if (!pendingChanges[recordId]) pendingChanges[recordId] = {};
+        pendingChanges[recordId].actualStatus = status;
+
+        markUnsaved();
+        updateSummaryCounters();
+    }
+
+    function updateSummaryCounters() {
+        let present = 0, absent = 0, total = 0;
+        document.querySelectorAll('.player-item').forEach(el => {
+            total++;
+            const act = el.getAttribute('data-actual');
+            if (act === '1') present++;
+            else if (act === '2') absent++;
+        });
+
+        document.getElementById('count-present').textContent = present;
+        document.getElementById('count-absent').textContent = absent;
+        document.getElementById('count-checked').textContent = `${present + absent} / ${total}`;
+    }
+
+    async function saveAllChanges() {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        const keys = Object.keys(pendingChanges);
+
+        if (keys.length === 0) {
+            alert('Không có thay đổi nào cần lưu.');
+            return;
+        }
+
+        const btn = document.getElementById('btnSaveHeader');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang lưu...';
+        }
+
+        try {
+            for (const recordId of keys) {
+                const change = pendingChanges[recordId];
+                const formData = new FormData();
+                formData.append('recordId', recordId);
+                if (change.responseStatus !== undefined) formData.append('responseStatus', change.responseStatus);
+                if (change.actualStatus !== undefined) formData.append('actualStatus', change.actualStatus);
+                formData.append('__RequestVerificationToken', token);
+
+                const response = await fetch('/Attendance/UpdateRecordStatus', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok || result.success === false) throw new Error(result.message || 'Không thể lưu thay đổi. Kiểm tra quyền và trạng thái kỳ.');
+                delete pendingChanges[recordId];
+            }
+
+            // Tải lại để nạp kết quả tiền phạt & quy chế chuẩn từ Server
+            window.location.reload();
+        } catch (e) {
+            alert(e.message || 'Đã xảy ra lỗi khi lưu lên máy chủ. Vui lòng thử lại.');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-floppy2-fill me-1"></i> Lưu điểm danh';
+            }
+        }
+    }
+</script>
+}

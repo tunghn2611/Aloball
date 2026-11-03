@@ -1,0 +1,359 @@
+@model AloBall.Web.Data.Entities.Team
+@{
+    ViewData["Title"] = $"{Model.Name} - Hồ sơ công khai CLB";
+    var upcomingMatches = ViewBag.UpcomingMatches as IEnumerable<AloBall.Web.Data.Entities.MatchGame> ?? Enumerable.Empty<AloBall.Web.Data.Entities.MatchGame>();
+    var completedMatches = ViewBag.CompletedMatches as IEnumerable<AloBall.Web.Data.Entities.MatchGame> ?? Enumerable.Empty<AloBall.Web.Data.Entities.MatchGame>();
+    bool isManager = ViewBag.IsManager ?? false;
+    var userManagedTeams = ViewBag.UserManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+}
+
+<section class="public-passport">
+    <div class="passport-art"><span>THE CLUB</span><i class="bi bi-shield-shaded"></i><span>EST. @(Model.EstablishedDate?.ToString("yyyy") ?? "—")</span></div>
+    <div class="passport-body"><div class="d-flex align-items-center gap-3 mb-4"><div class="club-logo">@if (!string.IsNullOrEmpty(Model.LogoUrl)) { <img src="@Model.LogoUrl" alt="Logo @Model.Name" /> } else { <i class="bi bi-shield"></i> }</div><span class="eyebrow">HỒ SƠ CÂU LẠC BỘ</span></div>
+        <h1>@Model.Name</h1><p class="passport-description">@(string.IsNullOrWhiteSpace(Model.Description) ? "Cùng một niềm đam mê. Cùng một màu áo. Hẹn gặp nhau trên sân bóng." : Model.Description)</p>
+        <div class="passport-facts"><div><span>Khu vực</span><strong>@(Model.ActivityArea ?? "Chưa cập nhật")</strong></div><div><span>Sân nhà</span><strong>@(Model.HomePitch ?? "Chưa cập nhật")</strong></div><div><span>Thành lập</span><strong>@(Model.EstablishedDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")</strong></div><div><span>Uy tín giao lưu</span><strong><i class="bi bi-star-fill"></i> @Model.AverageRating.ToString("0.0") <small>(@Model.ValidReviewCount)</small></strong></div></div>
+        <div class="d-flex align-items-center gap-3 flex-wrap mt-4">
+            @if (Model.IsRestrictedFromMatchmaking) { <span class="badge bg-danger-subtle text-danger">Tạm ngưng bắt đối</span> }
+            else { <span class="availability"><i></i> Sẵn sàng giao lưu</span> }
+            @if (!Model.IsRestrictedFromMatchmaking && !isManager) {
+                if (User.Identity?.IsAuthenticated != true) { <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@($"/doi/{Model.Slug}")" class="btn btn-arena-primary">Mời giao hữu <i class="bi bi-arrow-up-right"></i></a> }
+                else { <button class="btn btn-arena-primary" data-bs-toggle="modal" data-bs-target="#inviteFriendlyModal">Mời giao hữu <i class="bi bi-arrow-up-right"></i></button> }
+            }
+            @if (isManager) { <a asp-action="Dashboard" asp-route-id="@Model.Id" class="btn btn-arena-dark">Không gian đội <i class="bi bi-arrow-right"></i></a> }
+        </div>
+    </div>
+</section>
+<!-- 2. LỊCH THI ĐẤU & KẾT QUẢ GẦN NHẤT CỦA CLB -->
+<div class="row g-4 mb-4">
+    <!-- Trận sắp tới -->
+    <div class="col-12 col-lg-6">
+        <div class="arena-card p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="arena-sports-heading text-dark mb-0 fs-6">
+                    <i class="bi bi-calendar-event text-primary me-2"></i>Trận Sắp Tới
+                </h5>
+                <span class="badge bg-light text-muted border">@upcomingMatches.Count() trận</span>
+            </div>
+
+            @if (!upcomingMatches.Any())
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-calendar-x fs-2 d-block mb-2 text-muted"></i>
+                    <span class="small">CLB chưa có lịch thi đấu sắp tới được công khai.</span>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var m in upcomingMatches)
+                    {
+                        var opponentName = m.TeamAId == Model.Id ? (m.TeamB?.Name ?? m.TeamBExternalName ?? "Chờ đối thủ") : m.TeamA.Name;
+                        <div class="p-3 border rounded-3 bg-light d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block"><i class="bi bi-clock me-1"></i> @m.MatchDateTime.ToString("dd/MM/yyyy - HH:mm")</small>
+                                <span class="fw-bold text-dark">vs @opponentName</span>
+                                <small class="text-muted d-block mt-1"><i class="bi bi-geo-alt me-1 text-danger"></i> @m.PitchName (Sân @m.PitchType)</small>
+                            </div>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                                @m.MatchDateTime.ToString("HH:mm")
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Kết quả gần nhất -->
+    <div class="col-12 col-lg-6">
+        <div class="arena-card p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="arena-sports-heading text-dark mb-0 fs-6">
+                    <i class="bi bi-trophy text-warning me-2"></i>Kết Quả Gần Nhất
+                </h5>
+                <span class="badge bg-light text-muted border">@completedMatches.Count() trận</span>
+            </div>
+
+            @if (!completedMatches.Any())
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-clock-history fs-2 d-block mb-2 text-muted"></i>
+                    <span class="small">Chưa có kết quả trận đấu giao hữu nào được hoàn tất.</span>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var m in completedMatches)
+                    {
+                        var opponentName = m.TeamAId == Model.Id ? (m.TeamB?.Name ?? m.TeamBExternalName ?? "Đối thủ") : m.TeamA.Name;
+                        int myScore = m.TeamAId == Model.Id ? (m.ScoreA ?? 0) : (m.ScoreB ?? 0);
+                        int opScore = m.TeamAId == Model.Id ? (m.ScoreB ?? 0) : (m.ScoreA ?? 0);
+                        string badgeClass = myScore > opScore ? "bg-success" : (myScore == opScore ? "bg-secondary" : "bg-danger");
+
+                        <div class="p-3 border rounded-3 bg-white d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">@m.MatchDateTime.ToString("dd/MM/yyyy") - @m.PitchName</small>
+                                <span class="fw-bold text-dark">vs @opponentName</span>
+                                <small class="d-block mt-1">
+                                    @(m.ConfirmedByTeamA && m.ConfirmedByTeamB ? "✓ Đã đối soát 2 đội" : "Tự khai báo")
+                                </small>
+                            </div>
+                            <span class="badge @badgeClass fs-6 px-3 py-2 text-white">
+                                @myScore - @opScore
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- 3. ĐỘI HÌNH & DANH SÁCH CẦU THỦ CÔNG KHAI (CARD CẦU THỦ PHONG CÁCH CAHN) -->
+<section class="arena-card editor-panel mb-4">
+    <div class="section-heading mt-0"><h2>Lịch sử đá giải</h2><i class="bi bi-trophy text-success"></i></div>
+    @{ var tournamentMatches = ViewBag.TournamentMatches as List<AloBall.Web.Data.Entities.MatchGame> ?? new(); }
+    @if(!tournamentMatches.Any()) { <p class="text-muted mb-0">Đội chưa công khai trận giải nào.</p> }
+    @foreach(var match in tournamentMatches) {
+        <div class="fixture-row"><div><span class="eyebrow">@match.MatchDateTime.ToString("dd/MM/yyyy")</span><div class="fw-bold">@match.Notes</div><div class="small text-muted">vs @(match.TeamAId == Model.Id ? match.TeamB?.Name ?? match.TeamBExternalName : match.TeamA.Name) · @match.PitchName</div></div><a asp-controller="Matches" asp-action="Detail" asp-route-id="@match.Id" class="btn btn-arena-outline">@(match.ScoreA.HasValue ? $"{match.ScoreA} : {match.ScoreB}" : "Xem trận") →</a></div>
+    }
+</section>
+<section class="arena-section-space">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="arena-sports-heading text-dark mb-0">
+                <i class="bi bi-people-fill text-success me-2"></i>Đội Hình Cầu Thủ
+            </h4>
+            <p class="text-muted small mb-0">Danh sách nhân sự công khai của câu lạc bộ</p>
+        </div>
+        <span class="badge bg-light text-dark border">
+            @Model.Players.Count(p => p.IsActive && p.IsPublicProfile) cầu thủ
+        </span>
+    </div>
+
+    @if (!Model.Players.Any(p => p.IsActive && p.IsPublicProfile))
+    {
+        <div class="arena-card p-4 text-center">
+            <p class="text-muted small mb-0">CLB chưa công khai danh sách cầu thủ.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var p in Model.Players.Where(p => p.IsActive && p.IsPublicProfile).OrderBy(p => p.KitNumber ?? 999))
+            {
+                <div class="col-6 col-md-4 col-lg-3">
+                    <div class="arena-player-card h-100">
+                        <!-- Khung ảnh / số áo nền -->
+                        <div class="arena-player-card-photo">
+                            <span class="arena-player-card-number">@(p.PublicKitNumber ? p.KitNumber?.ToString() ?? "–" : "–")</span>
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm" style="width: 72px; height: 72px; font-size: 1.8rem; color: var(--arena-primary); border: 2px solid var(--arena-primary-border);">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                        </div>
+
+                        <!-- Thân card -->
+                        <div class="arena-player-card-body">
+                            <div class="arena-player-card-name" title="@p.FullName">
+                                @p.FullName
+                            </div>
+                            <span class="arena-player-card-pos mb-2">
+                                @(p.PublicPosition ? p.Position ?? "Cầu thủ" : "Cầu thủ")
+                            </span>
+
+                            @if (p.PublicHeightWeight && (p.HeightCm.HasValue || p.WeightKg.HasValue))
+                            {
+                                <div class="text-muted small mt-1" style="font-size: 11px;">
+                                    @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "") @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "")
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+<!-- 4. THÀNH TÍCH & GIỚI THIỆU SÂN NHÀ -->
+<div class="row g-4 mb-4">
+    <!-- Thành tích nổi bật -->
+    <div class="col-12 col-lg-6">
+        <div class="arena-card p-4 h-100">
+            <h5 class="arena-sports-heading text-dark mb-3">
+                <i class="bi bi-award-fill text-warning me-2"></i>Thành tích & Danh hiệu
+            </h5>
+            @if (!Model.Achievements.Any())
+            {
+                <p class="text-muted small mb-0">CLB đang trong quá trình xây dựng thành tích và danh hiệu.</p>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var ach in Model.Achievements.OrderByDescending(a => a.IsFeatured).ThenByDescending(a => a.SeasonOrYear))
+                    {
+                        <div class="p-3 border rounded-3 bg-light d-flex align-items-center justify-content-between">
+                            <div>
+                                @if(ach.IsFeatured) { <small class="d-block text-success fw-bold mb-1">THÀNH TÍCH TỐT NHẤT</small> }
+                                <span class="badge bg-warning text-dark fw-bold mb-1">@ach.TitleOrRank</span>
+                                <h6 class="fw-bold text-dark mb-0">@ach.TournamentName</h6>
+                            </div>
+                            <span class="fw-bold text-muted fs-6">@ach.SeasonOrYear</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Thông tin sân nhà & Sinh hoạt -->
+    <div class="col-12 col-lg-6">
+        <div class="arena-card p-4 h-100">
+            <h5 class="arena-sports-heading text-dark mb-3">
+                <i class="bi bi-geo-alt-fill text-danger me-2"></i>Địa Điểm & Sinh Hoạt
+            </h5>
+            <div class="d-flex flex-column gap-3">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="p-2 bg-light rounded-circle text-primary fs-5">
+                        <i class="bi bi-pin-map-fill"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small d-block">Sân nhà</span>
+                        <strong class="text-dark">@(Model.HomePitch ?? "Chưa cố định sân nhà")</strong>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3">
+                    <div class="p-2 bg-light rounded-circle text-success fs-5">
+                        <i class="bi bi-compass-fill"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small d-block">Khu vực sinh hoạt chính</span>
+                        <strong class="text-dark">@(Model.ActivityArea ?? "Khu vực tự do")</strong>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3">
+                    <div class="p-2 bg-light rounded-circle text-warning fs-5">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <div>
+                        <span class="text-muted small d-block">Quy tắc sinh hoạt</span>
+                        <strong class="text-dark">Giao lưu văn minh, đúng giờ, tôn trọng đối thủ và trọng tài.</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Mời Giao Hữu Trực Tiếp -->
+<div class="modal fade" id="inviteFriendlyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="bi bi-envelope-paper text-warning me-2"></i>Mời Giao Hữu: @Model.Name
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            @if (userManagedTeams.Any())
+            {
+                <form asp-controller="Matchmaking" asp-action="CreateDirectChallenge" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="targetTeamId" value="@Model.Id" />
+                    <input type="hidden" name="targetSlug" value="@Model.Slug" />
+                    <div class="modal-body">
+                        <div class="alert alert-light border small text-dark mb-3">
+                            <i class="bi bi-info-circle-fill text-success me-1"></i>
+                            Tạo lời mời giao lưu trực tiếp tới <strong>@Model.Name</strong>. Kèo sẽ được ghi nhận và thông báo trên hệ thống.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chọn đội bóng của bạn <span class="text-danger">*</span></label>
+                            <select name="challengingTeamId" class="form-select" required>
+                                @foreach (var t in userManagedTeams)
+                                {
+                                    <option value="@t.Id">@t.Name (@t.AverageRating.ToString("0.0") ⭐)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Ngày thi đấu <span class="text-danger">*</span></label>
+                                <input type="date" name="matchDate" class="form-control" value="@DateTime.Today.AddDays(2).ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label fw-semibold">Bắt đầu</label>
+                                <input type="time" name="startTime" class="form-control" value="19:30" required />
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label fw-semibold">Kết thúc</label>
+                                <input type="time" name="endTime" class="form-control" value="21:00" required />
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Khu vực đề xuất <span class="text-danger">*</span></label>
+                                <input type="text" name="area" class="form-control" value="@(Model.ActivityArea ?? "Hà Nội")" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Sân thi đấu dự kiến</label>
+                                <input type="text" name="pitchName" class="form-control" value="@Model.HomePitch" placeholder="Tên sân..." />
+                            </div>
+                        </div>
+
+                        <div class="mb-3"><label for="challengePitch" class="form-label">Đội bạn muốn đá ở đâu?</label><select id="challengePitch" name="pitchArrangement" class="form-select"><option value="2">Linh hoạt thỏa thuận</option><option value="0">Sân nhà của đội tôi</option><option value="1">Đi khách</option></select></div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Loại sân</label>
+                                <select name="pitchType" class="form-select">
+                                    <option value="7 người" selected>Sân 7 người</option>
+                                    <option value="5 người">Sân 5 người</option>
+                                    <option value="11 người">Sân 11 người</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Tiền sân</label>
+                                <select name="costSharing" class="form-select">
+                                    <option value="50-50 (Chia đôi tiền sân)" selected>Chia đôi (50-50)</option>
+                                    <option value="Bên em bao sân 100%">Bên em bao sân 100%</option>
+                                    <option value="Đội thua trả tiền sân">Đội thua trả tiền sân</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Lời nhắn tới đội bạn</label>
+                            <textarea name="message" class="form-control" rows="2" placeholder="Chào đội bạn, bên em muốn hẹn giao lưu học hỏi tuần này nhé!"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-arena-primary px-4">
+                            <i class="bi bi-send-fill me-1"></i> Gửi Lời Mời Giao Hữu
+                        </button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-shield-exclamation text-warning fs-1 d-block mb-2"></i>
+                    <h6 class="fw-bold text-dark mb-2">Bạn chưa quản lý đội bóng nào</h6>
+                    <p class="text-muted small mb-3">
+                        Để mời giao hữu với <strong>@Model.Name</strong>, bạn cần tạo hoặc là Đội trưởng/Quản lý của một đội bóng trên hệ thống.
+                    </p>
+                    <a asp-controller="Teams" asp-action="Create" class="btn btn-arena-primary btn-sm px-3">
+                        <i class="bi bi-plus-lg me-1"></i> Tạo đội bóng ngay
+                    </a>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            }
+        </div>
+    </div>
+</div>

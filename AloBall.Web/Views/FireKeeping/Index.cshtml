@@ -1,0 +1,638 @@
+@model AloBall.Web.Data.Entities.Team
+@{
+    ViewData["Title"] = $"Khu Vực Giữ Lửa - {Model.Name}";
+    string period = ViewBag.Period as string ?? DateTime.UtcNow.ToString("yyyy-MM");
+    var leaderboard = ViewBag.Leaderboard as AloBall.Web.Services.MonthlyLeaderboardResult;
+    var regulation = ViewBag.Regulation as AloBall.Web.Data.Entities.TeamFireRegulation;
+    var allAwards = ViewBag.AllAwards as List<AloBall.Web.Data.Entities.MonthlyFireAward> ?? new();
+    bool isManager = ViewBag.IsManager ?? false;
+}
+
+@await Html.PartialAsync("_TeamNavigation", Model.Id)
+<div class="row justify-content-center">
+    <div class="col-12">
+        <header class="page-heading editorial-heading">
+            <div><span class="eyebrow">GIỮ LỬA · @Model.Name</span><h1>Mỗi lần ra sân.<br />Một bước tiến lên.</h1><p>Tích lũy AB Coin và cùng chinh phục chiếc cúp xuất sắc nhất tháng.</p></div>
+            <form method="get" class="period-picker"><input type="hidden" name="teamId" value="@Model.Id" /><label class="form-label" for="firePeriod">Tháng thi đua</label><div class="d-flex gap-2"><input id="firePeriod" type="month" name="period" value="@period" class="form-control" /><button class="btn btn-arena-dark" type="submit">Xem</button></div></form>
+        </header>
+        <div class="coin-rules">
+            <div><i class="bi bi-person-check"></i><span>Có mặt</span><strong>+@(regulation?.PointsPerAttendance ?? 2) <small>AB</small></strong></div>
+            <div><i class="bi bi-bullseye"></i><span>Ghi bàn</span><strong>+@(regulation?.PointsPerGoal ?? 3) <small>AB</small></strong></div>
+            <div><i class="bi bi-arrow-up-right-circle"></i><span>Kiến tạo</span><strong>+@(regulation?.PointsPerAssist ?? 1) <small>AB</small></strong></div>
+            <div><i class="bi bi-trophy"></i><span>Thắng trận</span><strong>+@(regulation?.PointsPerWin ?? 1) <small>AB</small></strong></div>
+        </div>
+        <p class="small text-muted mb-4">Điểm được tính từ điểm danh và kết quả trận đấu đã xác nhận · Quy chế phiên bản @(regulation?.Version ?? 1).</p>
+        <!-- Cảnh báo nếu kỳ có dữ liệu chưa chốt -->
+        @if (leaderboard?.HasIncompleteData == true)
+        {
+            <div class="alert alert-warning border-warning-subtle d-flex align-items-center gap-2 py-2 mb-3">
+                <i class="bi bi-exclamation-triangle-fill fs-5 text-warning"></i>
+                <div class="small">
+                    <strong>Kỳ thi đua chưa đủ dữ liệu:</strong>
+                    @string.Join(" • ", leaderboard.IncompleteDataWarnings)
+                </div>
+            </div>
+        }
+
+        <!-- 3 Tabs chính -->
+        <ul class="nav nav-pills mb-4 nav-justified bg-white p-2 rounded-3 border" id="fireTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold py-2" id="tab-ranking-btn" data-bs-toggle="pill" data-bs-target="#tab-ranking" type="button" role="tab">
+                    <i class="bi bi-bar-chart-line-fill me-2"></i>Bảng Xếp Hạng Tháng @period
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold py-2" id="tab-awards-btn" data-bs-toggle="pill" data-bs-target="#tab-awards" type="button" role="tab">
+                    <i class="bi bi-trophy-fill me-2 text-warning"></i>Danh Hiệu & Cúp Tháng (@allAwards.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold py-2" id="tab-penalty-btn" data-bs-toggle="pill" data-bs-target="#tab-penalty" type="button" role="tab">
+                    <i class="bi bi-controller me-2 text-success"></i>Minigame Penalty
+                </button>
+            </li>
+        </ul>
+
+        <!-- Nội dung các Tab -->
+        <div class="tab-content" id="fireTabsContent">
+            <!-- TAB 1: BẢNG XẾP HẠNG THÁNG -->
+            <div class="tab-pane fade show active" id="tab-ranking" role="tabpanel">
+                <div class="page-heading">
+                    <div>
+                        <span class="badge @(leaderboard?.PeriodStatus == AloBall.Web.Data.Entities.PeriodStatus.Closed ? "bg-success" : "bg-warning text-dark") px-3 py-2 rounded-pill">
+                            @(leaderboard?.PeriodStatus == AloBall.Web.Data.Entities.PeriodStatus.Closed ? "✓ Kỳ đã chốt sổ" : "Đang diễn ra (Dự kiến)")
+                        </span>
+                        @if (leaderboard?.PeriodRevision > 1)
+                        {
+                            <span class="badge bg-light text-muted border ms-1">Lần sửa #@leaderboard.PeriodRevision</span>
+                        }
+                    </div>
+
+                    @if (isManager)
+                    {
+                        <div class="d-flex gap-2">
+                            @if (leaderboard?.PeriodStatus == AloBall.Web.Data.Entities.PeriodStatus.Open)
+                            {
+                                <button class="btn btn-arena-primary btn-sm" data-bs-toggle="modal" data-bs-target="#finalizePeriodModal">
+                                    <i class="bi bi-award-fill me-1"></i> Chốt danh hiệu tháng
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#reopenPeriodModal">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Mở lại kỳ thi đua
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Bảng danh sách cầu thủ -->
+                <div class="arena-card overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr class="small text-muted text-uppercase">
+                                    <th class="ps-3" style="width: 70px;">Hạng</th>
+                                    <th>Cầu thủ</th>
+                                    <th class="text-center">Số buổi</th>
+                                    <th class="text-center">Bàn thắng</th>
+                                    <th class="text-center">Kiến tạo</th>
+                                    <th class="text-center">Trận thắng</th>
+                                    <th class="text-center">Tổng AB</th>
+                                    <th class="text-end pe-3">Chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (leaderboard == null || !leaderboard.Entries.Any())
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-muted">
+                                            Chưa có dữ liệu thi đua cho kỳ này.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var entry in leaderboard.Entries)
+                                    {
+                                        string rankBadge = entry.Rank switch
+                                        {
+                                            1 => "bg-warning text-dark border-warning fw-bold",
+                                            2 => "bg-secondary-subtle text-secondary border",
+                                            3 => "bg-info-subtle text-info border",
+                                            _ => "bg-light text-muted border"
+                                        };
+
+                                        <tr>
+                                            <td class="ps-3">
+                                                <span class="badge @rankBadge fs-6 px-2 py-1">
+                                                    @if (entry.Rank == 1) { <span>🥇 1</span> }
+                                                    else if (entry.Rank == 2) { <span>🥈 2</span> }
+                                                    else if (entry.Rank == 3) { <span>🥉 3</span> }
+                                                    else { <span>#@entry.Rank</span> }
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="arena-player-avatar-small rounded-circle bg-light border text-center fw-bold" style="width: 36px; height: 36px; line-height: 36px;">
+                                                        @(entry.KitNumber?.ToString() ?? "•")
+                                                    </div>
+                                                    <div>
+                                                        <span class="fw-bold text-dark">@entry.PlayerName</span>
+                                                        <small class="text-muted d-block" style="font-size: 11px;">@(entry.Position ?? "Cầu thủ")</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="text-center fw-semibold text-dark">@entry.AttendedSessions</td>
+                                            <td class="text-center fw-semibold text-primary">@entry.Goals</td>
+                                            <td class="text-center fw-semibold text-info">@entry.Assists</td>
+                                            <td class="text-center fw-semibold text-success">@entry.Wins</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success fs-6 px-3 py-1">
+                                                    @entry.TotalAb AB
+                                                </span>
+                                            </td>
+                                            <td class="text-end pe-3">
+                                                <button class="btn btn-arena-outline btn-sm py-1 px-2" onclick="showPlayerSummary('@entry.PlayerId')">
+                                                    <i class="bi bi-clock-history me-1"></i> Xem sổ
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: DANH HIỆU & CÚP THÁNG -->
+            <div class="tab-pane fade" id="tab-awards" role="tabpanel">
+                @if (!allAwards.Any())
+                {
+                    <div class="arena-card p-5 text-center text-muted">
+                        <i class="bi bi-trophy fs-1 d-block mb-2 text-warning opacity-50"></i>
+                        <h6 class="fw-bold text-dark">Chưa có danh hiệu nào được chốt</h6>
+                        <p class="small mb-0">Khi kết thúc mỗi tháng thi đấu, lãnh đạo đội bóng sẽ kiểm tra và trao danh hiệu "Cầu thủ xuất sắc nhất tháng".</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var award in allAwards)
+                        {
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="arena-card p-4 h-100 text-center border-warning-subtle shadow-sm position-relative">
+                                    <div class="position-absolute top-0 end-0 m-3">
+                                        <span class="badge bg-warning text-dark fw-bold">Kỳ @award.StatisticalPeriod</span>
+                                    </div>
+                                    <div class="fs-1 my-2">🏆</div>
+                                    <h5 class="fw-bold text-dark mb-1">@award.Player.FullName</h5>
+                                    <p class="text-muted small mb-3">Số áo: #@(award.Player.KitNumber?.ToString() ?? "-") • @(award.Player.Position ?? "Cầu thủ")</p>
+
+                                    <div class="p-2 bg-light rounded-3 d-flex justify-content-around text-center mb-3">
+                                        <div>
+                                            <small class="text-muted d-block">Tổng AB</small>
+                                            <strong class="text-success fs-5">@award.TotalAbPoints</strong>
+                                        </div>
+                                        <div class="border-start"></div>
+                                        <div>
+                                            <small class="text-muted d-block">Bàn thắng</small>
+                                            <strong class="text-primary fs-5">@award.Goals</strong>
+                                        </div>
+                                        <div class="border-start"></div>
+                                        <div>
+                                            <small class="text-muted d-block">Số buổi</small>
+                                            <strong class="text-dark fs-5">@award.AttendedSessions</strong>
+                                        </div>
+                                    </div>
+
+                                    @if (!string.IsNullOrEmpty(award.Notes))
+                                    {
+                                        <p class="small text-muted italic mb-0">"@award.Notes"</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- TAB 3: MINIGAME PENALTY (HTML5 Mobile-friendly) -->
+            <div class="tab-pane fade" id="tab-penalty" role="tabpanel">
+                <div class="arena-card p-4 penalty-lounge">
+                    <div class="game-intro">
+                        <div class="badge bg-warning-subtle text-dark border border-warning px-3 py-1 mb-2">
+                            <i class="bi bi-shield-fill-exclamation me-1"></i> Minigame giải trí nội bộ
+                        </div>
+                        <h2>Một cú sút. Một khoảnh khắc.</h2>
+                        <p class="text-muted small mb-0">
+                            Minigame thuần giải trí, <strong>không</strong> cộng AB thi đấu thật và không làm ảnh hưởng đến thống kê bàn thắng của CLB.
+                        </p>
+                    </div>
+
+                    <!-- Khu vực chọn cầu thủ -->
+                    <div class="row g-3 mb-4 justify-content-center" id="gameSetupSection">
+                        <div class="col-12 col-md-5">
+                            <label for="shooterSelect" class="form-label fw-bold"><i class="bi bi-person-fill text-primary me-1"></i>Chọn Cầu Thủ Sút</label>
+                            <select id="shooterSelect" class="form-select" onchange="validatePlayers()">
+                                <option value="">-- Chọn chân sút --</option>
+                                @foreach (var p in Model.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                {
+                                    <option value="@p.Id" data-name="@p.FullName" data-num="@(p.KitNumber?.ToString() ?? "")">
+                                        #@(p.KitNumber?.ToString() ?? "-") @p.FullName (@(p.Position ?? "Cầu thủ"))
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label for="keeperSelect" class="form-label fw-bold"><i class="bi bi-shield-shaded text-danger me-1"></i>Chọn Thủ Môn</label>
+                            <select id="keeperSelect" class="form-select" onchange="validatePlayers()">
+                                <option value="">-- Chọn thủ môn --</option>
+                                @foreach (var p in Model.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                {
+                                    <option value="@p.Id" data-name="@p.FullName" data-num="@(p.KitNumber?.ToString() ?? "")">
+                                        #@(p.KitNumber?.ToString() ?? "-") @p.FullName (@(p.Position ?? "Cầu thủ"))
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 text-center mt-3">
+                            <button id="startGameBtn" class="btn btn-arena-primary px-4 py-2 fw-bold" onclick="startGame()" disabled>
+                                <i class="bi bi-play-circle-fill me-1"></i> Bắt Đầu Lượt Sút
+                            </button>
+                            <div id="playerConflictAlert" class="small text-danger mt-1 d-none">
+                                Không thể chọn cùng một cầu thủ ở cả hai vai trò sút và bắt môn!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Màn hình sân bóng sút Penalty -->
+                    <div id="gamePlaySection" class="d-none">
+                        <!-- Bảng tỉ số -->
+                        <div class="p-3 bg-dark text-white rounded-3 d-flex justify-content-around align-items-center mb-3">
+                            <div class="text-center">
+                                <span class="small text-white-50 d-block">Người Sút</span>
+                                <strong class="fs-6" id="shooterDisplayName">Cầu thủ</strong>
+                            </div>
+                            <div class="text-center">
+                                <span class="badge bg-warning text-dark px-3 py-1 mb-1">TỈ SỐ LƯỢT ĐẤU</span>
+                                <div class="fs-3 fw-bold" id="scoreBoard">VÀO: 0 | CẢN: 0</div>
+                                <small class="text-white-50" id="turnCounter">Lượt: 1/5</small>
+                            </div>
+                            <div class="text-center">
+                                <span class="small text-white-50 d-block">Thủ Môn (Máy)</span>
+                                <strong class="fs-6" id="keeperDisplayName">Thủ môn</strong>
+                            </div>
+                        </div>
+
+                        <!-- Khung thành tương tác -->
+                        <div class="penalty-arena">
+                            <!-- Xà ngang và Cột dọc khung thành -->
+                            <div class="penalty-goal">
+                                <!-- Thủ môn visual -->
+                                <div id="keeperSprite" class="position-absolute text-center" style="bottom: 0; left: 45%; transition: all 0.3s ease; width: 60px;">
+                                    <div class="badge bg-danger rounded-circle p-2 fs-4 shadow"><i class="bi bi-person-fill"></i></div>
+                                    <div class="small fw-bold text-white bg-dark px-1 rounded mt-1" id="keeperBadge">TM</div>
+                                </div>
+                            </div>
+
+                            <!-- Trái bóng -->
+                            <div id="ballSprite" class="position-absolute text-center" style="bottom: 20px; left: 47%; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); width: 40px;">
+                                <i class="bi bi-dribbble text-white fs-2 shadow-sm"></i>
+                            </div>
+
+                            <!-- Thông báo kết quả sút -->
+                            <div id="shotResultBadge" aria-live="polite" class="position-absolute top-50 start-50 translate-middle d-none text-center">
+                                <span class="display-6 fw-bold px-4 py-2 rounded-pill shadow" id="resultText">VÀOOO!</span>
+                            </div>
+                        </div>
+
+                        <!-- Các nút chọn góc sút -->
+                        <div class="text-center mt-3">
+                            <label class="form-label fw-bold small text-muted d-block">CHỌN HƯỚNG SÚT BÓNG:</label>
+                            <div class="btn-group gap-2 flex-wrap" role="group">
+                                <button type="button" class="btn btn-outline-dark px-3 py-2 shoot-btn" onclick="takeShot(1)">
+                                    ↖ Góc Cao Trái
+                                </button>
+                                <button type="button" class="btn btn-outline-dark px-3 py-2 shoot-btn" onclick="takeShot(2)">
+                                    ↙ Góc Thấp Trái
+                                </button>
+                                <button type="button" class="btn btn-outline-dark px-3 py-2 shoot-btn" onclick="takeShot(3)">
+                                    ⬆ Chính Giữa
+                                </button>
+                                <button type="button" class="btn btn-outline-dark px-3 py-2 shoot-btn" onclick="takeShot(4)">
+                                    ↗ Góc Cao Phải
+                                </button>
+                                <button type="button" class="btn btn-outline-dark px-3 py-2 shoot-btn" onclick="takeShot(5)">
+                                    ↘ Góc Thấp Phải
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <button class="btn btn-arena-outline btn-sm" onclick="resetGame()">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Chọn lại đội hình sút
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xem Sổ AB Cầu Thủ -->
+<div class="modal fade" id="playerSummaryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-dark" id="modalPlayerTitle">Sổ Điểm Cầu Thủ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 bg-light rounded-3 d-flex justify-content-around text-center mb-3">
+                    <div>
+                        <small class="text-muted d-block">Điểm tháng này</small>
+                        <strong class="text-primary fs-4" id="modalMonthAb">0</strong>
+                    </div>
+                    <div class="border-start"></div>
+                    <div>
+                        <small class="text-muted d-block">AB tích lũy (Giá trị)</small>
+                        <strong class="text-success fs-4" id="modalCumulativeAb">0</strong>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark small text-uppercase mb-2">Lịch sử phát sinh sổ điểm:</h6>
+                <div id="modalHistoryList" class="list-group list-group-flush small" style="max-height: 250px; overflow-y: auto;">
+                    <!-- Nạp qua Ajax -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Chốt Danh Hiệu Tháng (Lãnh Đạo) -->
+@if (isManager && leaderboard?.PeriodStatus == AloBall.Web.Data.Entities.PeriodStatus.Open)
+{
+    <div class="modal fade" id="finalizePeriodModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold text-dark">
+                        <i class="bi bi-award-fill text-warning me-2"></i>Chốt Danh Hiệu Tháng @period
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="FinalizePeriod" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@Model.Id" />
+                    <input type="hidden" name="period" value="@period" />
+
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Chọn cầu thủ đạt danh hiệu <strong>Cầu thủ xuất sắc nhất tháng</strong>. Trường hợp có đồng hạng 1, bạn có thể chọn đồng giải cho nhiều cầu thủ.
+                        </p>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chọn người nhận danh hiệu:</label>
+                            @foreach (var entry in leaderboard.Entries.Where(e => e.TotalAb > 0 && e.Rank == 1))
+                            {
+                                <div class="form-check p-2 border rounded-2 mb-2 bg-light">
+                                    <input class="form-check-input ms-1 me-2" type="checkbox" name="chosenPlayerIds" value="@entry.PlayerId" id="award_@entry.PlayerId" @(entry.Rank == 1 ? "checked" : "") />
+                                    <label class="form-check-label fw-semibold text-dark w-100" for="award_@entry.PlayerId">
+                                        #@entry.Rank - @entry.PlayerName (@entry.TotalAb AB)
+                                    </label>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Ghi chú vinh danh</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Ghi nhận nỗ lực cống hiến xuất sắc trong tháng..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">
+                            <i class="bi bi-check-circle-fill me-1"></i> Xác Nhận Chốt Cúp
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Mở Lại Kỳ Thi Đua (Lãnh Đạo) -->
+@if (isManager && leaderboard?.PeriodStatus == AloBall.Web.Data.Entities.PeriodStatus.Closed)
+{
+    <div class="modal fade" id="reopenPeriodModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Mở Lại Kỳ Thi Đua @period
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="ReopenPeriod" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@Model.Id" />
+                    <input type="hidden" name="period" value="@period" />
+
+                    <div class="modal-body">
+                        <div class="alert alert-danger small mb-3">
+                            <strong>Lưu ý:</strong> Mở lại kỳ thi đua sẽ tạm thời lưu trữ danh hiệu đã trao của lần chốt trước. Bạn bắt buộc phải ghi rõ lý do mở lại.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Lý do mở lại kỳ <span class="text-danger">*</span></label>
+                            <textarea name="reason" class="form-control" rows="3" placeholder="Ví dụ: Bổ sung thống kê bàn thắng trận ngày 28 còn thiếu..." required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-danger">Mở Lại Kỳ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    // --- Xem sổ cá nhân ---
+    async function showPlayerSummary(playerId) {
+        try {
+            const res = await fetch(`/FireKeeping/PlayerSummary?teamId=@Model.Id&playerId=${playerId}`);
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || 'Lỗi lấy dữ liệu');
+                return;
+            }
+
+            document.getElementById('modalPlayerTitle').textContent = `Sổ Điểm: ${data.playerName} (#${data.kitNumber || '-'})`;
+            document.getElementById('modalMonthAb').textContent = `${data.currentMonthAb} AB`;
+            document.getElementById('modalCumulativeAb').textContent = `${data.totalCumulativeAb} AB`;
+
+            const list = document.getElementById('modalHistoryList');
+            list.innerHTML = '';
+            if (!data.history || data.history.length === 0) {
+                list.innerHTML = '<div class="text-center py-3 text-muted">Chưa có phát sinh điểm.</div>';
+            } else {
+                data.history.forEach(h => {
+                    const badgeClass = h.points > 0 ? 'bg-success' : 'bg-danger';
+                    const sign = h.points > 0 ? '+' : '';
+                    list.innerHTML += `
+                        <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-semibold text-dark">${h.reason || h.role}</span>
+                                <small class="text-muted d-block">${h.date} • Kỳ ${h.period}</small>
+                            </div>
+                            <span class="badge ${badgeClass} fs-6 px-2 py-1">${sign}${h.points} AB</span>
+                        </div>
+                    `;
+                });
+            }
+
+            new bootstrap.Modal(document.getElementById('playerSummaryModal')).show();
+        } catch (e) {
+            alert('Không thể kết nối máy chủ.');
+        }
+    }
+
+    // --- Minigame Penalty Logic ---
+    function validatePlayers() {
+        const s = document.getElementById('shooterSelect').value;
+        const k = document.getElementById('keeperSelect').value;
+        const alertBox = document.getElementById('playerConflictAlert');
+        const startBtn = document.getElementById('startGameBtn');
+
+        if (!s || !k) {
+            startBtn.disabled = true;
+            alertBox.classList.add('d-none');
+            return;
+        }
+
+        if (s === k) {
+            startBtn.disabled = true;
+            alertBox.classList.remove('d-none');
+        } else {
+            startBtn.disabled = false;
+            alertBox.classList.add('d-none');
+        }
+    }
+
+    let goalsScored = 0;
+    let shotsSaved = 0;
+    let turn = 1;
+    const maxTurns = 5;
+
+    function startGame() {
+        const sSelect = document.getElementById('shooterSelect');
+        const kSelect = document.getElementById('keeperSelect');
+
+        document.getElementById('shooterDisplayName').textContent = sSelect.options[sSelect.selectedIndex].getAttribute('data-name');
+        document.getElementById('keeperDisplayName').textContent = kSelect.options[kSelect.selectedIndex].getAttribute('data-name');
+        document.getElementById('keeperBadge').textContent = '#' + (kSelect.options[kSelect.selectedIndex].getAttribute('data-num') || 'TM');
+
+        goalsScored = 0;
+        shotsSaved = 0;
+        turn = 1;
+        updateScoreBoard();
+
+        document.getElementById('gameSetupSection').classList.add('d-none');
+        document.getElementById('gamePlaySection').classList.remove('d-none');
+        resetBallAndKeeper();
+    }
+
+    function resetGame() {
+        document.getElementById('gameSetupSection').classList.remove('d-none');
+        document.getElementById('gamePlaySection').classList.add('d-none');
+    }
+
+    function updateScoreBoard() {
+        document.getElementById('scoreBoard').textContent = `VÀO: ${goalsScored} | CẢN: ${shotsSaved}`;
+        document.getElementById('turnCounter').textContent = `Lượt: ${Math.min(turn, maxTurns)}/${maxTurns}`;
+    }
+
+    function resetBallAndKeeper() {
+        const ball = document.getElementById('ballSprite');
+        const keeper = document.getElementById('keeperSprite');
+        ball.style.bottom = '20px';
+        ball.style.left = '47%';
+        keeper.style.left = '45%';
+        keeper.style.bottom = '0';
+        document.getElementById('shotResultBadge').classList.add('d-none');
+
+        document.querySelectorAll('.shoot-btn').forEach(b => b.disabled = false);
+    }
+
+    function takeShot(direction) {
+        document.querySelectorAll('.shoot-btn').forEach(b => b.disabled = true);
+
+        // Máy (Thủ môn) chọn ngẫu nhiên 1 trong 5 hướng cản
+        const keeperChoice = Math.floor(Math.random() * 5) + 1;
+
+        // Vị trí đích của bóng
+        const targets = {
+            1: { bLeft: '22%', bBottom: '68%' }, // cao trái
+            2: { bLeft: '22%', bBottom: '30%' }, // thấp trái
+            3: { bLeft: '47%', bBottom: '48%' }, // giữa
+            4: { bLeft: '72%', bBottom: '68%' }, // cao phải
+            5: { bLeft: '72%', bBottom: '30%' }  // thấp phải
+        };
+
+        const keeperPositions = {
+            1: '25%',
+            2: '25%',
+            3: '45%',
+            4: '65%',
+            5: '65%'
+        };
+
+        const ball = document.getElementById('ballSprite');
+        const keeper = document.getElementById('keeperSprite');
+
+        // Animate
+        ball.style.left = targets[direction].bLeft;
+        ball.style.bottom = targets[direction].bBottom;
+        keeper.style.left = keeperPositions[keeperChoice];
+
+        setTimeout(() => {
+            const isSaved = (direction === keeperChoice);
+            const badge = document.getElementById('shotResultBadge');
+            const txt = document.getElementById('resultText');
+
+            if (isSaved) {
+                shotsSaved++;
+                txt.textContent = 'CẢN PHÁ THÀNH CÔNG!';
+                txt.className = 'display-6 fw-bold px-4 py-2 rounded-pill shadow bg-danger text-white';
+            } else {
+                goalsScored++;
+                txt.textContent = 'VÀOOOO!';
+                txt.className = 'display-6 fw-bold px-4 py-2 rounded-pill shadow bg-success text-white';
+            }
+            badge.classList.remove('d-none');
+            updateScoreBoard();
+
+            setTimeout(() => {
+                turn++;
+                if (turn > maxTurns) {
+                    alert(`Kết thúc lượt sút 5 quả!\nTổng kết: Ghi được ${goalsScored} bàn, Thủ môn cản phá ${shotsSaved} lần.`);
+                    resetGame();
+                } else {
+                    updateScoreBoard();
+                    resetBallAndKeeper();
+                }
+            }, 1200);
+        }, 400);
+    }
+</script>
+}

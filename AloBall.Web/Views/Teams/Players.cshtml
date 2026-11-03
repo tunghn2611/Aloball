@@ -1,0 +1,274 @@
+@model IEnumerable<AloBall.Web.Data.Entities.Player>
+@{
+    var team = ViewBag.Team as AloBall.Web.Data.Entities.Team;
+    ViewData["Title"] = $"Danh sách Thành viên - {team?.Name}";
+    bool isManager = ViewBag.IsManager ?? false;
+}
+
+@await Html.PartialAsync("_TeamNavigation", team!.Id)
+@if (!isManager) { <div class="read-only-note">Bạn có thể xem hồ sơ cầu thủ. Lãnh đội phụ trách cập nhật thông tin.</div> }
+
+<div class="page-heading">
+    <div><span class="eyebrow">ĐỘI HÌNH · @team?.Name</span><h1>Những người cùng màu áo.</h1><p>@Model.Count() cầu thủ · Hồ sơ, số áo và thông tin đặt áo của đội.</p></div>
+    @if (isManager)
+    {
+        <div class="d-flex gap-2">
+            <button class="btn btn-arena-outline btn-sm" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                <i class="bi bi-file-earmark-arrow-up me-1"></i> Nhập từ Excel
+            </button>
+            <a asp-controller="Sheets" asp-action="ExportPlayers" asp-route-teamId="@team?.Id" class="btn btn-arena-outline btn-sm">
+                <i class="bi bi-file-earmark-arrow-down me-1"></i> Xuất Excel
+            </a>
+            <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" class="btn btn-arena-primary btn-sm shadow-sm">
+                <i class="bi bi-person-plus-fill me-1"></i> Thêm cầu thủ
+            </a>
+        </div>
+    }
+</div>
+
+<!-- Thanh tìm kiếm & lọc nhanh -->
+<div class="arena-card p-2 mb-3">
+    <div class="row g-2">
+        <div class="col-8 col-md-9">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                <input type="text" id="memberSearch" class="form-control border-start-0" placeholder="Tìm kiếm theo tên, số áo, vị trí..." onkeyup="filterMembers()" />
+            </div>
+        </div>
+        <div class="col-4 col-md-3">
+            <select id="statusFilter" class="form-select" onchange="filterMembers()">
+                <option value="all">Tất cả (@Model.Count())</option>
+                <option value="active" selected>Đang đá</option>
+                <option value="inactive">Nghỉ / Tạm dừng</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Danh sách hiển thị Responsive (Bảng Desktop, Cards Mobile) -->
+<div class="arena-card overflow-hidden">
+    <!-- Desktop Table View -->
+    <div class="table-responsive d-none d-md-block">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+                <tr class="small text-muted text-uppercase">
+                    <th class="ps-3" style="width: 70px;">Số áo</th>
+                    <th>Cầu thủ</th>
+                    <th>Vị trí</th>
+                    <th>Tên in áo</th>
+                    <th>Size Áo / Quần</th>
+                    <th>Thể hình</th>
+                    <th>Trạng thái</th>
+                    @if (isManager) { <th><span class="visually-hidden">Thao tác</span></th> }
+                </tr>
+            </thead>
+            <tbody id="memberTableBody">
+                @foreach (var p in Model)
+                {
+                    <tr class="member-row" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
+                        <td class="ps-3">
+                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fw-bold fs-6">
+                                @(p.KitNumber?.ToString() ?? "-")
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">@p.FullName</div>
+                            @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                            {
+                                <small class="text-success"><i class="bi bi-check-circle-fill"></i> Đã liên kết tài khoản</small>
+                            }
+                        </td>
+                        <td><span class="text-muted">@(p.Position ?? "Chưa đặt")</span></td>
+                        <td><code class="text-dark fw-bold">@(p.ShirtName ?? "-")</code></td>
+                        <td>
+                            <span class="badge bg-light text-dark border">Áo: @(p.ShirtSize ?? "-")</span>
+                            <span class="badge bg-light text-dark border">Quần: @(p.ShortSize ?? "-")</span>
+                        </td>
+                        <td class="small text-muted">
+                            @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "-") / @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "-")
+                        </td>
+                        <td>
+                            <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1">
+                                @(p.IsActive ? "Đang hoạt động" : "Nghỉ đá")
+                            </span>
+                        </td>
+                        @if(isManager) { <td><a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm">Sửa</a></td> }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Card View (Dễ quét, không cuộn ngang) -->
+    <div class="d-md-none p-2" id="memberMobileList">
+        @foreach (var p in Model)
+        {
+            <div class="arena-card p-3 mb-2 member-card" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-dark rounded-circle px-2 py-1 fs-6">
+                            @(p.KitNumber?.ToString() ?? "-")
+                        </span>
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark">@p.FullName</h6>
+                            <small class="text-muted">@(p.Position ?? "Cầu thủ")</small>
+                        </div>
+                    </div>
+                    <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1">
+                        @(p.IsActive ? "Đang đá" : "Nghỉ")
+                    </span>
+                </div>
+
+                @if(isManager) { <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm mb-2">Chỉnh sửa hồ sơ</a> }
+                <div class="p-2 bg-light rounded-3 small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">In áo:</span>
+                        <strong class="text-dark">@(p.ShirtName ?? "-")</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Size áo/quần:</span>
+                        <span>Áo: <strong>@(p.ShirtSize ?? "-")</strong> | Quần: <strong>@(p.ShortSize ?? "-")</strong></span>
+                    </div>
+                    @if (p.HeightCm.HasValue || p.WeightKg.HasValue)
+                    {
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Thể hình:</span>
+                            <span>@(p.HeightCm ?? 0) cm - @(p.WeightKg ?? 0) kg</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal Thêm Cầu Thủ -->
+@if (isManager)
+{
+    <div class="modal fade" id="addPlayerModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Thêm Cầu Thủ Mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-action="AddPlayer" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Họ và tên <span class="text-danger">*</span></label>
+                            <input type="text" name="fullName" class="form-control" placeholder="Nguyễn Văn A" required />
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-4">
+                                <label class="form-label fw-semibold">Số áo</label>
+                                <input type="number" name="kitNumber" class="form-control" placeholder="10" />
+                            </div>
+                            <div class="col-8">
+                                <label class="form-label fw-semibold">Vị trí</label>
+                                <input type="text" name="position" class="form-control" placeholder="Tiền đạo, Tiền vệ..." />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tên in trên áo</label>
+                            <input type="text" name="shirtName" class="form-control" placeholder="VAN A" />
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Size Áo</label>
+                                <select name="shirtSize" class="form-select">
+                                    <option value="">Chọn size</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Size Quần</label>
+                                <select name="shortSize" class="form-select">
+                                    <option value="">Chọn size</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">Lưu Cầu Thủ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nhập Excel -->
+    <div class="modal fade" id="importExcelModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Nhập Danh Sách Cầu Thủ Từ Excel</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form asp-controller="Sheets" asp-action="PreviewImport" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Tải file Excel mẫu được xuất từ hệ thống để chỉnh sửa Tên in áo, Size áo/quần. Hệ thống sẽ mở bảng <strong>Xem trước (Preview)</strong> các thay đổi trước khi ghi dữ liệu.
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chọn file Excel (.xlsx)</label>
+                            <input type="file" name="excelFile" class="form-control" accept=".xlsx" required />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-arena-primary">Tải lên & Xem trước</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    function filterMembers() {
+        const query = document.getElementById('memberSearch').value.toLowerCase();
+        const filter = document.getElementById('statusFilter').value;
+
+        // Filter desktop rows
+        document.querySelectorAll('.member-row').forEach(row => {
+            const name = row.getAttribute('data-name');
+            const num = row.getAttribute('data-number');
+            const pos = row.getAttribute('data-pos');
+            const active = row.getAttribute('data-active');
+
+            let matchQuery = name.includes(query) || num.includes(query) || pos.includes(query);
+            let matchStatus = (filter === 'all') || (filter === active);
+
+            row.style.display = (matchQuery && matchStatus) ? '' : 'none';
+        });
+
+        // Filter mobile cards
+        document.querySelectorAll('.member-card').forEach(card => {
+            const name = card.getAttribute('data-name');
+            const num = card.getAttribute('data-number');
+            const pos = card.getAttribute('data-pos');
+            const active = card.getAttribute('data-active');
+
+            let matchQuery = name.includes(query) || num.includes(query) || pos.includes(query);
+            let matchStatus = (filter === 'all') || (filter === active);
+
+            card.style.display = (matchQuery && matchStatus) ? 'block' : 'none';
+        });
+    }
+</script>
+}

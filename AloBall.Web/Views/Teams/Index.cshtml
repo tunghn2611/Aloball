@@ -1,0 +1,14 @@
+@model IEnumerable<AloBall.Web.Data.Entities.TeamMember>
+@using AloBall.Web.Data.Entities
+@{ ViewData["Title"] = "Đội của tôi"; }
+<div class="page-heading"><div><span class="heading-index">MY CLUBHOUSE / 02</span><h1>Những người cùng sân.</h1><p>Chọn đội để quản lý, theo dõi lịch thi đấu và kết nối đồng đội.</p></div><a asp-action="Create" class="btn btn-arena-primary">Tạo đội mới <i class="bi bi-plus-lg"></i></a></div>
+@if(!Model.Any()) { <div class="empty-state"><i class="bi bi-shield-plus"></i><h3>Đội bóng đầu tiên đang chờ bạn</h3><p>Tạo câu lạc bộ của riêng mình hoặc liên hệ lãnh đội để tham gia.</p><a asp-action="Create" class="btn btn-arena-primary">Bắt đầu một đội bóng</a></div> }
+else {
+    <div class="team-collection">
+    @foreach(var membership in Model) {
+        var team = membership.Team;
+        var role = membership.Role == TeamRole.Owner ? "Chủ đội" : membership.Role == TeamRole.Manager ? "Lãnh đội" : "Thành viên";
+        <article class="team-pass"><div class="team-pass-cover"><div class="club-logo">@if(!string.IsNullOrEmpty(team.LogoUrl)) { <img src="@team.LogoUrl" alt="" /> } else { @team.Name[..Math.Min(2,team.Name.Length)] }</div><div><span class="eyebrow">@role @(membership.IsBtc ? "· Ban tổ chức" : "")</span><h2>@team.Name</h2></div></div><div class="team-pass-body"><div class="team-pass-facts"><div><span>KHU VỰC</span><strong>@(team.ActivityArea ?? "Chưa cập nhật")</strong></div><div><span>ĐÁNH GIÁ GIAO LƯU</span><strong><i class="bi bi-star-fill text-warning"></i> @team.AverageRating.ToString("0.0") / 5</strong></div><div><span>SÂN NHÀ</span><strong>@(team.HomePitch ?? "Chưa cập nhật")</strong></div><div><span>TRẠNG THÁI</span><strong>@(team.IsRestrictedFromMatchmaking ? "Tạm ngưng bắt đối" : "Sẵn sàng kết nối")</strong></div></div><div class="team-pass-actions"><a asp-action="Dashboard" asp-route-id="@team.Id" class="btn btn-arena-primary flex-grow-1">Vào không gian đội <i class="bi bi-arrow-right"></i></a>@if(team.IsPublic && !team.IsDraft) { <a asp-action="PublicProfile" asp-route-slug="@team.Slug" class="btn btn-arena-outline" aria-label="Hồ sơ công khai @team.Name"><i class="bi bi-globe2"></i></a> }</div></div></article>
+    }
+    </div>
+}

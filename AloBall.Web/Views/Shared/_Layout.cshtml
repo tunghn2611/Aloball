@@ -1,0 +1,59 @@
+@{
+    var section = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
+    var sectionName = section switch { "Teams" => "Đội bóng", "Matches" => "Thi đấu", "Attendance" => "Sinh hoạt", "FireKeeping" => "Giữ Lửa", "Matchmaking" => "Kết nối", "Account" => "Tài khoản", "Admin" => "Quản trị", "Sheets" => "Dữ liệu đội", _ => "Khám phá" };
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>@ViewData["Title"] · AloBall</title>
+    <meta name="theme-color" content="#082f24" />
+    <link rel="manifest" href="~/manifest.json" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/arena.css" asp-append-version="true" />
+</head>
+<body class="arena-app page-@(section.ToLowerInvariant()) view-@(action.ToLowerInvariant())">
+    <a class="skip-link" href="#main-content">Đến nội dung chính</a>
+    <aside class="arena-sidebar" id="arenaSidebar" aria-label="Điều hướng chính">
+        <a class="arena-brand" asp-controller="Home" asp-action="Index"><span class="brand-symbol">a<span>●</span></span><span>alo<span class="brand-light">ball</span><small>THE FOOTBALL CLUBHOUSE</small></span></a>
+        <button class="sidebar-close" type="button" aria-label="Đóng menu"><i class="bi bi-x-lg"></i></button>
+        <div class="sidebar-label">SÂN CHƠI CỦA BẠN</div>
+        <nav class="primary-nav">
+            <a class="@(section == "Home" ? "active" : "")" asp-controller="Home" asp-action="Index"><i class="bi bi-compass"></i><span>Khám phá</span><span class="nav-index">01</span></a>
+            <a class="@(section == "Teams" || section == "Attendance" || section == "Matches" || section == "FireKeeping" || section == "Sheets" ? "active" : "")" asp-controller="Teams" asp-action="Index"><i class="bi bi-shield"></i><span>Đội của tôi</span><span class="nav-index">02</span></a>
+            <a class="@(section == "Matchmaking" ? "active" : "")" asp-controller="Matchmaking" asp-action="Index"><i class="bi bi-intersect"></i><span>Tìm đối giao lưu</span><span class="nav-index">03</span></a>
+            <a href="/#lich-dau-ket-qua"><i class="bi bi-calendar2-event"></i><span>Lịch đấu & kết quả</span><span class="nav-index">04</span></a>
+        </nav>
+        <div class="sidebar-callout"><span class="eyebrow">MỘT ĐỘI. MỘT ĐAM MÊ.</span><h2>Ra sân cùng<br />nhau, mỗi tuần.</h2><p>Tạo không gian riêng cho đội bóng của bạn.</p><a asp-controller="Teams" asp-action="Create">Tạo đội bóng <i class="bi bi-arrow-up-right"></i></a></div>
+        <div class="sidebar-foot"><span class="status-dot"></span> Bóng đá kết nối chúng ta.<small>ALO BALL / EST. 2026</small></div>
+    </aside>
+    <button class="sidebar-scrim" aria-label="Đóng điều hướng" type="button" tabindex="-1"></button>
+    <div class="arena-shell">
+        <header class="arena-topbar">
+            <div class="topbar-path"><button class="menu-trigger" type="button" aria-controls="arenaSidebar" aria-expanded="false" aria-label="Mở menu"><i class="bi bi-list"></i></button><span class="topbar-wordmark">aloball<span>®</span></span><span class="path-divider">/</span><span>@sectionName</span></div>
+            <div class="topbar-actions"><a class="topbar-create" asp-controller="Teams" asp-action="Create"><i class="bi bi-plus-lg"></i> Tạo đội</a>
+            @if (User.Identity?.IsAuthenticated == true) {
+                <div class="dropdown">
+                    <button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Tài khoản"><span class="account-monogram">@(string.IsNullOrEmpty(User.Identity.Name) ? "A" : User.Identity.Name[..1].ToUpperInvariant())</span><span class="account-name">@User.Identity.Name</span><i class="bi bi-chevron-down"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-end"><li><span class="dropdown-header">@User.Identity.Name</span></li><li><a class="dropdown-item" asp-controller="Teams" asp-action="Index">Đội của tôi</a></li>
+                    @if(string.Equals(User.Identity.Name, "admin@aloball.vn", StringComparison.OrdinalIgnoreCase)) { <li><a class="dropdown-item" asp-controller="Admin" asp-action="Index">Quản trị hệ thống</a></li> }
+                    <li><hr class="dropdown-divider" /></li><li><form asp-controller="Account" asp-action="Logout" method="post"><button class="dropdown-item text-danger" type="submit">Đăng xuất</button></form></li></ul>
+                </div>
+            } else { <a class="btn btn-arena-primary" asp-controller="Account" asp-action="Login">Đăng nhập <i class="bi bi-arrow-up-right"></i></a> }
+            </div>
+        </header>
+        <main id="main-content" class="arena-content">
+            @if (TempData["Success"] != null) { <div class="alert alert-success alert-dismissible fade show" role="status"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button></div> }
+            @if (TempData["Error"] != null) { <div class="alert alert-danger alert-dismissible fade show" role="alert"><i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng thông báo"></button></div> }
+            @RenderBody()
+        </main>
+        <footer class="arena-footer"><a asp-controller="Home" asp-action="Index">aloball<span>®</span></a><span>Đam mê trên sân. Kết nối ngoài sân.</span><a asp-controller="Home" asp-action="Privacy">Quyền riêng tư</a><small>© @DateTime.Now.Year AloBall</small></footer>
+    </div>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/arena.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

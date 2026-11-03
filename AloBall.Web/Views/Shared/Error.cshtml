@@ -1,0 +1,3 @@
+@model ErrorViewModel
+@{ ViewData["Title"] = "Có lỗi xảy ra"; }
+<section class="error-stage"><span class="eyebrow">TẠM DỪNG MỘT NHỊP</span><h1>Chưa thể hoàn tất thao tác.</h1><p>Vui lòng thử lại. Nếu lỗi vẫn tiếp diễn, hãy gửi mã bên dưới cho người quản trị.</p>@if (Model.ShowRequestId) { <p class="small text-muted">Mã hỗ trợ: <code>@Model.RequestId</code></p> }<a asp-controller="Home" asp-action="Index" class="btn btn-arena-primary">Về trang khám phá <i class="bi bi-arrow-right"></i></a></section>

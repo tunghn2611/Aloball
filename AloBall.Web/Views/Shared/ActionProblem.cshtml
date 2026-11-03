@@ -1,0 +1,3 @@
+@model string
+@{ ViewData["Title"] = "Cần kiểm tra trước khi lưu"; }
+<div class="arena-card empty-state mx-auto" style="max-width:650px"><i class="bi bi-info-circle"></i><h1 class="h4 fw-bold">Chưa thể lưu thay đổi</h1><p class="my-3">@Model</p><button type="button" class="btn btn-arena-primary" onclick="history.back()">Quay lại kiểm tra</button><a asp-controller="Teams" asp-action="Index" class="btn btn-arena-outline ms-2">Đội của tôi</a></div>

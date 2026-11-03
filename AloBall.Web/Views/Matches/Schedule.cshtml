@@ -1,0 +1,17 @@
+@model AloBall.Web.Models.ScheduleMatchInput
+@{ ViewData["Title"] = "Thêm trận đấu"; }
+@await Html.PartialAsync("_TeamNavigation", Model.TeamId)
+<div class="workspace-heading"><div><span class="eyebrow">Viết tiếp lịch sử đội bóng</span><h1>Thêm trận đấu</h1><p>Ghi nhận trận giải hoặc giao hữu với đội ngoài hệ thống.</p></div></div>
+<form method="post" class="arena-card editor-panel mx-auto" style="max-width:800px">
+    <input asp-for="TeamId" type="hidden" /><div asp-validation-summary="All" class="text-danger"></div>
+    <div class="row g-3">
+        <div class="col-md-6"><label asp-for="Category" class="form-label">Hình thức</label><select asp-for="Category" class="form-select"><option value="2">Đá giải</option><option value="1">Giao hữu đối ngoại</option></select></div>
+        <div class="col-md-6"><label asp-for="Opponent" class="form-label">Tên đội đối thủ</label><input asp-for="Opponent" required class="form-control" /></div>
+        <div class="col-12"><label asp-for="Notes" class="form-label">Tên giải / vòng đấu / ghi chú</label><input asp-for="Notes" class="form-control" placeholder="Ví dụ: Cúp mùa thu 2026 · Vòng bảng" /></div>
+        <div class="col-md-6"><label asp-for="MatchDateTime" class="form-label">Ngày giờ thi đấu</label><input asp-for="MatchDateTime" type="datetime-local" class="form-control" required /></div>
+        <div class="col-md-6"><label asp-for="PitchType" class="form-label">Loại sân</label><select asp-for="PitchType" class="form-select"><option>5 người</option><option>7 người</option><option>11 người</option></select></div>
+        <div class="col-12"><label asp-for="PitchName" class="form-label">Sân thi đấu</label><input asp-for="PitchName" class="form-control" required /></div>
+        <div class="col-12"><div class="form-check"><input asp-for="IsPublic" class="form-check-input" /><label asp-for="IsPublic" class="form-check-label">Hiển thị trận trên hồ sơ công khai của đội</label></div></div>
+    </div>
+    <div class="editor-footer"><a asp-action="Index" asp-route-teamId="@Model.TeamId" class="btn btn-arena-outline">Hủy</a><button class="btn btn-arena-primary" type="submit">Tạo trận đấu</button></div>
+</form>
