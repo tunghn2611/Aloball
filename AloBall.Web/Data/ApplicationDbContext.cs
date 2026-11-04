@@ -30,6 +30,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ReviewDisputeAppeal> ReviewDisputeAppeals => Set<ReviewDisputeAppeal>();
     public DbSet<KitOrderBatch> KitOrderBatches => Set<KitOrderBatch>();
     public DbSet<KitOrderItem> KitOrderItems => Set<KitOrderItem>();
+    public DbSet<TeamMessage> TeamMessages => Set<TeamMessage>();
+    public DbSet<Referee> Referees => Set<Referee>();
+    public DbSet<RefereeRequest> RefereeRequests => Set<RefereeRequest>();
+    public DbSet<RefereeProposal> RefereeProposals => Set<RefereeProposal>();
+    public DbSet<RefereeAssignment> RefereeAssignments => Set<RefereeAssignment>();
+    public DbSet<PitchVenue> PitchVenues => Set<PitchVenue>();
+    public DbSet<PitchBookingRequest> PitchBookingRequests => Set<PitchBookingRequest>();
+    public DbSet<PitchBookingOffer> PitchBookingOffers => Set<PitchBookingOffer>();
+
+    // Module Smart Match Finance
+    public DbSet<MatchExpenseEstimate> MatchExpenseEstimates => Set<MatchExpenseEstimate>();
+    public DbSet<MatchSettlement> MatchSettlements => Set<MatchSettlement>();
+    public DbSet<MatchSettlementItem> MatchSettlementItems => Set<MatchSettlementItem>();
+    public DbSet<MatchSettlementMemberAllocation> MatchSettlementMemberAllocations => Set<MatchSettlementMemberAllocation>();
+    public DbSet<MatchSettlementPayment> MatchSettlementPayments => Set<MatchSettlementPayment>();
+    public DbSet<MatchSettlementAdjustmentAudit> MatchSettlementAdjustmentAudits => Set<MatchSettlementAdjustmentAudit>();
 
     // Module Giữ Lửa
     public DbSet<TeamFireRegulation> TeamFireRegulations => Set<TeamFireRegulation>();
@@ -69,6 +85,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         // Unique constraint: 1 đội chỉ đánh giá 1 lần cho mỗi trận
         builder.Entity<TeamMatchReview>()
             .HasIndex(r => new { r.MatchId, r.ReviewerTeamId })
+            .IsUnique();
+
+        // Unique constraint: 1 trận chỉ có 1 quyết toán cho mỗi đội (chống quyết toán trùng)
+        builder.Entity<MatchSettlement>()
+            .HasIndex(s => new { s.MatchId, s.TeamId })
+            .IsUnique();
+
+        // Unique constraint: 1 cầu thủ chỉ có 1 bản phân bổ trong 1 quyết toán
+        builder.Entity<MatchSettlementMemberAllocation>()
+            .HasIndex(a => new { a.SettlementId, a.PlayerId })
             .IsUnique();
 
         // Giữ Lửa Constraints:
@@ -195,5 +221,117 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasForeignKey(g => g.AssistPlayerId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Internal Messaging: TeamMessage
+        builder.Entity<TeamMessage>(entity =>
+        {
+            entity.HasOne(m => m.Team)
+                .WithMany(t => t.Messages)
+                .HasForeignKey(m => m.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(m => m.SenderUser)
+                .WithMany()
+                .HasForeignKey(m => m.SenderUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.RecipientUser)
+                .WithMany()
+                .HasForeignKey(m => m.RecipientUserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(m => new { m.TeamId, m.ConversationId });
+            entity.HasIndex(m => new { m.RecipientUserId, m.IsRead });
+            entity.HasIndex(m => new { m.TeamId, m.SenderUserId, m.CreatedAt });
+        });
+
+        // Referee Request & Coordination
+        builder.Entity<RefereeRequest>(entity =>
+        {
+            entity.HasOne(r => r.Team)
+                .WithMany()
+                .HasForeignKey(r => r.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.Match)
+                .WithMany()
+                .HasForeignKey(r => r.MatchId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(r => r.TeamId);
+            entity.HasIndex(r => r.Status);
+        });
+
+        builder.Entity<RefereeProposal>(entity =>
+        {
+            entity.HasOne(p => p.Request)
+                .WithMany(r => r.Proposals)
+                .HasForeignKey(p => p.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(p => p.RequestId);
+            entity.HasIndex(p => p.Status);
+        });
+
+        builder.Entity<RefereeAssignment>(entity =>
+        {
+            entity.HasOne(a => a.Proposal)
+                .WithMany(p => p.Assignments)
+                .HasForeignKey(a => a.ProposalId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.Referee)
+                .WithMany()
+                .HasForeignKey(a => a.RefereeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(a => new { a.ProposalId, a.RefereeId }).IsUnique();
+        });
+
+        // Pitch Discovery & Booking MVP
+        builder.Entity<PitchBookingRequest>(entity =>
+        {
+            entity.HasOne(r => r.Team)
+                .WithMany()
+                .HasForeignKey(r => r.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.PitchVenue)
+                .WithMany(v => v.BookingRequests)
+                .HasForeignKey(r => r.PitchVenueId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.Match)
+                .WithMany()
+                .HasForeignKey(r => r.MatchId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(r => r.TeamId);
+            entity.HasIndex(r => r.PitchVenueId);
+            entity.HasIndex(r => r.Status);
+        });
+
+        builder.Entity<PitchBookingOffer>(entity =>
+        {
+            entity.HasOne(o => o.Request)
+                .WithMany(r => r.Offers)
+                .HasForeignKey(o => o.RequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(o => o.RequestId);
+            entity.HasIndex(o => o.Status);
+        });
+
+        builder.Entity<PitchVenue>(entity =>
+        {
+            entity.HasIndex(v => v.City);
+            entity.HasIndex(v => v.District);
+            entity.HasIndex(v => v.IsActive);
+        });
     }
 }
+
+

@@ -9,6 +9,9 @@
         <div class="col-md-8"><label asp-for="FullName" class="form-label">Họ và tên</label><input asp-for="FullName" class="form-control" required maxlength="100" /></div>
         <div class="col-md-4"><label asp-for="KitNumber" class="form-label">Số áo</label><input asp-for="KitNumber" class="form-control" min="0" max="999" /></div>
         <div class="col-md-6"><label asp-for="Position" class="form-label">Vị trí thi đấu</label><select asp-for="Position" class="form-select"><option value="">Chưa chọn</option>@foreach(var position in new[]{"Thủ môn", "Hậu vệ", "Trung vệ", "Tiền vệ", "Tiền đạo"}) { <option>@position</option> }@if (!string.IsNullOrEmpty(Model.Position) && !new[]{"Thủ môn", "Hậu vệ", "Trung vệ", "Tiền vệ", "Tiền đạo"}.Contains(Model.Position)) { <option>@Model.Position</option> }</select></div>
+        <div class="col-md-4"><label asp-for="PreferredFoot" class="form-label">Chân thuận</label><select asp-for="PreferredFoot" class="form-select"><option value="">Chưa chọn</option><option value="Phải">Phải</option><option value="Trái">Trái</option><option value="Hai chân">Hai chân</option></select></div>
+        <div class="col-md-4"><label asp-for="Experience" class="form-label">Kinh nghiệm</label><input asp-for="Experience" class="form-control" list="experienceList" placeholder="VD: 3 năm, Bán chuyên..." maxlength="50" /><datalist id="experienceList"><option value="Dưới 1 năm"></option><option value="1 - 3 năm"></option><option value="3 - 5 năm"></option><option value="Trên 5 năm"></option></datalist></div>
+        <div class="col-md-4"><label asp-for="Region" class="form-label">Khu vực</label><input asp-for="Region" class="form-control" placeholder="VD: Cầu Giấy, Hà Nội" maxlength="100" /></div>
         <div class="col-6 col-md-3"><label asp-for="HeightCm" class="form-label">Chiều cao (cm)</label><input asp-for="HeightCm" type="number" step="0.1" min="50" max="250" class="form-control" /></div>
         <div class="col-6 col-md-3"><label asp-for="WeightKg" class="form-label">Cân nặng (kg)</label><input asp-for="WeightKg" type="number" step="0.1" min="15" max="250" class="form-control" /></div>
     </div></section>
@@ -18,8 +21,8 @@
         <div class="col-6 col-md-3"><label asp-for="ShortSize" class="form-label">Size quần</label><input asp-for="ShortSize" class="form-control" list="kitSizes" placeholder="M" maxlength="20" /></div>
         <datalist id="kitSizes">@foreach(var size in new[]{"XS","S","M","L","XL","XXL","3XL"}) { <option value="@size"></option> }</datalist>
     </div></section>
-    <section class="editor-section"><h2>03. Trạng thái & công khai</h2><p>Thông tin đặt áo chỉ dùng trong nội bộ đội.</p><div class="row g-2">
-    @foreach(var field in new[]{ ("IsActive","Đang sinh hoạt cùng đội"), ("IsPublicProfile","Hiện trong danh sách công khai"), ("PublicKitNumber","Công khai số áo"), ("PublicPosition","Công khai vị trí"), ("PublicHeightWeight","Công khai chiều cao, cân nặng") }) {
+    <section class="editor-section"><h2>03. Trạng thái & công khai</h2><p>Thông tin đặt áo chỉ dùng trong nội bộ đội. Các trường cá nhân mặc định riêng tư.</p><div class="row g-2">
+    @foreach(var field in new[]{ ("IsActive","Đang sinh hoạt cùng đội"), ("IsPublicProfile","Hiện trong danh sách công khai"), ("PublicKitNumber","Công khai số áo"), ("PublicPosition","Công khai vị trí"), ("PublicHeightWeight","Công khai chiều cao, cân nặng"), ("PublicPreferredFoot","Công khai chân thuận"), ("PublicExperience","Công khai kinh nghiệm") }) {
         <div class="col-md-6"><div class="form-check">@Html.CheckBox(field.Item1, (bool)Model.GetType().GetProperty(field.Item1)!.GetValue(Model)!, new { @class = "form-check-input", id = field.Item1 })<label for="@field.Item1" class="form-check-label">@field.Item2</label></div></div>
     }
     </div></section>

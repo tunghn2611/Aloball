@@ -1,0 +1,107 @@
+@model IEnumerable<AloBall.Web.Data.Entities.PitchVenue>
+@{
+    ViewData["Title"] = "Quản lý sân bóng - Super Admin";
+}
+
+<div class="page-heading editorial-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ ĐIỀU PHỐI ĐẶT SÂN</span>
+        <h1>Danh bạ cụm sân bóng</h1>
+        <p class="text-muted mb-0">Quản lý thông tin cụm sân, hotline chủ sân, số lượng sân con, biểu phí và trạng thái nhận đặt sân.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a asp-action="PitchBookingRequests" class="btn btn-outline-secondary">
+            <i class="bi bi-inbox me-1"></i> Hộp thư đặt sân
+        </a>
+        <a asp-action="CreatePitchVenue" class="btn btn-arena-primary">
+            <i class="bi bi-building-add me-1"></i> Thêm cụm sân mới
+        </a>
+    </div>
+</div>
+
+<!-- Navigation Tabs for Admin Sections -->
+<div class="d-flex gap-2 border-bottom pb-2 mb-4 flex-wrap">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Khiếu nại & Blacklist</a>
+    <a asp-action="RefereeRequests" class="btn btn-sm btn-outline-secondary">Hộp thư trọng tài</a>
+    <a asp-action="Referees" class="btn btn-sm btn-outline-secondary">Danh bạ trọng tài</a>
+    <a asp-action="PitchBookingRequests" class="btn btn-sm btn-outline-secondary">Hộp thư đặt sân</a>
+    <a asp-action="PitchVenues" class="btn btn-sm btn-dark">Danh bạ sân bóng (@Model.Count())</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="arena-empty-state">
+        <i class="bi bi-geo-alt"></i>
+        <h3>Chưa có sân bóng nào trong hệ thống</h3>
+        <p>Thêm cụm sân bóng đầu tiên để phục vụ nhu cầu tìm sân và đặt sân của các đội bóng.</p>
+        <a asp-action="CreatePitchVenue" class="btn btn-arena-primary mt-3">
+            <i class="bi bi-building-add me-1"></i> Thêm cụm sân
+        </a>
+    </div>
+}
+else
+{
+    <div class="table-responsive arena-card p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tên cụm sân</th>
+                    <th>Khu vực & Địa chỉ</th>
+                    <th>Hotline sân</th>
+                    <th>Thể thức / Quy mô</th>
+                    <th>Giá tham khảo</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in Model)
+                {
+                    <tr class="@(!v.IsActive ? "table-secondary bg-opacity-25" : "")">
+                        <td>
+                            <strong class="text-dark">@v.Name</strong>
+                            <small class="text-muted d-block">@v.SurfaceType</small>
+                        </td>
+                        <td>
+                            <div>@v.District, @v.City</div>
+                            <small class="text-muted d-block text-truncate" style="max-width: 250px;">@v.FullAddress</small>
+                        </td>
+                        <td>
+                            <span class="font-monospace small">@v.ContactPhone</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">Sân @v.SupportedFormats</span>
+                            <span class="badge bg-primary">@v.TotalPitches sân</span>
+                        </td>
+                        <td>
+                            @(v.IndicativePricePerHour.HasValue ? $"{v.IndicativePricePerHour.Value:N0} đ/h" : "-")
+                        </td>
+                        <td>
+                            @if (v.IsActive)
+                            {
+                                <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i> Đang hoạt động</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary text-white"><i class="bi bi-pause-circle me-1"></i> Tạm ngưng</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a asp-action="EditPitchVenue" asp-route-id="@v.Id" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i> Sửa
+                                </a>
+                                <form asp-action="TogglePitchVenueStatus" asp-route-id="@v.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm @(v.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                        @(v.IsActive ? "Tạm ngưng" : "Kích hoạt")
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

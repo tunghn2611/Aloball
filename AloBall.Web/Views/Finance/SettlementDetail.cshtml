@@ -1,0 +1,505 @@
+@model AloBall.Web.Models.SettlementDetailViewModel
+@{
+    ViewData["Title"] = $"Quyết toán trận - vs {Model.OpponentName}";
+}
+
+@await Html.PartialAsync("_TeamNavigation", Model.TeamId)
+
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-controller="Matches" asp-action="Detail" asp-route-id="@Model.MatchId">Matchday Center</a></li>
+                    <li class="breadcrumb-item"><a asp-action="TeamReport" asp-route-teamId="@Model.TeamId">Quỹ &amp; Thu chi</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Chi tiết quyết toán</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h3 fw-bold mb-0 text-dark">Quyết Toán &amp; Thu Tiền Trận Đấu</h2>
+                <span class="badge bg-success text-white px-2 py-1"><i class="bi bi-patch-check-fill me-1"></i>Đã chốt</span>
+            </div>
+            <p class="text-muted small mb-0 mt-1">
+                <i class="bi bi-calendar3 me-1"></i>@Model.MatchDateTime.ToString("dd/MM/yyyy HH:mm") · 
+                <i class="bi bi-geo-alt me-1 text-danger"></i>@Model.PitchName · 
+                vs <strong>@Model.OpponentName</strong> · 
+                Người lập: <strong>@Model.ConfirmedByName</strong> (@Model.ConfirmedAt?.ToString("dd/MM/yyyy HH:mm"))
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-controller="Matches" asp-action="Detail" asp-route-id="@Model.MatchId" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Matchday Center
+            </a>
+            <a asp-action="TeamReport" asp-route-teamId="@Model.TeamId" class="btn btn-arena-outline btn-sm">
+                <i class="bi bi-bar-chart-fill me-1"></i> Báo cáo quỹ CLB
+            </a>
+        </div>
+    </div>
+
+    <!-- 4 Thẻ tổng quan tài chính trận đấu -->
+    <div class="row g-3 mb-4">
+        <!-- 1. Tổng chi phí trận -->
+        <div class="col-6 col-lg-3">
+            <div class="arena-card p-3 h-100 border-start border-4 border-dark">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-receipt text-dark me-1"></i>Tổng chi phí trận
+                </span>
+                <div class="d-flex align-items-baseline gap-1">
+                    <span class="fs-3 fw-bold text-dark">@Model.TotalAmount.ToString("N0")</span>
+                    <small class="text-muted">đ</small>
+                </div>
+                <div class="small text-muted mt-1 pt-1 border-top">
+                    <span>Chia cho @Model.ParticipantCount người (~@Model.PerPersonShare.ToString("N0") đ/người)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Đã thu thực tế -->
+        <div class="col-6 col-lg-3">
+            <div class="arena-card p-3 h-100 border-start border-4 border-success">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-check2-circle text-success me-1"></i>Đã thu thực tế
+                </span>
+                <div class="d-flex align-items-baseline gap-1">
+                    <span class="fs-3 fw-bold text-success">@Model.TotalPaid.ToString("N0")</span>
+                    <small class="text-muted">đ</small>
+                </div>
+                <div class="small text-muted mt-1 pt-1 border-top">
+                    <span>Đã nộp quỹ trận đấu</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Còn tồn đọng -->
+        <div class="col-6 col-lg-3">
+            <div class="arena-card p-3 h-100 border-start border-4 border-danger">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-exclamation-circle text-danger me-1"></i>Còn thiếu / Tồn đọng
+                </span>
+                <div class="d-flex align-items-baseline gap-1">
+                    <span class="fs-3 fw-bold text-danger">@Model.TotalRemaining.ToString("N0")</span>
+                    <small class="text-muted">đ</small>
+                </div>
+                <div class="small text-muted mt-1 pt-1 border-top">
+                    <span>Số dư các cầu thủ chưa đóng</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Tiến độ thu quỹ -->
+        <div class="col-6 col-lg-3">
+            <div class="arena-card p-3 h-100 border-start border-4 border-primary">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-percent text-primary me-1"></i>Tỉ lệ thu hồi quỹ
+                </span>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fs-3 fw-bold text-primary">@Model.CollectionRate.ToString("0.0")%</span>
+                </div>
+                <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: @Model.CollectionRate%;" aria-valuenow="@Model.CollectionRate" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cơ cấu các khoản chi của quyết toán -->
+    <div class="arena-card p-3 mb-4 bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Cơ Cấu Chi Phí Trong Biên Bản</h6>
+            @if (!string.IsNullOrEmpty(Model.Notes))
+            {
+                <small class="text-muted"><i class="bi bi-chat-left-quote me-1"></i>Ghi chú: @Model.Notes</small>
+            }
+        </div>
+        <div class="row g-2">
+            @foreach (var item in Model.Items)
+            {
+                <div class="col-12 col-md-4">
+                    <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-secondary-subtle text-secondary border me-1">@item.CategoryName</span>
+                            <span class="small fw-semibold text-dark">@item.Description</span>
+                        </div>
+                        <strong class="text-dark">@item.Amount.ToString("N0") đ</strong>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- BẢNG THEO DÕI NỘP TIỀN CỦA CẦU THỦ -->
+    <div class="arena-card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h5 class="fw-bold text-dark mb-1">
+                    <i class="bi bi-people-fill text-success me-2"></i>Danh Sách Thu Quỹ Cầu Thủ (@Model.Allocations.Count người)
+                </h5>
+                <p class="text-muted small mb-0">
+                    @(Model.IsManager ? "Theo dõi chi tiết mức phân bổ, số tiền đã đóng và lịch sử thanh toán của từng cầu thủ." : "Bạn đang xem thông tin thanh toán cá nhân của mình.")
+                </p>
+            </div>
+
+            <!-- Bộ lọc trạng thái nộp tiền -->
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm active filter-btn" onclick="filterPaymentStatus('all', this)">Tất cả</button>
+                <button type="button" class="btn btn-outline-danger btn-sm filter-btn" onclick="filterPaymentStatus('unpaid', this)">Chưa nộp</button>
+                <button type="button" class="btn btn-outline-warning btn-sm filter-btn" onclick="filterPaymentStatus('partial', this)">Nộp 1 phần</button>
+                <button type="button" class="btn btn-outline-success btn-sm filter-btn" onclick="filterPaymentStatus('paid', this)">Đã xong</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr class="small text-muted text-uppercase">
+                        <th class="ps-3">Cầu thủ</th>
+                        <th class="text-end">Cần nộp</th>
+                        <th class="text-end">Đã đóng</th>
+                        <th class="text-end">Còn thiếu</th>
+                        <th>Trạng thái</th>
+                        @if (Model.IsManager)
+                        {
+                            <th class="text-end pe-3" style="width: 240px;">Thao tác BHL</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Allocations)
+                    {
+                        string statusFilter = a.PaymentStatus == AloBall.Web.Data.Entities.PaymentStatus.Paid ? "paid" : (a.PaymentStatus == AloBall.Web.Data.Entities.PaymentStatus.PartiallyPaid ? "partial" : "unpaid");
+                        <tr class="allocation-row @(a.IsSelf ? "table-success-subtle border-start border-4 border-success" : "")" data-status="@statusFilter">
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-secondary-subtle text-secondary border">
+                                        @(a.KitNumber.HasValue ? $"#{a.KitNumber}" : "—")
+                                    </span>
+                                    <div>
+                                        <span class="fw-bold text-dark d-block">
+                                            @a.FullName
+                                            @if (a.IsSelf)
+                                            {
+                                                <span class="badge bg-success text-white ms-1" style="font-size: 9px;"><i class="bi bi-person-fill me-1"></i>Bạn</span>
+                                            }
+                                        </span>
+                                        <small class="text-muted">@(a.Position ?? "Cầu thủ")</small>
+                                        @if (!string.IsNullOrEmpty(a.AdjustmentReason))
+                                        {
+                                            <div class="small text-warning" style="font-size: 10px;" title="@a.AdjustmentReason">
+                                                <i class="bi bi-exclamation-circle me-1"></i>@a.AdjustmentReason
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-end fw-bold text-dark">
+                                @a.AdjustedAmount.ToString("N0") đ
+                            </td>
+                            <td class="text-end fw-bold text-success">
+                                @a.AmountPaid.ToString("N0") đ
+                            </td>
+                            <td class="text-end fw-bold @(a.RemainingBalance > 0 ? "text-danger" : "text-muted")">
+                                @(a.RemainingBalance > 0 ? a.RemainingBalance.ToString("N0") + " đ" : "0 đ")
+                            </td>
+                            <td>
+                                @if (a.PaymentStatus == AloBall.Web.Data.Entities.PaymentStatus.Paid)
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Đã hoàn tất
+                                    </span>
+                                }
+                                else if (a.PaymentStatus == AloBall.Web.Data.Entities.PaymentStatus.PartiallyPaid)
+                                {
+                                    <span class="badge bg-warning-subtle text-dark border border-warning px-2 py-1">
+                                        <i class="bi bi-clock-history me-1"></i>Nộp một phần
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                        <i class="bi bi-x-circle-fill me-1"></i>Chưa nộp
+                                    </span>
+                                }
+                            </td>
+                            @if (Model.IsManager)
+                            {
+                                <td class="text-end pe-3">
+                                    <div class="d-flex justify-content-end align-items-center gap-1">
+                                        @if (a.RemainingBalance > 0)
+                                        {
+                                            <button type="button" class="btn btn-arena-primary btn-sm py-1 px-2 fw-semibold" style="font-size: 11px;" onclick="openRecordPaymentModal('@a.AllocationId', '@a.FullName', @a.RemainingBalance)">
+                                                <i class="bi bi-plus-lg me-1"></i> Thu tiền
+                                            </button>
+                                            <form asp-action="SendPaymentReminder" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="allocationId" value="@a.AllocationId" />
+                                                <input type="hidden" name="matchId" value="@Model.MatchId" />
+                                                <input type="hidden" name="teamId" value="@Model.TeamId" />
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;" title="Gửi thông báo nhắc nộp tiền">
+                                                    <i class="bi bi-bell"></i>
+                                                </button>
+                                            </form>
+                                        }
+
+                                        <!-- Dropdown mở rộng thao tác BHL -->
+                                        <div class="dropdown">
+                                            <button class="btn btn-light btn-sm py-1 px-2 border" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                <li>
+                                                    <button class="dropdown-item py-1 small" type="button" onclick="openAdjustModal('@a.AllocationId', '@a.FullName', @a.AdjustedAmount)">
+                                                        <i class="bi bi-pencil me-2 text-primary"></i>Điều chỉnh số tiền
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button class="dropdown-item py-1 small" type="button" onclick="openHistoryModal('@a.AllocationId', '@a.FullName')">
+                                                        <i class="bi bi-clock-history me-2 text-info"></i>Lịch sử giao dịch (@a.Payments.Count)
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODALS CHO QUẢN LÝ (MANAGER ACTIONS) -->
+<!-- ========================================================================= -->
+@if (Model.IsManager)
+{
+    <!-- 1. Modal Thu tiền -->
+    <div class="modal fade" id="recordPaymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="RecordPayment" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="matchId" value="@Model.MatchId" />
+                    <input type="hidden" name="teamId" value="@Model.TeamId" />
+                    <input type="hidden" name="SettlementId" value="@Model.SettlementId" />
+                    <input type="hidden" name="AllocationId" id="payAllocationId" />
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-cash-stack text-success me-2"></i>Ghi Nhận Thu Tiền Trận
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Cầu thủ nộp tiền</label>
+                            <h6 class="fw-bold text-dark" id="payPlayerName">—</h6>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số tiền nộp (VNĐ) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="Amount" id="payAmountInput" min="1000" step="1000" required />
+                                <span class="input-group-text">đ</span>
+                            </div>
+                            <small class="text-muted">Còn thiếu: <strong class="text-danger" id="payRemainingDisplay">0 đ</strong></small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Hình thức nộp</label>
+                            <select class="form-select" name="PaymentMethod">
+                                <option value="1" selected>Chuyển khoản ngân hàng</option>
+                                <option value="0">Tiền mặt tại sân</option>
+                                <option value="2">Khác</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mã đối soát / Giao dịch (Tùy chọn)</label>
+                            <input type="text" class="form-control" name="ReferenceCode" placeholder="Ví dụ: FT24098765" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ghi chú (Tùy chọn)</label>
+                            <input type="text" class="form-control" name="Note" placeholder="Ví dụ: CK qua Vietcombank" />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">Xác nhận thu tiền</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal Điều chỉnh số tiền phân bổ -->
+    <div class="modal fade" id="adjustAllocationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="AdjustAllocation" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="matchId" value="@Model.MatchId" />
+                    <input type="hidden" name="teamId" value="@Model.TeamId" />
+                    <input type="hidden" name="SettlementId" value="@Model.SettlementId" />
+                    <input type="hidden" name="AllocationId" id="adjustAllocationId" />
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-pencil-square text-warning me-2"></i>Điều Chỉnh Số Tiền Phân Bổ
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Cầu thủ</label>
+                            <h6 class="fw-bold text-dark" id="adjustPlayerName">—</h6>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số tiền mới (VNĐ) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="NewAmount" id="adjustNewAmountInput" min="0" step="1000" required />
+                                <span class="input-group-text">đ</span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Lý do điều chỉnh bắt buộc <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="MandatoryReason" rows="3" placeholder="Nêu rõ lý do (ví dụ: Cầu thủ chấn thương ra sớm hiệp 1, được miễn 50%...)" required minlength="5"></textarea>
+                            <small class="text-muted">Hệ thống sẽ lưu vết kiểm toán (Audit Log) cho thay đổi này.</small>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-warning">Lưu thay đổi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal Lịch sử giao dịch & Đảo khoản thu -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-clock-history text-info me-2"></i>Lịch Sử Giao Dịch &amp; Đảo Khoản Thu
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="fw-bold text-dark mb-3" id="historyPlayerName">—</h6>
+                    <div id="historyContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Form ẩn để thực hiện Đảo khoản thu (Reverse Payment) -->
+    <form asp-action="ReversePayment" method="post" id="reverseForm" class="d-none">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="matchId" value="@Model.MatchId" />
+        <input type="hidden" name="teamId" value="@Model.TeamId" />
+        <input type="hidden" name="SettlementId" value="@Model.SettlementId" />
+        <input type="hidden" name="PaymentId" id="reversePaymentId" />
+        <input type="hidden" name="ReversalReason" id="reverseReasonInput" />
+    </form>
+}
+
+@section Scripts {
+<script>
+    const allocationsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Allocations));
+
+    function filterPaymentStatus(status, btn) {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.allocation-row').forEach(row => {
+            if (status === 'all' || row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function openRecordPaymentModal(allocId, name, remaining) {
+        document.getElementById('payAllocationId').value = allocId;
+        document.getElementById('payPlayerName').innerText = name;
+        document.getElementById('payAmountInput').value = remaining;
+        document.getElementById('payRemainingDisplay').innerText = remaining.toLocaleString('vi-VN') + ' đ';
+        new bootstrap.Modal(document.getElementById('recordPaymentModal')).show();
+    }
+
+    function openAdjustModal(allocId, name, currentAmount) {
+        document.getElementById('adjustAllocationId').value = allocId;
+        document.getElementById('adjustPlayerName').innerText = name;
+        document.getElementById('adjustNewAmountInput').value = currentAmount;
+        new bootstrap.Modal(document.getElementById('adjustAllocationModal')).show();
+    }
+
+    function openHistoryModal(allocId, name) {
+        document.getElementById('historyPlayerName').innerText = `Lịch sử đóng tiền: ${name}`;
+        const container = document.getElementById('historyContainer');
+        container.innerHTML = '';
+
+        const alloc = allocationsData.find(a => a.AllocationId === allocId);
+        if (!alloc || alloc.Payments.length === 0) {
+            container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Chưa có giao dịch thanh toán nào được ghi nhận.</div>';
+        } else {
+            let html = '<div class="table-responsive"><table class="table table-sm table-bordered align-middle">';
+            html += '<thead class="bg-light"><tr><th>Ngày nộp</th><th>Số tiền</th><th>Phương thức</th><th>Mã GD</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>';
+
+            alloc.Payments.forEach(p => {
+                const dateStr = new Date(p.PaymentDate).toLocaleDateString('vi-VN');
+                const isReversed = p.IsReversed;
+                html += `
+                    <tr class="${isReversed ? 'table-secondary opacity-75' : ''}">
+                        <td>${dateStr}</td>
+                        <td class="fw-bold ${isReversed ? 'text-decoration-line-through text-muted' : 'text-success'}">${p.Amount.toLocaleString('vi-VN')} đ</td>
+                        <td>${p.PaymentMethodName}</td>
+                        <td><code>${p.ReferenceCode || '—'}</code></td>
+                        <td>${p.Note || '—'}</td>
+                        <td>${isReversed ? `<span class="badge bg-danger">Đã đảo: ${p.ReversalReason}</span>` : '<span class="badge bg-success">Hợp lệ</span>'}</td>
+                        <td>
+                            ${!isReversed ? `
+                                <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size: 10px;" onclick="promptReversePayment('${p.PaymentId}', ${p.Amount})">
+                                    Đảo khoản
+                                </button>
+                            ` : '—'}
+                        </td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        new bootstrap.Modal(document.getElementById('historyModal')).show();
+    }
+
+    function promptReversePayment(paymentId, amount) {
+        const reason = prompt(`Xác nhận đảo/hủy khoản thanh toán ${amount.toLocaleString('vi-VN')} đ?\nVui lòng nhập lý do hủy:`);
+        if (reason && reason.trim().length >= 5) {
+            document.getElementById('reversePaymentId').value = paymentId;
+            document.getElementById('reverseReasonInput').value = reason.trim();
+            document.getElementById('reverseForm').submit();
+        } else if (reason !== null) {
+            alert("Lý do đảo khoản thu bắt buộc tối thiểu 5 ký tự.");
+        }
+    }
+</script>
+}

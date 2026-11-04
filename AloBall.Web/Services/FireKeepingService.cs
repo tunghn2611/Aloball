@@ -293,6 +293,16 @@ public class FireKeepingService : IFireKeepingService
             match.Revision += 1;
             int matchRev = match.Revision;
 
+            // Xác định điều kiện hoàn tất và đối soát kết quả hợp lệ:
+            // 1. Trận phải có Status == MatchStatus.Completed và có tỉ số hợp lệ (ScoreA & ScoreB).
+            // 2. Với trận giữa 2 đội trên hệ thống (TeamBId.HasValue), bắt buộc phải có xác nhận đối soát từ cả 2 bên (ConfirmedByTeamA && ConfirmedByTeamB).
+            // 3. Với trận nội bộ hoặc trận với đối ngoại (!TeamBId.HasValue), tự chốt theo xác nhận của đội nhà.
+            bool isBilateralRequired = match.TeamBId.HasValue;
+            bool isMatchConfirmed = match.Status == MatchStatus.Completed &&
+                                   match.ScoreA.HasValue &&
+                                   match.ScoreB.HasValue &&
+                                   (!isBilateralRequired || (match.ConfirmedByTeamA && match.ConfirmedByTeamB));
+
             // Xử lý cho từng đội tham gia trận
             var teamsToProcess = new List<Guid> { match.TeamAId };
             if (match.TeamBId.HasValue) teamsToProcess.Add(match.TeamBId.Value);
@@ -323,7 +333,7 @@ public class FireKeepingService : IFireKeepingService
                 //    - Nếu teamId == TeamBId && ScoreB > ScoreA: Team B thắng.
                 var participatingPlayerIds = new HashSet<Guid>();
 
-                if (match.Status == MatchStatus.Completed && match.ScoreA.HasValue && match.ScoreB.HasValue)
+                if (isMatchConfirmed)
                 {
                     bool isInternal = match.Category == MatchCategory.Internal;
 
@@ -432,7 +442,9 @@ public class FireKeepingService : IFireKeepingService
                             ReversedEntryId = winEntry.Id,
                             AdjustmentReason = match.Status == MatchStatus.Cancelled
                                 ? "Thu hồi thưởng thắng do trận bị hủy"
-                                : "Thu hồi thưởng thắng do kết quả hòa/thua hoặc sửa tỉ số",
+                                : !isMatchConfirmed
+                                    ? "Thu hồi thưởng thắng do kết quả chưa xác nhận hai bên"
+                                    : "Thu hồi thưởng thắng do kết quả hòa/thua hoặc sửa tỉ số",
                             EventDate = match.MatchDateTime
                         });
                     }
@@ -448,8 +460,8 @@ public class FireKeepingService : IFireKeepingService
                                 j.SourceId == match.Id)
                     .ToListAsync();
 
-                // 1. Đồng bộ từng GoalEvent hiện có trong trận (nếu trận Completed)
-                if (match.Status == MatchStatus.Completed)
+                // 1. Đồng bộ từng GoalEvent hiện có trong trận (nếu trận Completed và Confirmed)
+                if (isMatchConfirmed)
                 {
                     foreach (var ge in goalEvents)
                     {
@@ -654,7 +666,9 @@ public class FireKeepingService : IFireKeepingService
                             Points = -activeEntry.Points,
                             RegulationVersion = activeEntry.RegulationVersion,
                             ReversedEntryId = activeEntry.Id,
-                            AdjustmentReason = "Thu hồi điểm bàn thắng/kiến tạo do trận bị hủy/chưa hoàn thành",
+                            AdjustmentReason = match.Status == MatchStatus.Cancelled
+                                ? "Thu hồi điểm bàn thắng/kiến tạo do trận bị hủy"
+                                : "Thu hồi điểm bàn thắng/kiến tạo do kết quả chưa hoàn thành hoặc chưa xác nhận hai bên",
                             EventDate = match.MatchDateTime
                         });
                     }

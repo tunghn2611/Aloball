@@ -1,0 +1,285 @@
+@model AloBall.Web.Models.MatchCostForecastViewModel
+@{
+    ViewData["Title"] = $"Dự báo chi phí - vs {Model.OpponentName}";
+}
+
+@await Html.PartialAsync("_TeamNavigation", Model.TeamId)
+
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-controller="Matches" asp-action="Detail" asp-route-id="@Model.MatchId">Matchday Center</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Dự báo chi phí</li>
+                </ol>
+            </nav>
+            <h2 class="h3 fw-bold mb-1 text-dark">Dự Báo Chi Phí &amp; Quỹ Trận</h2>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-calendar3 me-1"></i>@Model.MatchDateTime.ToString("dd/MM/yyyy HH:mm") · 
+                <i class="bi bi-geo-alt me-1 text-danger"></i>@Model.PitchName (@Model.PitchType) · 
+                vs <strong>@Model.OpponentName</strong>
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a asp-controller="Matches" asp-action="Detail" asp-route-id="@Model.MatchId" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Về Matchday Center
+            </a>
+            @if (Model.IsSettled && Model.SettlementId.HasValue)
+            {
+                <a asp-controller="Finance" asp-action="SettlementDetail" asp-route-matchId="@Model.MatchId" asp-route-teamId="@Model.TeamId" class="btn btn-arena-primary btn-sm px-3 shadow-sm">
+                    <i class="bi bi-receipt me-1"></i> Xem Bảng Quyết Toán
+                </a>
+            }
+            else if (Model.CanManage)
+            {
+                <a asp-controller="Finance" asp-action="CreateSettlement" asp-route-matchId="@Model.MatchId" asp-route-teamId="@Model.TeamId" class="btn btn-arena-primary btn-sm px-3 fw-bold shadow-sm">
+                    <i class="bi bi-wallet2 me-1"></i> Bắt Đầu Quyết Toán
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (Model.IsSettled)
+    {
+        <div class="alert alert-success d-flex align-items-center justify-content-between mb-4 shadow-sm" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill fs-4 text-success"></i>
+                <div>
+                    <strong>Trận đấu này đã được quyết toán chính thức!</strong>
+                    <div class="small">Số liệu dưới đây là dự báo ban đầu trước trận. Vui lòng mở bảng quyết toán để xem các khoản thu chi thực tế của từng cầu thủ.</div>
+                </div>
+            </div>
+            <a asp-controller="Finance" asp-action="SettlementDetail" asp-route-matchId="@Model.MatchId" asp-route-teamId="@Model.TeamId" class="btn btn-success btn-sm text-nowrap">
+                Mở bảng thu chi →
+            </a>
+        </div>
+    }
+
+    <!-- 3 Thẻ chỉ số dự báo -->
+    <div class="row g-3 mb-4">
+        <!-- Tổng chi phí dự kiến -->
+        <div class="col-12 col-md-4">
+            <div class="arena-card p-3 h-100 border-start border-4 border-primary">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-calculator text-primary me-1"></i>Tổng chi phí ước tính
+                </span>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fs-2 fw-bold text-dark">@Model.TotalEstimatedCost.ToString("N0")</span>
+                    <small class="text-muted">VNĐ</small>
+                </div>
+                <small class="text-muted d-block mt-1">Đã cộng sân, trọng tài &amp; dự toán phụ</small>
+            </div>
+        </div>
+
+        <!-- Số người dự kiến (RSVP) -->
+        <div class="col-12 col-md-4">
+            <div class="arena-card p-3 h-100 border-start border-4 border-info">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-people-fill text-info me-1"></i>Quân số dự kiến (RSVP)
+                </span>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fs-2 fw-bold text-dark">@Model.ExpectedParticipants</span>
+                    <small class="text-muted">người báo tham gia</small>
+                </div>
+                <small class="text-muted d-block mt-1">Lưu ý: Chỉ dùng để dự báo, không thay thế điểm danh</small>
+            </div>
+        </div>
+
+        <!-- Ước tính mỗi người -->
+        <div class="col-12 col-md-4">
+            <div class="arena-card p-3 h-100 border-start border-4 border-success">
+                <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                    <i class="bi bi-person-check text-success me-1"></i>Ước tính mỗi người
+                </span>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="fs-2 fw-bold text-success">@Model.EstimatedCostPerPerson.ToString("N0")</span>
+                    <small class="text-muted">VNĐ / người</small>
+                </div>
+                <small class="text-muted d-block mt-1">Sẽ chốt chính xác khi làm quyết toán sau trận</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bảng phân tích chi tiết chi phí dự kiến -->
+    <div class="arena-card p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-receipt-cutoff text-primary me-2"></i>Chi Tiết Các Khoản Chi Phí
+                </h5>
+                <p class="text-muted small mb-0">Các dịch vụ đã xác nhận qua sàn AloBall và phụ phí do BHL ghi nhận</p>
+            </div>
+            @if (Model.CanManage && !Model.IsSettled)
+            {
+                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addEstimateModal">
+                    <i class="bi bi-plus-lg me-1"></i> Thêm khoản chi dự kiến
+                </button>
+            }
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr class="small text-muted text-uppercase">
+                        <th>Khoản mục</th>
+                        <th>Loại chi phí</th>
+                        <th>Nguồn xác nhận</th>
+                        <th class="text-end">Số tiền dự kiến</th>
+                        @if (Model.CanManage && !Model.IsSettled)
+                        {
+                            <th class="text-end" style="width: 80px;">Thao tác</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 1. Tiền sân bóng -->
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Thuê sân bóng thi đấu</div>
+                            <small class="text-muted">@Model.PitchName</small>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">Tiền sân</span></td>
+                        <td>
+                            @if (Model.HasConfirmedPitch)
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle-fill me-1"></i>@Model.PitchCostNote
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning-subtle text-dark border">
+                                    <i class="bi bi-dash-circle me-1"></i>Tự thỏa thuận / Chưa chốt
+                                </span>
+                            }
+                        </td>
+                        <td class="text-end fw-bold text-dark">
+                            @(Model.ConfirmedPitchCost > 0 ? Model.ConfirmedPitchCost.ToString("N0") + " đ" : "0 đ")
+                        </td>
+                        @if (Model.CanManage && !Model.IsSettled)
+                        {
+                            <td></td>
+                        }
+                    </tr>
+
+                    <!-- 2. Tiền trọng tài -->
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark"><i class="bi bi-person-badge-fill text-info me-2"></i>Thù lao tổ trọng tài</div>
+                            <small class="text-muted">Điều hành trận đấu chuyên nghiệp</small>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">Trọng tài</span></td>
+                        <td>
+                            @if (Model.HasConfirmedReferee)
+                            {
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle-fill me-1"></i>@Model.RefereeCostNote
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-muted border">
+                                    Chưa có trọng tài
+                                </span>
+                            }
+                        </td>
+                        <td class="text-end fw-bold text-dark">
+                            @(Model.ConfirmedRefereeCost > 0 ? Model.ConfirmedRefereeCost.ToString("N0") + " đ" : "0 đ")
+                        </td>
+                        @if (Model.CanManage && !Model.IsSettled)
+                        {
+                            <td></td>
+                        }
+                    </tr>
+
+                    <!-- 3. Các khoản phụ phí dự toán do BHL thêm -->
+                    @foreach (var est in Model.CustomEstimates)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-dark"><i class="bi bi-basket-fill text-warning me-2"></i>@est.Description</div>
+                                <small class="text-muted">Ghi nhận: @est.CreatedAt.ToString("dd/MM/yyyy")</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">Chi phí khác</span></td>
+                            <td><span class="badge bg-secondary-subtle text-secondary border">BHL tạm tính</span></td>
+                            <td class="text-end fw-bold text-dark">@est.Amount.ToString("N0") đ</td>
+                            @if (Model.CanManage && !Model.IsSettled)
+                            {
+                                <td class="text-end">
+                                    <form asp-action="DeleteEstimatedExpense" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa khoản chi dự kiến này?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="estimateId" value="@est.Id" />
+                                        <input type="hidden" name="matchId" value="@Model.MatchId" />
+                                        <input type="hidden" name="teamId" value="@Model.TeamId" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm p-1 px-2" title="Xóa khoản dự kiến">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="bg-light">
+                    <tr class="fw-bold">
+                        <td colspan="3" class="text-uppercase small">Tổng cộng ước tính</td>
+                        <td class="text-end fs-6 text-primary">@Model.TotalEstimatedCost.ToString("N0") đ</td>
+                        @if (Model.CanManage && !Model.IsSettled)
+                        {
+                            <td></td>
+                        }
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL THÊM KHOẢN CHI DỰ KIẾN -->
+@if (Model.CanManage && !Model.IsSettled)
+{
+    <div class="modal fade" id="addEstimateModal" tabindex="-1" aria-labelledby="addEstimateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form asp-action="AddEstimatedExpense" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="MatchId" value="@Model.MatchId" />
+                    <input type="hidden" name="TeamId" value="@Model.TeamId" />
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addEstimateModalLabel">
+                            <i class="bi bi-plus-circle-fill text-primary me-2"></i>Thêm Khoản Chi Dự Kiến
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Nhập các chi phí phụ dự kiến trước trận (ví dụ: Nước khoáng, áo bibs, thuê flycam/quay highlights...). Các khoản này sẽ được tự động đưa vào danh mục gợi ý khi quyết toán sau trận.
+                        </p>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tên khoản chi <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="Description" placeholder="Ví dụ: Nước suối &amp; đá lạnh" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Số tiền dự tính (VNĐ) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="Amount" placeholder="100000" min="1000" step="1000" required />
+                                <span class="input-group-text">đ</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">Lưu dự toán</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

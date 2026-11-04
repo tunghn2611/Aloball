@@ -1,0 +1,93 @@
+@model AloBall.Web.Models.RefereeFormViewModel
+@{
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Sửa thông tin trọng tài" : "Thêm trọng tài mới";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ DANH BẠ TRỌNG TÀI</span>
+        <h1>@(isEdit ? "Cập nhật hồ sơ trọng tài" : "Thêm trọng tài mới")</h1>
+        <p class="text-muted mb-0">Hồ sơ nội bộ Super Admin quản lý. Thông tin liên hệ sẽ được bảo mật và chỉ mở khóa cho đội bóng sau khi chốt báo giá.</p>
+    </div>
+    <div>
+        <a asp-action="Referees" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Danh bạ trọng tài
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="arena-card p-4">
+            <form asp-action="@(isEdit ? "EditReferee" : "CreateReferee")" method="post">
+                @Html.AntiForgeryToken()
+                @if (isEdit)
+                {
+                    <input type="hidden" asp-for="Id" />
+                }
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label fw-bold">Họ và tên trọng tài <span class="text-danger">*</span></label>
+                    <input asp-for="Name" class="form-control" placeholder="Ví dụ: Nguyễn Văn Tuấn" required />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ContactInfo" class="form-label fw-bold">Thông tin liên hệ (SĐT / Email) <span class="text-danger">*</span></label>
+                    <input asp-for="ContactInfo" class="form-control" placeholder="Ví dụ: 0912.345.678 - tuan.ref@aloball.vn" required />
+                    <span asp-validation-for="ContactInfo" class="text-danger small"></span>
+                    <div class="form-text">Bảo mật hoàn toàn. Đội bóng chỉ thấy sau khi đã chốt phương án báo giá.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ExperienceSummary" class="form-label fw-bold">Tóm tắt chuyên môn / Kinh nghiệm <span class="text-danger">*</span></label>
+                    <textarea asp-for="ExperienceSummary" rows="3" class="form-control" placeholder="Chứng chỉ VFF, số năm kinh nghiệm, các giải phủi đã bắt..." required></textarea>
+                    <span asp-validation-for="ExperienceSummary" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label asp-for="SupportedFormats" class="form-label fw-semibold">Thể thức sân hỗ trợ</label>
+                        <input asp-for="SupportedFormats" class="form-control" placeholder="Ví dụ: 5 người, 7 người" />
+                        <span asp-validation-for="SupportedFormats" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="DefaultPriceVND" class="form-label fw-semibold">Mức thù lao chuẩn tham khảo (VNĐ)</label>
+                        <input asp-for="DefaultPriceVND" type="number" step="50000" min="0" class="form-control" placeholder="300000" />
+                        <span asp-validation-for="DefaultPriceVND" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ServiceNotes" class="form-label fw-semibold">Ghi chú nội bộ cho Super Admin</label>
+                    <textarea asp-for="ServiceNotes" rows="2" class="form-control" placeholder="Khu vực thường bắt (Hà Nội, Cầu Giấy...), tính cách, lưu ý đặc biệt..."></textarea>
+                    <span asp-validation-for="ServiceNotes" class="text-danger small"></span>
+                </div>
+
+                <div class="form-check form-switch mb-4">
+                    <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActiveSwitch" />
+                    <label class="form-check-label fw-semibold" for="isActiveSwitch">
+                        Kích hoạt sẵn sàng nhận nhiệm vụ
+                    </label>
+                    <div class="form-text">Trọng tài tạm nghỉ hoặc bận dài ngày có thể tắt để không hiển thị trong danh sách chọn.</div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a asp-action="Referees" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Hủy
+                    </a>
+                    <button type="submit" class="btn btn-arena-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Lưu thông tin trọng tài
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

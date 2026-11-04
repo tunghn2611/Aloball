@@ -240,8 +240,16 @@ public class RequirementsWorkflowTests
         Assert.Equal(HttpStatusCode.Redirect, (await app.Post(client, "/Matches/SubmitReview", new() { ["matchId"] = app.Match.ToString(), ["reviewerTeamId"] = app.TeamA.ToString(), ["stars"] = "1", ["comment"] = "Lý do đánh giá trong dữ liệu kiểm thử" })).StatusCode);
         await app.WithDb(async db =>
         {
-            Assert.True((await db.Teams.FindAsync(app.TeamB))!.IsRestrictedFromMatchmaking);
-            Assert.Equal(MatchmakingStatus.Suspended, (await db.MatchmakingPosts.SingleAsync()).Status);
+            // Blueprint 2.4 / D-05: Đánh giá 1 sao không tự động khóa bắt đối
+            Assert.False((await db.Teams.FindAsync(app.TeamB))!.IsRestrictedFromMatchmaking);
+            Assert.Equal(MatchmakingStatus.Open, (await db.MatchmakingPosts.SingleAsync()).Status);
+
+            // Khi Platform Admin áp dụng khóa bắt đối
+            var team = await db.Teams.FindAsync(app.TeamB);
+            team!.IsRestrictedFromMatchmaking = true;
+            team.MatchmakingRestrictionReason = "Khóa bởi Admin";
+            (await db.MatchmakingPosts.SingleAsync()).Status = MatchmakingStatus.Suspended;
+            await db.SaveChangesAsync();
         });
         using var restricted = app.Client("outsider");
         Assert.Equal(HttpStatusCode.OK, (await restricted.GetAsync($"/Teams/Dashboard/{app.TeamB}")).StatusCode);

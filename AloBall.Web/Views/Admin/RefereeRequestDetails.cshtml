@@ -1,0 +1,265 @@
+@model AloBall.Web.Data.Entities.RefereeRequest
+@{
+    ViewData["Title"] = $"Xử lý yêu cầu trọng tài #{Model.Id.ToString()[..8]}";
+    var activeReferees = ViewBag.ActiveReferees as IEnumerable<AloBall.Web.Data.Entities.Referee> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Referee>();
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ ĐIỀU PHỐI DỊCH VỤ</span>
+        <h1>Xử lý yêu cầu: @Model.VenueName</h1>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            @switch (Model.Status)
+            {
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.Pending:
+                    <span class="badge bg-secondary-subtle text-secondary fs-6"><i class="bi bi-clock me-1"></i> Chờ tiếp nhận</span>
+                    break;
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.UnderReview:
+                    <span class="badge bg-info text-white fs-6"><i class="bi bi-search me-1"></i> Đang xử lý</span>
+                    break;
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.AwaitingTeamDecision:
+                    <span class="badge bg-warning text-dark fs-6 fw-bold"><i class="bi bi-bell-fill me-1"></i> Đã gửi báo giá</span>
+                    break;
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.Confirmed:
+                    <span class="badge bg-success text-white fs-6"><i class="bi bi-check-circle-fill me-1"></i> Đội đã chốt dịch vụ</span>
+                    break;
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.Cancelled:
+                    <span class="badge bg-danger-subtle text-danger fs-6"><i class="bi bi-x-circle me-1"></i> Đã hủy</span>
+                    break;
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.UnableToFulfill:
+                    <span class="badge bg-dark-subtle text-dark fs-6"><i class="bi bi-exclamation-octagon me-1"></i> Không thể đáp ứng</span>
+                    break;
+                case AloBall.Web.Data.Entities.RefereeRequestStatus.Completed:
+                    <span class="badge bg-primary text-white fs-6"><i class="bi bi-award-fill me-1"></i> Hoàn thành</span>
+                    break;
+            }
+            <span class="text-muted small">Đội bóng: <strong>@Model.Team?.Name</strong></span>
+        </div>
+    </div>
+    <div>
+        <a asp-action="RefereeRequests" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại hộp thư
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Cột trái: Chi tiết yêu cầu & Hành động quản trị -->
+    <div class="col-12 col-lg-5">
+        <div class="arena-card p-4 mb-4">
+            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-clipboard-data text-primary me-2"></i>Chi Tiết Yêu Cầu</h5>
+            <div class="list-group list-group-flush mb-3">
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Đội bóng:</span>
+                    <strong class="text-dark">@Model.Team?.Name</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Ngày thi đấu:</span>
+                    <strong class="text-dark">@Model.ServiceDate.ToString("dd/MM/yyyy")</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Khung giờ:</span>
+                    <strong class="text-dark">@Model.StartTime.ToString(@"hh\:mm") – @Model.EndTime.ToString(@"hh\:mm")</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Sân & Địa chỉ:</span>
+                    <span class="text-dark text-end small">@Model.VenueName (@Model.VenueAddress)</span>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Thể thức:</span>
+                    <strong class="text-dark">Sân @Model.MatchFormat</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Số lượng trọng tài:</span>
+                    <span class="badge bg-primary fs-6">@Model.RefereeCount người</span>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Ngân sách dự kiến:</span>
+                    <strong class="text-success">@(Model.BudgetVND.HasValue ? $"{Model.BudgetVND.Value:N0} VNĐ" : "Không đề xuất")</strong>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.PreferredExperience))
+                {
+                    <div class="list-group-item px-0 py-2">
+                        <span class="text-muted d-block small">Yêu cầu chuyên môn:</span>
+                        <span class="text-dark small">@Model.PreferredExperience</span>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <div class="list-group-item px-0 py-2">
+                        <span class="text-muted d-block small">Ghi chú của đội:</span>
+                        <span class="text-dark small">@Model.Notes</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Hành động Super Admin: Hoàn thành hoặc Từ chối -->
+            <div class="d-flex flex-column gap-2 pt-3 border-top">
+                @if (Model.Status == AloBall.Web.Data.Entities.RefereeRequestStatus.Confirmed)
+                {
+                    <form asp-action="CompleteRefereeRequest" method="post" onsubmit="return confirm('Xác nhận hoàn thành trận đấu và dịch vụ trọng tài?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="requestId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check2-all me-1"></i> Đánh dấu hoàn thành dịch vụ
+                        </button>
+                    </form>
+                }
+
+                @if (Model.Status != AloBall.Web.Data.Entities.RefereeRequestStatus.Cancelled
+                    && Model.Status != AloBall.Web.Data.Entities.RefereeRequestStatus.Completed
+                    && Model.Status != AloBall.Web.Data.Entities.RefereeRequestStatus.UnableToFulfill)
+                {
+                    <button class="btn btn-outline-danger btn-sm w-100" type="button" data-bs-toggle="collapse" data-bs-target="#unableForm">
+                        <i class="bi bi-x-octagon me-1"></i> Đánh dấu không thể đáp ứng (Hết trọng tài / Hủy)
+                    </button>
+                    <div class="collapse mt-2" id="unableForm">
+                        <form asp-action="MarkUnableToFulfill" method="post" class="border p-3 rounded bg-light">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <label class="form-label small fw-semibold">Lý do không đáp ứng:</label>
+                            <textarea name="reason" rows="2" class="form-control form-control-sm mb-2" placeholder="Ví dụ: Khung giờ cao điểm đã kín lịch trọng tài cấp tương đương..."></textarea>
+                            <button type="submit" class="btn btn-sm btn-danger w-100">Xác nhận từ chối yêu cầu</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Tạo đề xuất báo giá & Danh sách các phương án đã gửi -->
+    <div class="col-12 col-lg-7">
+        <!-- Form Gửi Báo Giá Mới -->
+        @if (Model.Status != AloBall.Web.Data.Entities.RefereeRequestStatus.Cancelled
+            && Model.Status != AloBall.Web.Data.Entities.RefereeRequestStatus.Completed
+            && Model.Status != AloBall.Web.Data.Entities.RefereeRequestStatus.Confirmed)
+        {
+            <div class="arena-card p-4 mb-4 border-primary">
+                <h5 class="fw-bold text-dark mb-2">
+                    <i class="bi bi-send-plus text-primary me-2"></i>Tạo Phương Án Báo Giá Mới
+                </h5>
+                <p class="small text-muted mb-3">
+                    Lựa chọn đúng <strong>@Model.RefereeCount</strong> trọng tài từ danh bạ và đưa ra tổng giá trọn gói (VNĐ) gửi cho đội bóng xem xét.
+                </p>
+
+                <form asp-action="SubmitProposal" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="RequestId" value="@Model.Id" />
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Tổng giá dịch vụ trọn gói (VNĐ) <span class="text-danger">*</span></label>
+                            <input type="number" name="TotalPriceVND" step="10000" min="0" class="form-control"
+                                   value="@(Model.BudgetVND ?? (Model.RefereeCount * 300000))" required />
+                            <div class="form-text">Bao gồm toàn bộ thù lao cho @Model.RefereeCount trọng tài.</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Ghi chú dịch vụ cho đội</label>
+                            <input type="text" name="ServiceNote" class="form-control"
+                                   placeholder="Trọng tài có mặt trước 15p, có bóng phụ và còi..." />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Chọn trọng tài phân công (Cần chọn đúng @Model.RefereeCount người): <span class="text-danger">*</span></label>
+                        @if (!activeReferees.Any())
+                        {
+                            <div class="alert alert-warning small">
+                                Hiện không có trọng tài nào đang kích hoạt. Vui lòng vào <a asp-action="Referees" class="alert-link">Danh bạ trọng tài</a> để thêm mới.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="border rounded p-3 bg-light" style="max-height: 250px; overflow-y: auto;">
+                                @foreach (var refItem in activeReferees)
+                                {
+                                    <div class="form-check py-1 border-bottom">
+                                        <input class="form-check-input ref-checkbox" type="checkbox" name="SelectedRefereeIds" value="@refItem.Id" id="ref_@refItem.Id" />
+                                        <label class="form-check-label w-100" for="ref_@refItem.Id">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <strong class="text-dark">@refItem.Name</strong>
+                                                <span class="badge bg-light text-dark border">@refItem.SupportedFormats · Giá chuẩn: @(refItem.DefaultPriceVND.HasValue ? $"{refItem.DefaultPriceVND.Value:N0}đ" : "-")</span>
+                                            </div>
+                                            <small class="text-muted d-block">@refItem.ExperienceSummary</small>
+                                            <small class="text-secondary d-block"><i class="bi bi-telephone"></i> @refItem.ContactInfo</small>
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <button type="submit" class="btn btn-arena-primary w-100" @(!activeReferees.Any() ? "disabled" : "")>
+                        <i class="bi bi-check2-circle me-1"></i> Gửi báo giá cho Đội bóng
+                    </button>
+                </form>
+            </div>
+        }
+
+        <!-- Lịch sử các Đề xuất đã gửi -->
+        <div class="arena-card p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-clock-history text-secondary me-2"></i>Lịch Sử Báo Giá Cho Yêu Cầu Này (@Model.Proposals.Count())
+            </h5>
+
+            @if (!Model.Proposals.Any())
+            {
+                <div class="text-center py-4 text-muted small bg-light rounded">
+                    Chưa có phương án báo giá nào được tạo cho yêu cầu này.
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var p in Model.Proposals.OrderByDescending(x => x.SubmittedAt))
+                    {
+                        var isAccepted = p.Status == AloBall.Web.Data.Entities.RefereeProposalStatus.Accepted;
+                        <div class="border rounded p-3 @(isAccepted ? "border-success bg-success-subtle bg-opacity-10" : "bg-white")">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="fs-5 text-dark">@p.TotalPriceVND.ToString("N0") VNĐ</strong>
+                                <div>
+                                    @switch (p.Status)
+                                    {
+                                        case AloBall.Web.Data.Entities.RefereeProposalStatus.Pending:
+                                            <span class="badge bg-warning text-dark">Chờ đội duyệt</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.RefereeProposalStatus.Accepted:
+                                            <span class="badge bg-success text-white"><i class="bi bi-check-lg"></i> Đội đã chấp nhận</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.RefereeProposalStatus.Declined:
+                                            <span class="badge bg-danger-subtle text-danger">Đội đã từ chối</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.RefereeProposalStatus.NotSelected:
+                                            <span class="badge bg-light text-muted border">Không chọn</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.RefereeProposalStatus.Withdrawn:
+                                            <span class="badge bg-secondary-subtle text-secondary">Đã thu hồi</span>
+                                            break;
+                                    }
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mb-2">Thời gian gửi: @p.SubmittedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                            @if (!string.IsNullOrWhiteSpace(p.ServiceNote))
+                            {
+                                <div class="small text-muted bg-light p-2 rounded mb-2">
+                                    <strong>Ghi chú:</strong> @p.ServiceNote
+                                </div>
+                            }
+
+                            <div class="small fw-semibold text-secondary mb-1">Trọng tài phân công:</div>
+                            <div class="list-group list-group-flush border-top">
+                                @foreach (var a in p.Assignments)
+                                {
+                                    <div class="list-group-item px-0 py-1 d-flex justify-content-between align-items-center small">
+                                        <span><strong>@a.Referee?.Name</strong> (@a.Referee?.ContactInfo)</span>
+                                        <span class="badge bg-light text-dark border">@a.Referee?.SupportedFormats</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

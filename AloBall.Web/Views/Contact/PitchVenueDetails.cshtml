@@ -1,0 +1,129 @@
+@model AloBall.Web.Data.Entities.PitchVenue
+@{
+    ViewData["Title"] = $"{Model.Name} - Chi tiết sân bóng";
+    var canBook = ViewBag.CanBook as bool? ?? false;
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">KHÁM PHÁ CỤM SÂN BÓNG</span>
+        <h1>@Model.Name</h1>
+        <p class="text-muted"><i class="bi bi-geo-alt-fill text-danger me-1"></i>@Model.FullAddress · @Model.District, @Model.City</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" asp-route-tab="stadium" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Danh sách sân
+        </a>
+        @if (canBook)
+        {
+            <a asp-action="CreatePitchBookingRequest" asp-route-venueId="@Model.Id" class="btn btn-arena-primary px-3">
+                <i class="bi bi-calendar-plus me-1"></i> Yêu cầu đặt sân
+            </a>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-7">
+        <div class="arena-card p-0 overflow-hidden mb-4">
+            @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+            {
+                <img src="@Model.ImageUrl" alt="@Model.Name" class="w-100" style="max-height: 400px; object-fit: cover;" />
+            }
+            else
+            {
+                <div class="bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="height: 300px;">
+                    <i class="bi bi-image fs-1"></i>
+                </div>
+            }
+
+            <div class="p-4">
+                <h4 class="fw-bold mb-3">Giới thiệu cụm sân</h4>
+                <p class="text-muted">
+                    @(Model.Description ?? "Cụm sân bóng phong trào chất lượng cao, vị trí thuận lợi cho các trận giao lưu và giải đấu phong trào.")
+                </p>
+
+                <hr />
+
+                <h5 class="fw-bold mb-3"><i class="bi bi-stars text-warning me-2"></i>Tiện ích & Dịch vụ tại sân</h5>
+                @if (!string.IsNullOrWhiteSpace(Model.Facilities))
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @foreach (var fac in Model.Facilities.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            <span class="badge bg-success-subtle text-success p-2">
+                                <i class="bi bi-check-circle-fill me-1"></i> @fac.Trim()
+                            </span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small">Đèn chiếu sáng, bãi gửi xe, nước uống giải khát.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="arena-card p-4 mb-4">
+            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-info-circle text-primary me-2"></i>Thông Tin Kỹ Thuật & Giá</h5>
+
+            <div class="list-group list-group-flush mb-4">
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Thể thức sân:</span>
+                    <strong class="text-dark">Sân @Model.SupportedFormats</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Loại mặt cỏ:</span>
+                    <strong class="text-dark">@Model.SurfaceType</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Quy mô cụm sân:</span>
+                    <span class="badge bg-primary">@Model.TotalPitches sân con</span>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Giờ mở cửa:</span>
+                    <strong class="text-dark">@Model.OpeningHours</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Hotline sân:</span>
+                    <strong class="text-dark font-monospace">@Model.ContactPhone</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Mức giá tham khảo:</span>
+                    <strong class="text-success fs-5">
+                        @(Model.IndicativePricePerHour.HasValue ? $"{Model.IndicativePricePerHour.Value:N0} VNĐ/giờ" : "Liên hệ")
+                    </strong>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.PriceNotes))
+                {
+                    <div class="list-group-item px-0 py-2">
+                        <span class="text-muted small d-block">Ghi chú biểu phí:</span>
+                        <span class="text-dark small">@Model.PriceNotes</span>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.MapLink))
+            {
+                <a href="@Model.MapLink" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary w-100 mb-3">
+                    <i class="bi bi-map me-1 text-danger"></i> Xem vị trí trên Google Maps <i class="bi bi-box-arrow-up-right small"></i>
+                </a>
+            }
+
+            @if (canBook)
+            {
+                <a asp-action="CreatePitchBookingRequest" asp-route-venueId="@Model.Id" class="btn btn-arena-primary w-100 py-2">
+                    <i class="bi bi-calendar-check me-1"></i> Gửi yêu cầu đặt sân này
+                </a>
+            }
+            else
+            {
+                <div class="alert alert-warning border-0 small mb-0">
+                    <i class="bi bi-shield-lock me-1"></i> Chỉ Ban cán sự hoặc Đội trưởng của đội bóng mới có quyền gửi yêu cầu đặt sân.
+                </div>
+            }
+        </div>
+    </div>
+</div>

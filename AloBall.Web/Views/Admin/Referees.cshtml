@@ -1,0 +1,108 @@
+@model IEnumerable<AloBall.Web.Data.Entities.Referee>
+@{
+    ViewData["Title"] = "Danh bạ trọng tài - Admin";
+}
+
+<div class="page-heading editorial-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ ĐIỀU PHỐI DỊCH VỤ</span>
+        <h1>Danh bạ trọng tài</h1>
+        <p class="text-muted mb-0">Quản lý hồ sơ trọng tài, chuyên môn, kinh nghiệm, mức giá chuẩn và tình trạng sẵn sàng.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a asp-action="RefereeRequests" class="btn btn-outline-secondary">
+            <i class="bi bi-inbox me-1"></i> Hộp thư yêu cầu
+        </a>
+        <a asp-action="CreateReferee" class="btn btn-arena-primary">
+            <i class="bi bi-person-plus-fill me-1"></i> Thêm trọng tài mới
+        </a>
+    </div>
+</div>
+
+<!-- Navigation Tabs for Admin Sections -->
+<div class="d-flex gap-2 border-bottom pb-2 mb-4 flex-wrap">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Khiếu nại & Blacklist</a>
+    <a asp-action="RefereeRequests" class="btn btn-sm btn-outline-secondary">Hộp thư trọng tài</a>
+    <a asp-action="Referees" class="btn btn-sm btn-dark">Danh bạ trọng tài (@Model.Count())</a>
+    <a asp-action="PitchBookingRequests" class="btn btn-sm btn-outline-secondary">Hộp thư đặt sân</a>
+    <a asp-action="PitchVenues" class="btn btn-sm btn-outline-secondary">Danh bạ sân bóng</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="arena-empty-state">
+        <i class="bi bi-person-badge"></i>
+        <h3>Chưa có trọng tài nào trong danh bạ</h3>
+        <p>Thêm trọng tài đầu tiên để sẵn sàng tạo phương án báo giá cho các đội bóng.</p>
+        <a asp-action="CreateReferee" class="btn btn-arena-primary mt-3">
+            <i class="bi bi-person-plus-fill me-1"></i> Thêm trọng tài
+        </a>
+    </div>
+}
+else
+{
+    <div class="table-responsive arena-card p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Trọng tài</th>
+                    <th>Liên hệ (Bảo mật)</th>
+                    <th>Thể thức hỗ trợ</th>
+                    <th>Kinh nghiệm / Trình độ</th>
+                    <th>Giá chuẩn</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr class="@(!r.IsActive ? "table-secondary bg-opacity-25" : "")">
+                        <td>
+                            <strong class="text-dark">@r.Name</strong>
+                            @if (!string.IsNullOrWhiteSpace(r.ServiceNotes))
+                            {
+                                <small class="text-muted d-block text-truncate" style="max-width: 250px;">@r.ServiceNotes</small>
+                            }
+                        </td>
+                        <td>
+                            <span class="small font-monospace">@r.ContactInfo</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">@r.SupportedFormats</span>
+                        </td>
+                        <td>
+                            <small class="text-dark d-block" style="max-width: 300px;">@r.ExperienceSummary</small>
+                        </td>
+                        <td>
+                            @(r.DefaultPriceVND.HasValue ? $"{r.DefaultPriceVND.Value:N0} đ" : "-")
+                        </td>
+                        <td>
+                            @if (r.IsActive)
+                            {
+                                <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i> Sẵn sàng</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary text-white"><i class="bi bi-pause-circle me-1"></i> Tạm ngưng</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a asp-action="EditReferee" asp-route-id="@r.Id" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i> Sửa
+                                </a>
+                                <form asp-action="ToggleRefereeStatus" asp-route-id="@r.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm @(r.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                        @(r.IsActive ? "Tạm ngưng" : "Kích hoạt")
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

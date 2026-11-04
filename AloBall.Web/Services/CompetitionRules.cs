@@ -19,6 +19,11 @@ public static class CompetitionRules
             (p.TeamId == match.TeamAId || p.TeamId == match.TeamBId) && p.StatisticalPeriod == period && p.Status == PeriodStatus.Closed);
     }
 
-    public static bool SafeImageUrl(string? url) => string.IsNullOrWhiteSpace(url) ||
-        (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps);
+    public static bool SafeImageUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return true;
+        if (url.StartsWith("/") && !url.StartsWith("//") && !url.StartsWith("/\\")) return true;
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+    }
 }
+

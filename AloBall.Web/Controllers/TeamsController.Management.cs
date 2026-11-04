@@ -55,7 +55,9 @@ public partial class TeamsController
         return View(new PlayerProfileInput { Id = p.Id, TeamId = teamId, FullName = p.FullName, KitNumber = p.KitNumber,
             Position = p.Position, HeightCm = p.HeightCm, WeightKg = p.WeightKg, ShirtName = p.ShirtName,
             ShirtSize = p.ShirtSize, ShortSize = p.ShortSize, IsActive = p.IsActive, IsPublicProfile = p.IsPublicProfile,
-            PublicKitNumber = p.PublicKitNumber, PublicPosition = p.PublicPosition, PublicHeightWeight = p.PublicHeightWeight });
+            PublicKitNumber = p.PublicKitNumber, PublicPosition = p.PublicPosition, PublicHeightWeight = p.PublicHeightWeight,
+            PreferredFoot = p.PreferredFoot, Experience = p.Experience, Region = p.Region,
+            PublicPreferredFoot = p.PublicPreferredFoot, PublicExperience = p.PublicExperience });
     }
 
     [HttpPost, Authorize, ValidateAntiForgeryToken]
@@ -72,9 +74,11 @@ public partial class TeamsController
         player.FullName = input.FullName.Trim(); player.KitNumber = input.KitNumber; player.Position = input.Position?.Trim();
         player.HeightCm = input.HeightCm; player.WeightKg = input.WeightKg; player.ShirtName = input.ShirtName?.Trim();
         player.ShirtSize = input.ShirtSize?.Trim(); player.ShortSize = input.ShortSize?.Trim();
+        player.PreferredFoot = input.PreferredFoot?.Trim(); player.Experience = input.Experience?.Trim(); player.Region = input.Region?.Trim();
         player.IsActive = input.IsActive; player.InactiveDate = input.IsActive ? null : player.InactiveDate ?? DateTime.UtcNow;
         player.IsPublicProfile = input.IsPublicProfile; player.PublicKitNumber = input.PublicKitNumber;
         player.PublicPosition = input.PublicPosition; player.PublicHeightWeight = input.PublicHeightWeight;
+        player.PublicPreferredFoot = input.PublicPreferredFoot; player.PublicExperience = input.PublicExperience;
         if (!input.Id.HasValue) _db.Players.Add(player);
         await _db.SaveChangesAsync();
         TempData["Success"] = "Đã lưu thông tin cầu thủ và đặt áo.";

@@ -50,10 +50,24 @@ builder.Services.AddScoped<IAttendanceCalculationEngine, AttendanceCalculationEn
 builder.Services.AddScoped<IMatchmakingService, MatchmakingService>();
 builder.Services.AddScoped<ISheetsIntegrationService, SheetsIntegrationService>();
 builder.Services.AddScoped<IFireKeepingService, FireKeepingService>();
+builder.Services.AddScoped<ITeamMessagingService, TeamMessagingService>();
+builder.Services.AddScoped<IRefereeCoordinationService, RefereeCoordinationService>();
+builder.Services.AddScoped<IPitchBookingService, PitchBookingService>();
+builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<AloBall.Web.Services.TeamDivision.ITeamDivisionEngine, AloBall.Web.Services.TeamDivision.TeamDivisionEngine>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<DomainMutationFilter>();
+
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
+
+if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
+{
+    builder.Environment.WebRootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
+}
 
 var app = builder.Build();
 
@@ -87,6 +101,12 @@ app.MapControllerRoute(
     name: "team_public",
     pattern: "doi/{slug}",
     defaults: new { controller = "Teams", action = "PublicProfile" });
+
+// Route công khai cho hồ sơ cầu thủ: /cau-thu/{id}
+app.MapControllerRoute(
+    name: "player_public",
+    pattern: "cau-thu/{id}",
+    defaults: new { controller = "Teams", action = "PlayerPublicProfile" });
 
 app.Run();
 

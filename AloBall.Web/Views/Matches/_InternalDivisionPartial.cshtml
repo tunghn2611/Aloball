@@ -5,12 +5,265 @@
     var currentFormation = AloBall.Web.Services.TeamDivision.FormationRegistry.GetByCode(Model.FormationCode, Model.PitchType);
 }
 
+<style>
+    /* ==========================================================================
+       FIFA-STYLE TACTICAL PITCH & DRAG-AND-DROP STYLES
+       ========================================================================== */
+    .fifa-pitch-wrapper {
+        background: #0f172a;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+    }
+
+    .fifa-pitch-container {
+        position: relative;
+        width: 100%;
+        max-width: 580px;
+        aspect-ratio: 3 / 4;
+        min-height: 520px;
+        margin: 0 auto;
+        background: radial-gradient(circle at 50% 50%, #15803d 0%, #166534 65%, #14532d 100%),
+                    repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0, rgba(255,255,255,0.035) 45px, transparent 45px, transparent 90px);
+        border: 4px solid #14532d;
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), inset 0 0 50px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        user-select: none;
+    }
+
+    /* Pitch markings */
+    .fifa-pitch-markings {
+        position: absolute;
+        inset: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        border-radius: 4px;
+        pointer-events: none;
+    }
+    .fifa-center-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.65);
+    }
+    .fifa-center-circle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 110px;
+        height: 110px;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .fifa-center-spot {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 8px;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .fifa-penalty-top {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 170px;
+        height: 65px;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        border-top: none;
+        transform: translateX(-50%);
+    }
+    .fifa-penalty-bottom {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 170px;
+        height: 65px;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        border-bottom: none;
+        transform: translateX(-50%);
+    }
+    .fifa-goal-bottom {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 85px;
+        height: 28px;
+        border: 2px solid rgba(255, 255, 255, 0.65);
+        border-bottom: none;
+        transform: translateX(-50%);
+    }
+
+    /* Player Token on Pitch */
+    .fifa-player-token {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 90px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: grab;
+        transition: transform 0.15s ease, filter 0.15s ease;
+        z-index: 10;
+        touch-action: manipulation;
+    }
+    .fifa-player-token:active {
+        cursor: grabbing;
+        transform: translate(-50%, -50%) scale(1.08);
+        z-index: 50;
+    }
+    .fifa-player-token.drag-hover {
+        transform: translate(-50%, -50%) scale(1.15);
+        filter: drop-shadow(0 0 14px #facc15);
+    }
+    .fifa-player-token.selected-swap {
+        filter: drop-shadow(0 0 16px #38bdf8);
+        animation: pulseToken 1.2s infinite;
+    }
+    @@keyframes pulseToken {
+        0%, 100% { transform: translate(-50%, -50%) scale(1.08); }
+        50% { transform: translate(-50%, -50%) scale(1.18); }
+    }
+
+    /* FIFA Token Card Badge */
+    .fifa-card-badge {
+        position: relative;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 1.05rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.45);
+        border: 2.5px solid #fff;
+    }
+    .fifa-card-badge.side-A {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border-color: #bfdbfe;
+    }
+    .fifa-card-badge.side-B {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #1e1b4b;
+        border-color: #fef08a;
+    }
+    .fifa-card-badge.empty {
+        background: rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.8);
+        border: 2px dashed rgba(255, 255, 255, 0.6);
+    }
+
+    /* Compatibility indicator dot */
+    .fifa-compat-dot {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+    .fifa-compat-dot.primary {
+        background-color: #22c55e;
+    }
+    .fifa-compat-dot.secondary {
+        background-color: #f59e0b;
+    }
+
+    /* Slot Label Pill */
+    .fifa-slot-pill {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.8);
+        color: #facc15;
+        letter-spacing: 0.5px;
+        margin-top: 3px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        border: 1px solid rgba(250, 204, 21, 0.4);
+    }
+
+    /* Player Name Label */
+    .fifa-name-pill {
+        font-size: 0.72rem;
+        font-weight: 750;
+        color: #fff;
+        background: rgba(15, 23, 42, 0.9);
+        padding: 2px 7px;
+        border-radius: 6px;
+        margin-top: 2px;
+        white-space: nowrap;
+        max-width: 90px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.25);
+        text-align: center;
+    }
+
+    /* Bench / Subs Bar */
+    .fifa-bench-container {
+        background: #1e293b;
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 16px;
+        border: 1px solid #334155;
+    }
+    .fifa-bench-container.drag-hover {
+        border-color: #facc15;
+        background: #283548;
+    }
+    .fifa-bench-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-height: 52px;
+        align-items: center;
+    }
+    .fifa-sub-token {
+        background: #334155;
+        color: #fff;
+        border: 1px solid #475569;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: grab;
+        transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    .fifa-sub-token:hover {
+        background: #475569;
+        transform: translateY(-2px);
+    }
+    .fifa-sub-token:active {
+        cursor: grabbing;
+    }
+    .fifa-sub-token.selected-swap {
+        border-color: #38bdf8;
+        background: #0284c7;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+    }
+</style>
+
 <div class="division-studio mb-4" id="divisionContainer">
     <!-- Header & Action Controls -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
-            <span class="eyebrow">BẢNG CHIẾN THUẬT</span><h2 class="mt-2">Chia đội. Sẵn sàng ra sân.</h2>
-            <small class="text-muted">Cân bằng vị trí theo sơ đồ chiến thuật & Khóa người & Quản lý dự bị</small>
+            <span class="eyebrow">BẢNG CHIẾN THUẬT</span>
+            <h2 class="mt-2 h4 fw-bold">Chia đội & Đội hình ra sân</h2>
+            <small class="text-muted">Sa bàn chiến thuật kéo thả cầu thủ kiểu FIFA · Cân bằng sở trường · Khóa vị trí & Dự bị</small>
         </div>
 
         <div class="d-flex flex-wrap gap-2">
@@ -68,72 +321,148 @@
         </div>
     </div>
 
-    <!-- Tap-to-Swap Banner 안내 (khi đang chọn 1 cầu thủ) -->
+    <!-- VIEW MODE TABS: SA BÀN FIFA 2D vs DANH SÁCH THẺ VỊ TRÍ -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <ul class="nav nav-pills" id="divisionViewModeTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold px-3 py-2 shadow-sm" id="tab-mode-pitch" data-bs-toggle="pill" data-bs-target="#viewModePitch" type="button" role="tab" style="min-height: 42px;">
+                    <i class="bi bi-diagram-3-fill me-1 text-success"></i> Sa bàn sân bóng FIFA (Kéo thả)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold px-3 py-2" id="tab-mode-list" data-bs-toggle="pill" data-bs-target="#viewModeList" type="button" role="tab" style="min-height: 42px;">
+                    <i class="bi bi-card-list me-1 text-primary"></i> Danh sách thẻ vị trí
+                </button>
+            </li>
+        </ul>
+
+        <!-- Đổi bên xem trên sa bàn (Bên A / Bên B) -->
+        <div class="btn-group btn-group-sm" id="pitchSideToggleGroup" role="group">
+            <button type="button" class="btn btn-primary active fw-semibold px-3 py-2" id="btnPitchSideA" onclick="switchPitchSide('A')">
+                <i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)
+            </button>
+            <button type="button" class="btn btn-outline-warning text-dark fw-semibold px-3 py-2" id="btnPitchSideB" onclick="switchPitchSide('B')">
+                <i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)
+            </button>
+        </div>
+    </div>
+
+    <!-- Tap-to-Swap Banner (khi đang chọn 1 cầu thủ) -->
     <div id="swapNotice" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between">
         <div class="small">
-            <i class="bi bi-arrow-left-right me-1"></i> Đang chọn: <strong id="swapSourceName">--</strong>. Hãy chạm vào cầu thủ thứ hai để hoán đổi!
+            <i class="bi bi-arrow-left-right me-1"></i> Đang chọn: <strong id="swapSourceName">--</strong>. Hãy chạm vào cầu thủ thứ hai (trên sân hoặc dự bị) để hoán đổi!
         </div>
         <button type="button" class="btn btn-sm btn-link text-decoration-none py-0" onclick="cancelSwapSelection()">Hủy</button>
     </div>
 
-    <!-- Mobile Navigation Tabs (Touch-friendly >= 44px) -->
-    <ul class="nav nav-pills nav-fill mb-3 d-md-none" id="divisionTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold py-2" id="tab-sideA" data-bs-toggle="pill" data-bs-target="#pane-sideA" type="button" role="tab" style="min-height: 44px;">
-                Bên A <span class="badge bg-primary ms-1" id="badgeCountA">0</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold py-2" id="tab-sideB" data-bs-toggle="pill" data-bs-target="#pane-sideB" type="button" role="tab" style="min-height: 44px;">
-                Bên B <span class="badge bg-warning text-dark ms-1" id="badgeCountB">0</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold py-2" id="tab-subs" data-bs-toggle="pill" data-bs-target="#pane-subs" type="button" role="tab" style="min-height: 44px;">
-                Dự bị <span class="badge bg-secondary ms-1" id="badgeCountSub">0</span>
-            </button>
-        </li>
-    </ul>
-
-    <!-- Division Lineup Slots Container -->
-    <div class="tab-content" id="divisionTabContent">
-        <!-- Desktop Grid / Mobile Tab Panes -->
-        <div class="row g-3">
-            <!-- Cột Bên A -->
-            <div class="col-12 col-md-5 tab-pane fade show active d-md-block" id="pane-sideA" role="tabpanel">
-                <div class="card border-primary-subtle shadow-sm h-100">
-                    <div class="card-header bg-primary-subtle text-primary fw-bold py-2 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)</span>
-                        <span class="badge bg-primary" id="headerCountA">0</span>
+    <!-- TAB CONTENTS -->
+    <div class="tab-content" id="divisionMainTabContent">
+        <!-- TAB 1: SA BÀN SÂN BÓNG FIFA (KÉO THẢ) -->
+        <div class="tab-pane fade show active" id="viewModePitch" role="tabpanel">
+            <div class="fifa-pitch-wrapper">
+                <!-- Header của sa bàn -->
+                <div class="d-flex justify-content-between align-items-center text-white mb-2 px-2 small">
+                    <div>
+                        <span class="badge bg-success me-1">SƠ ĐỒ TRẬN</span>
+                        <strong id="pitchFormationTitle">Sơ đồ 2-3-1</strong> · Đang xem: <span class="badge bg-primary" id="pitchSideBadge">Bên A (Áo sáng)</span>
                     </div>
-                    <div class="card-body p-2" id="slotsAContainer" style="min-height: 250px;">
-                        <!-- Slots dynamically rendered via JavaScript -->
+                    <div class="text-white-50 d-none d-md-block">
+                        <i class="bi bi-hand-index-thumb me-1"></i> Kéo thả vị trí cầu thủ như game FIFA
+                    </div>
+                </div>
+
+                <!-- Sân bóng 2D FIFA -->
+                <div class="fifa-pitch-container" id="fifaPitchContainer">
+                    <!-- Các đường kẻ sân cỏ -->
+                    <div class="fifa-pitch-markings"></div>
+                    <div class="fifa-penalty-top"></div>
+                    <div class="fifa-center-line"></div>
+                    <div class="fifa-center-circle"></div>
+                    <div class="fifa-center-spot"></div>
+                    <div class="fifa-penalty-bottom"></div>
+                    <div class="fifa-goal-bottom"></div>
+
+                    <!-- Vị trí các cầu thủ được sinh động qua JS -->
+                    <div id="fifaPitchField" style="position: absolute; inset: 0;"></div>
+                </div>
+
+                <!-- Băng ghế dự bị (Bench) -->
+                <div class="fifa-bench-container" id="fifaBenchContainer" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropToBench(event)">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small fw-bold text-white">
+                            <i class="bi bi-person-fill-gear text-warning me-1"></i> Băng ghế dự bị (<span id="fifaBenchCount">0</span> người)
+                        </span>
+                        <span class="small text-white-50" style="font-size: 0.72rem;">Kéo cầu thủ vào sân để thay người</span>
+                    </div>
+                    <div class="fifa-bench-list" id="fifaBenchList">
+                        <!-- Danh sách dự bị sinh động qua JS -->
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Cột Bên B -->
-            <div class="col-12 col-md-5 tab-pane fade d-md-block" id="pane-sideB" role="tabpanel">
-                <div class="card border-warning-subtle shadow-sm h-100">
-                    <div class="card-header bg-warning-subtle text-dark fw-bold py-2 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)</span>
-                        <span class="badge bg-warning text-dark" id="headerCountB">0</span>
-                    </div>
-                    <div class="card-body p-2" id="slotsBContainer" style="min-height: 250px;">
-                        <!-- Slots dynamically rendered via JavaScript -->
-                    </div>
-                </div>
-            </div>
+        <!-- TAB 2: DANH SÁCH THẺ VỊ TRÍ (CLASSIC 3-COLUMN VIEW) -->
+        <div class="tab-pane fade" id="viewModeList" role="tabpanel">
+            <!-- Mobile Navigation Tabs (Touch-friendly >= 44px) -->
+            <ul class="nav nav-pills nav-fill mb-3 d-md-none" id="divisionTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold py-2" id="tab-sideA" data-bs-toggle="pill" data-bs-target="#pane-sideA" type="button" role="tab" style="min-height: 44px;">
+                        Bên A <span class="badge bg-primary ms-1" id="badgeCountA">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold py-2" id="tab-sideB" data-bs-toggle="pill" data-bs-target="#pane-sideB" type="button" role="tab" style="min-height: 44px;">
+                        Bên B <span class="badge bg-warning text-dark ms-1" id="badgeCountB">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold py-2" id="tab-subs" data-bs-toggle="pill" data-bs-target="#pane-subs" type="button" role="tab" style="min-height: 44px;">
+                        Dự bị <span class="badge bg-secondary ms-1" id="badgeCountSub">0</span>
+                    </button>
+                </li>
+            </ul>
 
-            <!-- Cột Dự bị -->
-            <div class="col-12 col-md-2 tab-pane fade d-md-block" id="pane-subs" role="tabpanel">
-                <div class="card border-secondary-subtle shadow-sm h-100">
-                    <div class="card-header bg-light text-muted fw-bold py-2 d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-person-fill-gear me-1"></i> Dự bị</span>
-                        <span class="badge bg-secondary" id="headerCountSub">0</span>
+            <!-- Division Lineup Slots Container -->
+            <div class="tab-content" id="divisionTabContent">
+                <!-- Desktop Grid / Mobile Tab Panes -->
+                <div class="row g-3">
+                    <!-- Cột Bên A -->
+                    <div class="col-12 col-md-5 tab-pane fade show active d-md-block" id="pane-sideA" role="tabpanel">
+                        <div class="card border-primary-subtle shadow-sm h-100">
+                            <div class="card-header bg-primary-subtle text-primary fw-bold py-2 d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)</span>
+                                <span class="badge bg-primary" id="headerCountA">0</span>
+                            </div>
+                            <div class="card-body p-2" id="slotsAContainer" style="min-height: 250px;">
+                                <!-- Slots dynamically rendered via JavaScript -->
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body p-2" id="subsContainer" style="min-height: 250px;">
-                        <!-- Substitutes rendered via JavaScript -->
+
+                    <!-- Cột Bên B -->
+                    <div class="col-12 col-md-5 tab-pane fade d-md-block" id="pane-sideB" role="tabpanel">
+                        <div class="card border-warning-subtle shadow-sm h-100">
+                            <div class="card-header bg-warning-subtle text-dark fw-bold py-2 d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)</span>
+                                <span class="badge bg-warning text-dark" id="headerCountB">0</span>
+                            </div>
+                            <div class="card-body p-2" id="slotsBContainer" style="min-height: 250px;">
+                                <!-- Slots dynamically rendered via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cột Dự bị -->
+                    <div class="col-12 col-md-2 tab-pane fade d-md-block" id="pane-subs" role="tabpanel">
+                        <div class="card border-secondary-subtle shadow-sm h-100">
+                            <div class="card-header bg-light text-muted fw-bold py-2 d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-person-fill-gear me-1"></i> Dự bị</span>
+                                <span class="badge bg-secondary" id="headerCountSub">0</span>
+                            </div>
+                            <div class="card-body p-2" id="subsContainer" style="min-height: 250px;">
+                                <!-- Substitutes rendered via JavaScript -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -173,7 +502,6 @@
                                 var existingLineup = Model.Lineups.FirstOrDefault(l => l.PlayerId == p.Id);
                                 bool isParticipant = existingLineup != null || !Model.Lineups.Any();
                                 bool isSub = existingLineup != null && !existingLineup.IsStarting;
-                                // A saved assignment is not a manager-requested lock for the next draw.
                                 string lockedSide = "";
                                 string lockedSlot = "";
 
@@ -234,11 +562,49 @@
     let currentRevision = @Model.LineupRevision;
     let currentFormationCode = '@currentFormation.Code';
     let selectedPlayerForSwap = null; // { playerId, side, slotCode, name }
+    let currentPitchSide = 'A'; // 'A' hoặc 'B' đang hiển thị trên sa bàn FIFA
+    let draggedItem = null; // { playerId, side, slotCode, name }
 
     // Dữ liệu đội hình đang hiển thị (in-memory state)
     let stateSideA = []; // Array of { slotCode, slotName, category, playerId, playerName, kitNumber, isPrimary, isSecondary, isLockedSide, isLockedSlot }
     let stateSideB = [];
     let stateSubs = [];  // Array of { playerId, playerName, kitNumber, designatedSide }
+
+    // Bản đồ tọa độ % trên sân bóng theo sơ đồ chiến thuật FIFA (y: 0% trên cùng [FW], 90% dưới cùng [GK])
+    const formationCoords = {
+        "7_231": {
+            "GK":   { x: 50, y: 88 },
+            "CB_L": { x: 28, y: 68 },
+            "CB_R": { x: 72, y: 68 },
+            "MF_L": { x: 18, y: 44 },
+            "MF_C": { x: 50, y: 46 },
+            "MF_R": { x: 82, y: 44 },
+            "FW":   { x: 50, y: 20 }
+        },
+        "7_321": {
+            "GK":   { x: 50, y: 88 },
+            "DF_L": { x: 22, y: 68 },
+            "DF_C": { x: 50, y: 70 },
+            "DF_R": { x: 78, y: 68 },
+            "MF_L": { x: 32, y: 44 },
+            "MF_R": { x: 68, y: 44 },
+            "FW":   { x: 50, y: 20 }
+        },
+        "5_121": {
+            "GK":   { x: 50, y: 88 },
+            "DF":   { x: 50, y: 68 },
+            "MF_L": { x: 24, y: 44 },
+            "MF_R": { x: 76, y: 44 },
+            "FW":   { x: 50, y: 20 }
+        },
+        "5_211": {
+            "GK":   { x: 50, y: 88 },
+            "DF_L": { x: 30, y: 68 },
+            "DF_R": { x: 70, y: 68 },
+            "MF_C": { x: 50, y: 44 },
+            "FW":   { x: 50, y: 20 }
+        }
+    };
 
     document.addEventListener("DOMContentLoaded", function () {
         initInitialState();
@@ -246,7 +612,6 @@
     });
 
     function initInitialState() {
-        // Nạp từ Model.Lineups hiện có
         @foreach (var l in Model.Lineups)
         {
             if (l.IsStarting && l.TeamSide == "A")
@@ -259,8 +624,8 @@
                     playerId: '@l.PlayerId',
                     playerName: '@Html.Raw(l.Player?.FullName ?? "")',
                     kitNumber: @(l.Player?.KitNumber?.ToString() ?? "null"),
-                    isPrimary: true,
-                    isSecondary: false,
+                    isPrimaryPosition: true,
+                    isSecondaryPosition: false,
                     isLockedSide: false,
                     isLockedSlot: false
                 });
@@ -276,8 +641,8 @@
                     playerId: '@l.PlayerId',
                     playerName: '@Html.Raw(l.Player?.FullName ?? "")',
                     kitNumber: @(l.Player?.KitNumber?.ToString() ?? "null"),
-                    isPrimary: true,
-                    isSecondary: false,
+                    isPrimaryPosition: true,
+                    isSecondaryPosition: false,
                     isLockedSide: false,
                     isLockedSlot: false
                 });
@@ -299,6 +664,27 @@
         renderAllSlots();
     }
 
+    function switchPitchSide(side) {
+        currentPitchSide = side;
+        const btnA = document.getElementById('btnPitchSideA');
+        const btnB = document.getElementById('btnPitchSideB');
+        const badge = document.getElementById('pitchSideBadge');
+
+        if (side === 'A') {
+            btnA.className = 'btn btn-primary active fw-semibold px-3 py-2';
+            btnB.className = 'btn btn-outline-warning text-dark fw-semibold px-3 py-2';
+            badge.className = 'badge bg-primary';
+            badge.innerText = 'Bên A (Áo sáng)';
+        } else {
+            btnA.className = 'btn btn-outline-primary fw-semibold px-3 py-2';
+            btnB.className = 'btn btn-warning text-dark active fw-semibold px-3 py-2';
+            badge.className = 'badge bg-warning text-dark';
+            badge.innerText = 'Bên B (Áo tối)';
+        }
+
+        renderFifaPitch();
+    }
+
     function toggleSettingsModal() {
         updateParticipantStats();
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('settingsModal'));
@@ -313,6 +699,8 @@
 
     function onFormationChange() {
         currentFormationCode = document.getElementById('selFormation').value;
+        const selText = document.getElementById('selFormation').selectedOptions[0].text;
+        document.getElementById('pitchFormationTitle').innerText = selText.split('(')[0].trim();
         runAutoDivision();
     }
 
@@ -359,7 +747,6 @@
 
         showAlert(null);
 
-        // Thu thập danh sách tham gia, dự bị và khóa từ modal/table
         const participantIds = [];
         const explicitSubIds = [];
         const lockedSides = {};
@@ -420,8 +807,98 @@
         }
     }
 
-    // 2. Render trực quan các ô vị trí (Touch targets >= 44px)
+    // 2. Render đồng bộ cả Sa bàn FIFA và Danh sách Thẻ vị trí
     function renderAllSlots() {
+        renderFifaPitch();
+        renderClassicSlots();
+    }
+
+    // 2.1. Render Sa bàn FIFA 2D
+    function renderFifaPitch() {
+        const pitchField = document.getElementById('fifaPitchField');
+        const benchList = document.getElementById('fifaBenchList');
+        const benchCount = document.getElementById('fifaBenchCount');
+
+        const activeTeamSlots = (currentPitchSide === 'A') ? stateSideA : stateSideB;
+        const totalSlots = activeTeamSlots.length;
+
+        // Render các slot trên sân
+        pitchField.innerHTML = activeTeamSlots.map((s, idx) => {
+            const coords = getCoordinatesForSlot(s.slotCode, currentFormationCode, idx, totalSlots);
+            const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === s.playerId;
+            const isPrimary = s.isPrimaryPosition !== false;
+            const compatClass = isPrimary ? 'primary' : 'secondary';
+            const badgeClass = currentPitchSide === 'A' ? 'side-A' : 'side-B';
+
+            return `
+                <div class="fifa-player-token ${isSelected ? 'selected-swap' : ''}" 
+                     style="left: ${coords.x}%; top: ${coords.y}%;"
+                     draggable="true"
+                     ondragstart="handleDragStart(event, '${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
+                     ondragend="handleDragEnd(event)"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event, '${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
+                     onclick="handleTapPlayer('${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')">
+                    <div class="fifa-card-badge ${badgeClass}">
+                        <span>#${s.kitNumber ?? '-'}</span>
+                        <span class="fifa-compat-dot ${compatClass}" title="${isPrimary ? 'Đúng sở trường' : 'Vị trí phụ'}"></span>
+                    </div>
+                    <span class="fifa-slot-pill">${s.slotCode}</span>
+                    <span class="fifa-name-pill" title="${escapeHtml(s.playerName)}">${escapeHtml(s.playerName)}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Render băng ghế dự bị dưới sa bàn
+        benchCount.innerText = stateSubs.length;
+        if (stateSubs.length === 0) {
+            benchList.innerHTML = '<span class="small text-white-50 fst-italic">Không có cầu thủ dự bị.</span>';
+        } else {
+            benchList.innerHTML = stateSubs.map(sub => {
+                const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === sub.playerId;
+                return `
+                    <div class="fifa-sub-token ${isSelected ? 'selected-swap' : ''}"
+                         draggable="true"
+                         ondragstart="handleDragStart(event, '${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')"
+                         ondragend="handleDragEnd(event)"
+                         ondragover="handleDragOver(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event, '${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')"
+                         onclick="handleTapPlayer('${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')">
+                        <span class="badge bg-secondary rounded-circle">#${sub.kitNumber ?? '-'}</span>
+                        <span>${escapeHtml(sub.playerName)}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    function getCoordinatesForSlot(slotCode, formationCode, index, totalSlots) {
+        if (formationCoords[formationCode] && formationCoords[formationCode][slotCode]) {
+            return formationCoords[formationCode][slotCode];
+        }
+
+        // Tọa độ thông minh dự phòng
+        if (slotCode.startsWith('GK')) return { x: 50, y: 88 };
+        if (slotCode.startsWith('CB') || slotCode.startsWith('DF')) {
+            if (slotCode.includes('_L')) return { x: 28, y: 68 };
+            if (slotCode.includes('_R')) return { x: 72, y: 68 };
+            return { x: 50, y: 70 };
+        }
+        if (slotCode.startsWith('MF')) {
+            if (slotCode.includes('_L')) return { x: 18, y: 44 };
+            if (slotCode.includes('_R')) return { x: 82, y: 44 };
+            return { x: 50, y: 46 };
+        }
+        if (slotCode.startsWith('FW')) return { x: 50, y: 20 };
+
+        const yStep = 65 / Math.max(1, totalSlots);
+        return { x: 25 + ((index * 30) % 50), y: 85 - (index * yStep) };
+    }
+
+    // 2.2. Render Danh sách thẻ vị trí cổ điển
+    function renderClassicSlots() {
         const contA = document.getElementById('slotsAContainer');
         const contB = document.getElementById('slotsBContainer');
         const contSub = document.getElementById('subsContainer');
@@ -445,13 +922,19 @@
     function renderSlotItem(s, side, idx) {
         const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === s.playerId;
         const borderClass = isSelected ? 'border-primary border-2 shadow-sm bg-primary-subtle' : 'border';
-        const primaryBadge = s.isPrimaryPosition 
+        const primaryBadge = s.isPrimaryPosition !== false
             ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Đúng vị trí</span>' 
             : '<span class="badge bg-warning-subtle text-dark border border-warning-subtle">Vị trí phụ</span>';
 
         return `
             <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center cursor-pointer player-touch-card" 
                  style="min-height: 48px; background-color: #fff;"
+                 draggable="true"
+                 ondragstart="handleDragStart(event, '${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
+                 ondragend="handleDragEnd(event)"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event, '${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
                  onclick="handleTapPlayer('${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')">
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-dark rounded-circle px-2 py-1" style="min-width: 26px;">#${s.kitNumber ?? '-'}</span>
@@ -474,6 +957,12 @@
         return `
             <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center cursor-pointer player-touch-card"
                  style="min-height: 48px; background-color: #f8f9fa;"
+                 draggable="true"
+                 ondragstart="handleDragStart(event, '${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')"
+                 ondragend="handleDragEnd(event)"
+                 ondragover="handleDragOver(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event, '${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')"
                  onclick="handleTapPlayer('${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')">
                 <div>
                     <strong class="text-dark d-block">#${s.kitNumber ?? '-'} ${escapeHtml(s.playerName)}</strong>
@@ -483,10 +972,61 @@
         `;
     }
 
-    // 3. Cơ chế Chạm để đổi (Tap-to-Swap)
+    // ==========================================================
+    // 3. DRAG AND DROP HANDLERS (KÉO THẢ KIỂU FIFA)
+    // ==========================================================
+    function handleDragStart(e, playerId, side, slotCode, name) {
+        draggedItem = { playerId, side, slotCode, name };
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', JSON.stringify(draggedItem));
+        e.currentTarget.classList.add('opacity-50');
+    }
+
+    function handleDragEnd(e) {
+        e.currentTarget.classList.remove('opacity-50');
+        document.querySelectorAll('.drag-hover').forEach(el => el.classList.remove('drag-hover'));
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        e.currentTarget.classList.add('drag-hover');
+    }
+
+    function handleDragLeave(e) {
+        e.currentTarget.classList.remove('drag-hover');
+    }
+
+    function handleDrop(e, targetPlayerId, targetSide, targetSlotCode, targetName) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-hover');
+        if (!draggedItem) return;
+        if (draggedItem.playerId === targetPlayerId) return;
+
+        executeSwap(draggedItem, { playerId: targetPlayerId, side: targetSide, slotCode: targetSlotCode, name: targetName });
+        draggedItem = null;
+    }
+
+    function handleDropToBench(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-hover');
+        if (!draggedItem) return;
+        if (draggedItem.side === 'SUB') return; // Đã là dự bị rồi
+
+        // Nếu kéo cầu thủ đá chính thả vào băng ghế dự bị:
+        // Đổi chỗ với cầu thủ dự bị đầu tiên hoặc chuyển thành dự bị
+        if (stateSubs.length > 0) {
+            const firstSub = stateSubs[0];
+            executeSwap(draggedItem, { playerId: firstSub.playerId, side: 'SUB', slotCode: '', name: firstSub.playerName });
+        }
+        draggedItem = null;
+    }
+
+    // ==========================================================
+    // 4. TAP-TO-SWAP (CHẠM ĐỔI VỊ TRÍ TRÊN MOBILE / MÀN CẢM ỨNG)
+    // ==========================================================
     function handleTapPlayer(playerId, side, slotCode, name) {
         if (!selectedPlayerForSwap) {
-            // Chọn người thứ nhất
             selectedPlayerForSwap = { playerId, side, slotCode, name };
             document.getElementById('swapSourceName').innerText = name;
             document.getElementById('swapNotice').classList.remove('d-none');
@@ -495,7 +1035,6 @@
             return;
         }
 
-        // Đã có người thứ nhất, chạm người thứ hai -> Hoán đổi
         if (selectedPlayerForSwap.playerId === playerId) {
             cancelSwapSelection();
             return;
@@ -513,73 +1052,38 @@
     }
 
     function executeSwap(first, second) {
-        // Hoán đổi giữa 2 vị trí đá chính hoặc giữa đá chính và dự bị
         let p1 = null, p2 = null;
 
-        // Tìm đối tượng p1
         if (first.side === 'A') p1 = stateSideA.find(x => x.playerId === first.playerId);
         else if (first.side === 'B') p1 = stateSideB.find(x => x.playerId === first.playerId);
         else p1 = stateSubs.find(x => x.playerId === first.playerId);
 
-        // Tìm đối tượng p2
         if (second.side === 'A') p2 = stateSideA.find(x => x.playerId === second.playerId);
         else if (second.side === 'B') p2 = stateSideB.find(x => x.playerId === second.playerId);
         else p2 = stateSubs.find(x => x.playerId === second.playerId);
 
         if (!p1 || !p2) return;
 
-        // Nếu cả 2 đều đá chính
-        if (first.side !== 'SUB' && second.side !== 'SUB') {
-            const tempId = p1.playerId;
-            const tempName = p1.playerName;
-            const tempKit = p1.kitNumber;
+        // Hoán đổi thông tin cầu thủ
+        const tempId = p1.playerId;
+        const tempName = p1.playerName;
+        const tempKit = p1.kitNumber;
 
-            p1.playerId = p2.playerId;
-            p1.playerName = p2.playerName;
-            p1.kitNumber = p2.kitNumber;
+        p1.playerId = p2.playerId;
+        p1.playerName = p2.playerName;
+        p1.kitNumber = p2.kitNumber;
 
-            p2.playerId = tempId;
-            p2.playerName = tempName;
-            p2.kitNumber = tempKit;
-        } else if (first.side !== 'SUB' && second.side === 'SUB') {
-            // p1 đá chính, p2 dự bị -> Hoán đổi người
-            const starter = p1;
-            const sub = p2;
-
-            const tempId = starter.playerId;
-            const tempName = starter.playerName;
-            const tempKit = starter.kitNumber;
-
-            starter.playerId = sub.playerId;
-            starter.playerName = sub.playerName;
-            starter.kitNumber = sub.kitNumber;
-
-            sub.playerId = tempId;
-            sub.playerName = tempName;
-            sub.kitNumber = tempKit;
-        } else if (first.side === 'SUB' && second.side !== 'SUB') {
-            // p1 dự bị, p2 đá chính
-            const sub = p1;
-            const starter = p2;
-
-            const tempId = starter.playerId;
-            const tempName = starter.playerName;
-            const tempKit = starter.kitNumber;
-
-            starter.playerId = sub.playerId;
-            starter.playerName = sub.playerName;
-            starter.kitNumber = sub.kitNumber;
-
-            sub.playerId = tempId;
-            sub.playerName = tempName;
-            sub.kitNumber = tempKit;
-        }
+        p2.playerId = tempId;
+        p2.playerName = tempName;
+        p2.kitNumber = tempKit;
 
         renderAllSlots();
         showAlert(`Đã hoán đổi vị trí giữa ${first.name} và ${second.name}.`, 'info');
     }
 
-    // 4. Lưu chính thức đội hình (ConfirmInternalDivision)
+    // ==========================================================
+    // 5. LƯU CHÍNH THỨC ĐỘI HÌNH (ConfirmInternalDivision)
+    // ==========================================================
     async function saveConfirmedDivision() {
         const btn = document.getElementById('btnConfirmDivision');
         btn.disabled = true;
@@ -590,7 +1094,6 @@
         stateSideB.forEach(s => assignments.push({ playerId: s.playerId, teamSide: 'B', slotCode: s.slotCode }));
 
         const subs = stateSubs.map(s => ({ playerId: s.playerId, designatedSide: s.designatedSide || null }));
-
         const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
 
         try {

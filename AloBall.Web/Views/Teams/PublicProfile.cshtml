@@ -3,26 +3,208 @@
     ViewData["Title"] = $"{Model.Name} - Hồ sơ công khai CLB";
     var upcomingMatches = ViewBag.UpcomingMatches as IEnumerable<AloBall.Web.Data.Entities.MatchGame> ?? Enumerable.Empty<AloBall.Web.Data.Entities.MatchGame>();
     var completedMatches = ViewBag.CompletedMatches as IEnumerable<AloBall.Web.Data.Entities.MatchGame> ?? Enumerable.Empty<AloBall.Web.Data.Entities.MatchGame>();
+    var officialMatches = ViewBag.OfficialMatches as IEnumerable<AloBall.Web.Data.Entities.MatchGame> ?? Enumerable.Empty<AloBall.Web.Data.Entities.MatchGame>();
+    var reputationStats = ViewBag.ReputationStats as AloBall.Web.Models.TeamReputationStats ?? new AloBall.Web.Models.TeamReputationStats();
+    var verifiedReviews = ViewBag.VerifiedReviews as IEnumerable<AloBall.Web.Data.Entities.TeamMatchReview> ?? Enumerable.Empty<AloBall.Web.Data.Entities.TeamMatchReview>();
     bool isManager = ViewBag.IsManager ?? false;
+    bool isMember = ViewBag.IsMember ?? false;
+    string? currentUserId = ViewBag.CurrentUserId as string;
     var userManagedTeams = ViewBag.UserManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
 }
 
 <section class="public-passport">
-    <div class="passport-art"><span>THE CLUB</span><i class="bi bi-shield-shaded"></i><span>EST. @(Model.EstablishedDate?.ToString("yyyy") ?? "—")</span></div>
-    <div class="passport-body"><div class="d-flex align-items-center gap-3 mb-4"><div class="club-logo">@if (!string.IsNullOrEmpty(Model.LogoUrl)) { <img src="@Model.LogoUrl" alt="Logo @Model.Name" /> } else { <i class="bi bi-shield"></i> }</div><span class="eyebrow">HỒ SƠ CÂU LẠC BỘ</span></div>
-        <h1>@Model.Name</h1><p class="passport-description">@(string.IsNullOrWhiteSpace(Model.Description) ? "Cùng một niềm đam mê. Cùng một màu áo. Hẹn gặp nhau trên sân bóng." : Model.Description)</p>
-        <div class="passport-facts"><div><span>Khu vực</span><strong>@(Model.ActivityArea ?? "Chưa cập nhật")</strong></div><div><span>Sân nhà</span><strong>@(Model.HomePitch ?? "Chưa cập nhật")</strong></div><div><span>Thành lập</span><strong>@(Model.EstablishedDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")</strong></div><div><span>Uy tín giao lưu</span><strong><i class="bi bi-star-fill"></i> @Model.AverageRating.ToString("0.0") <small>(@Model.ValidReviewCount)</small></strong></div></div>
-        <div class="d-flex align-items-center gap-3 flex-wrap mt-4">
-            @if (Model.IsRestrictedFromMatchmaking) { <span class="badge bg-danger-subtle text-danger">Tạm ngưng bắt đối</span> }
-            else { <span class="availability"><i></i> Sẵn sàng giao lưu</span> }
-            @if (!Model.IsRestrictedFromMatchmaking && !isManager) {
-                if (User.Identity?.IsAuthenticated != true) { <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@($"/doi/{Model.Slug}")" class="btn btn-arena-primary">Mời giao hữu <i class="bi bi-arrow-up-right"></i></a> }
-                else { <button class="btn btn-arena-primary" data-bs-toggle="modal" data-bs-target="#inviteFriendlyModal">Mời giao hữu <i class="bi bi-arrow-up-right"></i></button> }
+    <div class="passport-art">
+        <span>THE CLUB</span>
+        <div class="passport-art-logo-wrapper @(isManager ? "is-manageable" : "") @(!string.IsNullOrEmpty(Model.LogoUrl) ? "has-logo" : "")" id="passportArtLogoWrapper">
+            <div id="passportArtLogoDisplay" class="passport-art-logo-display">
+                @if (!string.IsNullOrEmpty(Model.LogoUrl))
+                {
+                    <img id="passportArtLogoImg" src="@Model.LogoUrl" alt="Logo @Model.Name" />
+                }
+                else
+                {
+                    <i id="passportArtPlaceholder" class="bi bi-shield-shaded"></i>
+                }
+            </div>
+            @if (isManager)
+            {
+                <button type="button" class="passport-art-logo-overlay" data-bs-toggle="modal" data-bs-target="#logoManageModal" title="Quản lý Logo CLB">
+                    <i class="bi bi-camera-fill"></i>
+                    <span>Đổi logo</span>
+                </button>
             }
-            @if (isManager) { <a asp-action="Dashboard" asp-route-id="@Model.Id" class="btn btn-arena-dark">Không gian đội <i class="bi bi-arrow-right"></i></a> }
+        </div>
+        <span>EST. @(Model.EstablishedDate?.ToString("yyyy") ?? "—")</span>
+    </div>
+    <div class="passport-body @(!string.IsNullOrEmpty(Model.CoverImageUrl) ? "has-cover" : "")">
+        <!-- Cover Image Layer (Affected ONLY by opacity) -->
+        <div id="passportCoverLayer" class="passport-cover-layer" style="@(!string.IsNullOrEmpty(Model.CoverImageUrl) ? $"background-image: url('{Model.CoverImageUrl}'); opacity: {(Model.CoverOpacity ?? 0.7).ToString(System.Globalization.CultureInfo.InvariantCulture)};" : "display: none; opacity: 0.7;")"></div>
+        
+        <!-- Passport Content Layer (Crisp, 100% opaque, unaffected by cover opacity) -->
+        <div class="passport-content-layer">
+            <div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-wrap">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="club-logo-wrapper @(isManager ? "is-manageable" : "")" id="clubLogoWrapper">
+                        <div class="club-logo" id="clubLogoDisplay">
+                            @if (!string.IsNullOrEmpty(Model.LogoUrl)) {
+                                <img id="clubLogoImg" src="@Model.LogoUrl" alt="Logo @Model.Name" />
+                            } else {
+                                <i id="clubLogoPlaceholder" class="bi bi-shield"></i>
+                            }
+                        </div>
+                        @if (isManager)
+                        {
+                            <button type="button" class="club-logo-overlay" data-bs-toggle="modal" data-bs-target="#logoManageModal" title="Quản lý Logo CLB">
+                                <i class="bi bi-camera-fill"></i>
+                                <span>Đổi logo</span>
+                            </button>
+                        }
+                    </div>
+                    <span class="eyebrow">HỒ SƠ CÂU LẠC BỘ</span>
+                </div>
+
+                @if (isManager)
+                {
+                    <!-- Facebook-style Club Cover Action Controls -->
+                    <div class="cover-actions-bar">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light bg-white border shadow-sm cover-manage-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-camera-fill me-1 text-primary"></i> Chỉnh sửa ảnh bìa
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2">
+                                <li>
+                                    <button class="dropdown-item py-2" type="button" data-bs-toggle="modal" data-bs-target="#coverUploadModal">
+                                        <i class="bi bi-image me-2 text-primary"></i><span id="coverUploadMenuItemText">@(string.IsNullOrEmpty(Model.CoverImageUrl) ? "Thêm ảnh bìa" : "Thay đổi ảnh bìa")</span>
+                                    </button>
+                                </li>
+                                <li id="coverOpacityMenuItem" style="@(string.IsNullOrEmpty(Model.CoverImageUrl) ? "display: none;" : "")">
+                                    <button class="dropdown-item py-2" type="button" data-bs-toggle="modal" data-bs-target="#coverOpacityModal">
+                                        <i class="bi bi-sliders me-2 text-success"></i>Chỉnh độ mờ ảnh bìa (<span id="coverCurrentOpacityText">@((int)((Model.CoverOpacity ?? 0.7) * 100))%</span>)
+                                    </button>
+                                </li>
+                                <li id="coverDeleteDivider" style="@(string.IsNullOrEmpty(Model.CoverImageUrl) ? "display: none;" : "")"><hr class="dropdown-divider"></li>
+                                <li id="coverDeleteMenuItem" style="@(string.IsNullOrEmpty(Model.CoverImageUrl) ? "display: none;" : "")">
+                                    <button class="dropdown-item py-2 text-danger" type="button" onclick="openDeleteCoverConfirm()">
+                                        <i class="bi bi-trash3 me-2"></i>Xóa ảnh bìa
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <h1>@Model.Name</h1>
+            <p class="passport-description">@(string.IsNullOrWhiteSpace(Model.Description) ? "Cùng một niềm đam mê. Cùng một màu áo. Hẹn gặp nhau trên sân bóng." : Model.Description)</p>
+            <div class="passport-facts">
+                <div><span>Khu vực</span><strong>@(Model.ActivityArea ?? "Chưa cập nhật")</strong></div>
+                <div><span>Sân nhà</span><strong>@(Model.HomePitch ?? "Chưa cập nhật")</strong></div>
+                <div><span>Thành lập</span><strong>@(Model.EstablishedDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")</strong></div>
+                <div><span>Uy tín giao lưu</span><strong><i class="bi bi-star-fill"></i> @Model.AverageRating.ToString("0.0") <small>(@Model.ValidReviewCount)</small></strong></div>
+            </div>
+            <div class="d-flex align-items-center gap-3 flex-wrap mt-4">
+                @if (Model.IsRestrictedFromMatchmaking) { <span class="badge bg-danger-subtle text-danger">Tạm ngưng bắt đối</span> }
+                else { <span class="availability"><i></i> Sẵn sàng giao lưu</span> }
+                @if (!Model.IsRestrictedFromMatchmaking && !isManager) {
+                    if (User.Identity?.IsAuthenticated != true) { <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@($"/doi/{Model.Slug}")" class="btn btn-arena-primary">Mời giao hữu <i class="bi bi-arrow-up-right"></i></a> }
+                    else { <button class="btn btn-arena-primary" data-bs-toggle="modal" data-bs-target="#inviteFriendlyModal">Mời giao hữu <i class="bi bi-arrow-up-right"></i></button> }
+                }
+                @if (isMember && !isManager) {
+                    <a asp-action="Messages" asp-route-teamId="@Model.Id" class="btn btn-arena-outline">
+                        <i class="bi bi-chat-left-text-fill me-1"></i> Liên hệ Đội trưởng
+                    </a>
+                }
+                @if (isManager) {
+                    <a asp-action="Dashboard" asp-route-id="@Model.Id" class="btn btn-arena-dark">Không gian đội <i class="bi bi-arrow-right"></i></a>
+                    <a asp-action="Messages" asp-route-teamId="@Model.Id" class="btn btn-arena-outline">
+                        <i class="bi bi-chat-left-dots me-1"></i> Tin nhắn & Liên hệ
+                    </a>
+                }
+            </div>
         </div>
     </div>
 </section>
+
+<!-- THỐNG KÊ PHONG ĐỘ & UY TÍN GIAO LƯU -->
+<div class="row g-3 mb-4">
+    <!-- Card 1: Trận chính thức -->
+    <div class="col-6 col-lg-3">
+        <div class="arena-card p-3 h-100 border-start border-4 border-success">
+            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                <i class="bi bi-shield-check text-success me-1"></i>Trận chính thức
+            </span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="fs-3 fw-bold text-dark">@reputationStats.TotalOfficialMatches</span>
+                <small class="text-muted">trận đối soát</small>
+            </div>
+            <div class="small mt-2 pt-2 border-top text-muted d-flex justify-content-between">
+                <span>Thắng: <strong class="text-success">@reputationStats.Wins</strong></span>
+                <span>Hòa: <strong class="text-secondary">@reputationStats.Draws</strong></span>
+                <span>Thua: <strong class="text-danger">@reputationStats.Losses</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 2: Tỉ lệ thắng & Hiệu số -->
+    <div class="col-6 col-lg-3">
+        <div class="arena-card p-3 h-100 border-start border-4 border-primary">
+            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                <i class="bi bi-graph-up-arrow text-primary me-1"></i>Tỉ lệ thắng
+            </span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="fs-3 fw-bold text-primary">@reputationStats.WinPercentage.ToString("0.0")%</span>
+                <span class="badge @(reputationStats.GoalDifference > 0 ? "bg-success" : (reputationStats.GoalDifference == 0 ? "bg-secondary" : "bg-danger"))">
+                    HS: @(reputationStats.GoalDifference > 0 ? $"+{reputationStats.GoalDifference}" : reputationStats.GoalDifference.ToString())
+                </span>
+            </div>
+            <div class="small mt-2 pt-2 border-top text-muted d-flex justify-content-between">
+                <span>Ghi: <strong class="text-success">@reputationStats.GoalsScored</strong></span>
+                <span>Thủng: <strong class="text-danger">@reputationStats.GoalsConceded</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 3: Chỉ số bắt đối (12 tháng) -->
+    <div class="col-6 col-lg-3">
+        <div class="arena-card p-3 h-100 border-start border-4 border-info">
+            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                <i class="bi bi-clock-history text-info me-1"></i>Phản hồi lời mời
+            </span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="fs-3 fw-bold text-dark">@reputationStats.ResponseRatePercentage.ToString("0.0")%</span>
+                <small class="text-muted">12 tháng qua</small>
+            </div>
+            <div class="small mt-2 pt-2 border-top text-muted d-flex justify-content-between">
+                <span>Nhận lời: <strong class="text-success">@reputationStats.AcceptanceRatePercentage.ToString("0.0")%</strong></span>
+                <span>(@reputationStats.AcceptedInvitations/@reputationStats.RespondedInvitations)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card 4: Điểm uy tín sau trận -->
+    <div class="col-6 col-lg-3">
+        <div class="arena-card p-3 h-100 border-start border-4 border-warning">
+            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">
+                <i class="bi bi-star-fill text-warning me-1"></i>Uy tín sau trận
+            </span>
+            <div class="d-flex align-items-baseline gap-2">
+                <span class="fs-3 fw-bold text-dark">@Model.AverageRating.ToString("0.0")</span>
+                <small class="text-muted">/ 5.0 (@Model.ValidReviewCount đánh giá)</small>
+            </div>
+            <div class="small mt-2 pt-2 border-top text-muted">
+                @if (Model.IsRestrictedFromMatchmaking)
+                {
+                    <span class="text-danger fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Bị hạn chế bắt đối</span>
+                }
+                else
+                {
+                    <span class="text-success fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>CLB thi đấu đúng hẹn &amp; văn minh</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 2. LỊCH THI ĐẤU & KẾT QUẢ GẦN NHẤT CỦA CLB -->
 <div class="row g-4 mb-4">
     <!-- Trận sắp tới -->
@@ -110,6 +292,60 @@
     </div>
 </div>
 
+<!-- ĐÁNH GIÁ TỪ ĐỐI THỦ SAU TRẬN -->
+<div class="arena-card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="arena-sports-heading text-dark mb-0 fs-6">
+            <i class="bi bi-chat-heart text-danger me-2"></i>Nhận Xét &amp; Đánh Giá Từ Đối Thủ
+        </h5>
+        <span class="badge bg-light text-muted border">@verifiedReviews.Count() đánh giá xác minh</span>
+    </div>
+
+    @if (!verifiedReviews.Any())
+    {
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-star fs-2 d-block mb-2 text-muted"></i>
+            <span class="small">Chưa có đánh giá nào từ các đội đối thủ sau trận đấu.</span>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var rev in verifiedReviews)
+            {
+                <div class="col-12 col-md-6">
+                    <div class="p-3 border rounded-3 bg-white h-100 shadow-sm">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="fw-bold text-dark d-block">@(rev.ReviewerTeam?.Name ?? "Đội đối thủ")</span>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar3 me-1"></i>@rev.CreatedAt.ToString("dd/MM/yyyy")
+                                </small>
+                            </div>
+                            <div class="text-warning">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    if (i <= rev.RatingStars)
+                                    {
+                                        <i class="bi bi-star-fill"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-star text-muted"></i>
+                                    }
+                                }
+                            </div>
+                        </div>
+                        <p class="small text-secondary mb-0 bg-light p-2 rounded">
+                            <i class="bi bi-quote me-1 text-muted"></i>@(string.IsNullOrWhiteSpace(rev.Comment) ? "CLB thi đấu nhiệt tình, đúng giờ." : rev.Comment)
+                        </p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
 <!-- 3. ĐỘI HÌNH & DANH SÁCH CẦU THỦ CÔNG KHAI (CARD CẦU THỦ PHONG CÁCH CAHN) -->
 <section class="arena-card editor-panel mb-4">
     <div class="section-heading mt-0"><h2>Lịch sử đá giải</h2><i class="bi bi-trophy text-success"></i></div>
@@ -120,16 +356,69 @@
     }
 </section>
 <section class="arena-section-space">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
             <h4 class="arena-sports-heading text-dark mb-0">
                 <i class="bi bi-people-fill text-success me-2"></i>Đội Hình Cầu Thủ
             </h4>
             <p class="text-muted small mb-0">Danh sách nhân sự công khai của câu lạc bộ</p>
         </div>
-        <span class="badge bg-light text-dark border">
-            @Model.Players.Count(p => p.IsActive && p.IsPublicProfile) cầu thủ
-        </span>
+        <div class="d-flex align-items-center gap-2">
+            @if (isMember && !isManager)
+            {
+                <a asp-action="Messages" asp-route-teamId="@Model.Id" class="btn btn-arena-primary btn-sm">
+                    <i class="bi bi-chat-left-text-fill me-1"></i> Liên hệ Đội trưởng
+                </a>
+            }
+            else if (isManager)
+            {
+                <a asp-action="Messages" asp-route-teamId="@Model.Id" class="btn btn-arena-outline btn-sm">
+                    <i class="bi bi-chat-left-dots me-1"></i> Hộp thư đội bóng
+                </a>
+            }
+            <span class="badge bg-light text-dark border">
+                <span id="publicPlayerCount">@Model.Players.Count(p => p.IsActive && p.IsPublicProfile)</span> cầu thủ
+            </span>
+        </div>
+    </div>
+
+    <!-- Thanh tìm kiếm, lọc nhanh & Chế độ xem Windows Explorer cho Đội hình công khai -->
+    <div class="arena-card p-2 mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" id="publicPlayerSearch" class="form-control border-start-0" placeholder="Tìm theo tên, số áo, vị trí..." onkeyup="filterPublicPlayers()" />
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select id="publicPositionFilter" class="form-select" onchange="filterPublicPlayers()">
+                    <option value="all">Tất cả vị trí</option>
+                    <option value="tiền đạo">Tiền đạo (FW)</option>
+                    <option value="tiền vệ">Tiền vệ (MF)</option>
+                    <option value="hậu vệ">Hậu vệ (DF)</option>
+                    <option value="thủ môn">Thủ môn (GK)</option>
+                </select>
+            </div>
+            <!-- Bộ chọn 7 Chế độ xem phong cách Windows File Explorer -->
+            <div class="col-6 col-md-4">
+                <div class="dropdown">
+                    <button class="btn btn-arena-outline w-100 dropdown-toggle d-flex align-items-center justify-content-between text-truncate" type="button" id="publicRosterViewModeBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span id="activePublicViewModeLabel" class="text-truncate"><i class="bi bi-table text-primary me-1"></i> Chi tiết</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="publicRosterViewModeBtn">
+                        <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 10px; letter-spacing: 1px;">Chế độ xem</h6></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item active bg-light" type="button" data-mode="details" onclick="setPublicRosterViewMode('details')"><i class="bi bi-table text-primary"></i> <span>Chi tiết (Details) <small class="text-muted">(Mặc định)</small></span></button></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item" type="button" data-mode="content" onclick="setPublicRosterViewMode('content')"><i class="bi bi-card-text text-primary"></i> <span>Nội dung (Content)</span></button></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item" type="button" data-mode="list" onclick="setPublicRosterViewMode('list')"><i class="bi bi-list-ul text-primary"></i> <span>Danh sách (List)</span></button></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item" type="button" data-mode="tiles" onclick="setPublicRosterViewMode('tiles')"><i class="bi bi-grid-fill text-primary"></i> <span>Ô gạch (Tiles)</span></button></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item" type="button" data-mode="large-icons" onclick="setPublicRosterViewMode('large-icons')"><i class="bi bi-grid text-primary"></i> <span>Biểu tượng lớn (Large icons)</span></button></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item" type="button" data-mode="medium-icons" onclick="setPublicRosterViewMode('medium-icons')"><i class="bi bi-grid-3x2-gap text-primary"></i> <span>Biểu tượng vừa (Medium icons)</span></button></li>
+                        <li><button class="dropdown-item d-flex align-items-center gap-2 public-view-mode-item" type="button" data-mode="small-icons" onclick="setPublicRosterViewMode('small-icons')"><i class="bi bi-grid-3x3 text-primary"></i> <span>Biểu tượng nhỏ (Small icons)</span></button></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     @if (!Model.Players.Any(p => p.IsActive && p.IsPublicProfile))
@@ -140,38 +429,189 @@
     }
     else
     {
-        <div class="row g-3">
-            @foreach (var p in Model.Players.Where(p => p.IsActive && p.IsPublicProfile).OrderBy(p => p.KitNumber ?? 999))
-            {
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="arena-player-card h-100">
-                        <!-- Khung ảnh / số áo nền -->
-                        <div class="arena-player-card-photo">
-                            <span class="arena-player-card-number">@(p.PublicKitNumber ? p.KitNumber?.ToString() ?? "–" : "–")</span>
-                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm" style="width: 72px; height: 72px; font-size: 1.8rem; color: var(--arena-primary); border: 2px solid var(--arena-primary-border);">
+        <!-- Container 7 Chế độ xem Roster Công khai -->
+        <div id="publicRosterViewContainer" class="roster-view-container mode-details">
+            <!-- 1. View Mode: Details (Bảng chi tiết Table) -->
+            <div class="roster-details-table arena-card overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr class="small text-muted text-uppercase">
+                                <th class="ps-3" style="width: 70px;">Số áo</th>
+                                <th>Cầu thủ</th>
+                                <th>Vị trí</th>
+                                <th>Thể hình</th>
+                                <th>Chân thuận</th>
+                                <th>Kinh nghiệm</th>
+                                <th class="text-end pe-3">Liên hệ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="publicMemberTableBody">
+                            @foreach (var p in Model.Players.Where(p => p.IsActive && p.IsPublicProfile).OrderBy(p => p.KitNumber ?? 999))
+                            {
+                                <tr class="public-roster-filterable member-row" 
+                                    data-name="@p.FullName.ToLower()" 
+                                    data-number="@(p.KitNumber?.ToString() ?? "")" 
+                                    data-pos="@(p.Position?.ToLower() ?? "")">
+                                    <td class="ps-3">
+                                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fw-bold fs-6">
+                                            @(p.PublicKitNumber ? p.KitNumber?.ToString() ?? "–" : "–")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/cau-thu/@p.Id" class="fw-bold text-dark text-decoration-none hover-primary">
+                                            @p.FullName <i class="bi bi-box-arrow-up-right small text-muted ms-1" style="font-size: 10px;"></i>
+                                        </a>
+                                        @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                                        {
+                                            <small class="text-success d-block"><i class="bi bi-check-circle-fill"></i> Đã liên kết</small>
+                                        }
+                                    </td>
+                                    <td><span class="badge bg-light text-dark border">@(p.PublicPosition ? p.Position ?? "Cầu thủ" : "Cầu thủ")</span></td>
+                                    <td class="small text-muted">
+                                        @if (p.PublicHeightWeight && (p.HeightCm.HasValue || p.WeightKg.HasValue))
+                                        {
+                                            @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "-") @(p.WeightKg.HasValue ? $"/ {p.WeightKg}kg" : "")
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </td>
+                                    <td class="small text-muted">
+                                        @(p.PublicPreferredFoot && !string.IsNullOrEmpty(p.PreferredFoot) ? p.PreferredFoot : "-")
+                                    </td>
+                                    <td class="small text-muted">
+                                        @(p.PublicExperience && !string.IsNullOrEmpty(p.Experience) ? p.Experience : "-")
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-flex justify-content-end align-items-center gap-1">
+                                            <a href="/cau-thu/@p.Id" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;" title="Xem hồ sơ cá nhân">
+                                                <i class="bi bi-person-badge me-1"></i>Hồ sơ
+                                            </a>
+                                            @if (isManager)
+                                            {
+                                                if (!string.IsNullOrEmpty(p.LinkedUserId))
+                                                {
+                                                    <a asp-action="Messages" asp-route-teamId="@Model.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Nhắn tin cho cầu thủ">
+                                                        <i class="bi bi-chat-dots me-1"></i> Nhắn tin
+                                                    </a>
+                                                }
+                                            }
+                                            else if (isMember)
+                                            {
+                                                if (p.LinkedUserId == currentUserId)
+                                                {
+                                                    <span class="badge bg-success-subtle text-success border py-1 px-2" style="font-size: 11px;"><i class="bi bi-person-check me-1"></i> Bạn</span>
+                                                }
+                                                else
+                                                {
+                                                    <a asp-action="Messages" asp-route-teamId="@Model.Id" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Liên hệ qua Đội trưởng">
+                                                        <i class="bi bi-chat-left-text me-1"></i> Liên hệ
+                                                    </a>
+                                                }
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. View Modes: Content, List, Tiles, Large icons, Medium icons, Small icons -->
+            <div class="roster-grid" id="publicRosterGridContainer">
+                @foreach (var p in Model.Players.Where(p => p.IsActive && p.IsPublicProfile).OrderBy(p => p.KitNumber ?? 999))
+                {
+                    <div class="public-roster-filterable roster-item-card" 
+                         data-name="@p.FullName.ToLower()" 
+                         data-number="@(p.KitNumber?.ToString() ?? "")" 
+                         data-pos="@(p.Position?.ToLower() ?? "")">
+                        <!-- Avatar & Kit Number Badge -->
+                        <div class="card-avatar-wrap bg-light border d-flex align-items-center justify-content-center text-primary position-relative flex-shrink-0">
+                            @if (p.PublicKitNumber && p.KitNumber.HasValue)
+                            {
+                                <strong class="fw-bold">@p.KitNumber</strong>
+                            }
+                            else
+                            {
                                 <i class="bi bi-person-fill"></i>
-                            </div>
+                            }
                         </div>
 
-                        <!-- Thân card -->
-                        <div class="arena-player-card-body">
-                            <div class="arena-player-card-name" title="@p.FullName">
-                                @p.FullName
+                        <!-- Main Info -->
+                        <div class="roster-card-body flex-grow-1 min-w-0">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                <a href="/cau-thu/@p.Id" class="text-decoration-none text-dark flex-grow-1 min-w-0" title="Xem hồ sơ @p.FullName">
+                                    <h6 class="fw-bold mb-0 text-dark text-truncate">@p.FullName <i class="bi bi-box-arrow-up-right small text-muted" style="font-size: 9px;"></i></h6>
+                                </a>
+                                <span class="badge bg-success-subtle text-success border px-2 py-1 card-status-badge">
+                                    Thành viên
+                                </span>
                             </div>
-                            <span class="arena-player-card-pos mb-2">
-                                @(p.PublicPosition ? p.Position ?? "Cầu thủ" : "Cầu thủ")
-                            </span>
 
+                            <div class="card-pos-badge mb-1">
+                                <small class="text-muted"><i class="bi bi-shield-fill me-1 text-success"></i>@(p.PublicPosition ? p.Position ?? "Cầu thủ" : "Cầu thủ")</small>
+                                @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                                {
+                                    <span class="badge bg-success-subtle text-success border ms-1" style="font-size: 9px;"><i class="bi bi-check"></i> Liên kết</span>
+                                }
+                            </div>
+
+                            <!-- Physical details (for Content and Tiles mode) -->
                             @if (p.PublicHeightWeight && (p.HeightCm.HasValue || p.WeightKg.HasValue))
                             {
-                                <div class="text-muted small mt-1" style="font-size: 11px;">
-                                    @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "") @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "")
+                                <div class="card-shirt-spec small text-muted mb-1" style="font-size: 11px;">
+                                    <span>Thể hình: <strong class="text-dark">@(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "") @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "")</strong></span>
+                                </div>
+                            }
+                            @if ((p.PublicPreferredFoot && !string.IsNullOrEmpty(p.PreferredFoot)) || (p.PublicExperience && !string.IsNullOrEmpty(p.Experience)))
+                            {
+                                <div class="card-body-specs small text-muted" style="font-size: 11px;">
+                                    @if (p.PublicPreferredFoot && !string.IsNullOrEmpty(p.PreferredFoot))
+                                    {
+                                        <span>Chân: @p.PreferredFoot</span>
+                                    }
+                                    @if (p.PublicExperience && !string.IsNullOrEmpty(p.Experience))
+                                    {
+                                        <span class="ms-2">Kinh nghiệm: @p.Experience</span>
+                                    }
                                 </div>
                             }
                         </div>
+
+                        <!-- Contact action button -->
+                        <div class="card-action-btn mt-2 mt-sm-0 flex-shrink-0 d-flex gap-1">
+                            <a href="/cau-thu/@p.Id" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;" title="Xem hồ sơ cá nhân">
+                                <i class="bi bi-person-badge"></i> <span class="d-none d-md-inline ms-1">Hồ sơ</span>
+                            </a>
+                            @if (isManager && !string.IsNullOrEmpty(p.LinkedUserId))
+                            {
+                                <a asp-action="Messages" asp-route-teamId="@Model.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Nhắn tin cho cầu thủ">
+                                    <i class="bi bi-chat-dots"></i> <span class="d-none d-md-inline ms-1">Nhắn tin</span>
+                                </a>
+                            }
+                            else if (isMember)
+                            {
+                                if (p.LinkedUserId == currentUserId)
+                                {
+                                    <span class="badge bg-success-subtle text-success border py-1 px-2" style="font-size: 10px;"><i class="bi bi-person-check me-1"></i> Bạn</span>
+                                }
+                                else
+                                {
+                                    <a asp-action="Messages" asp-route-teamId="@Model.Id" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Liên hệ qua Đội trưởng">
+                                        <i class="bi bi-chat-left-text"></i> <span class="d-none d-md-inline ms-1">Liên hệ</span>
+                                    </a>
+                                }
+                            }
+                        </div>
                     </div>
-                </div>
-            }
+                }
+            </div>
+        </div>
+        <div id="noPublicPlayerFound" class="arena-card p-4 text-center mt-2" style="display: none;">
+            <p class="text-muted small mb-0">Không tìm thấy cầu thủ nào phù hợp với bộ lọc.</p>
         </div>
     }
 </section>
@@ -357,3 +797,765 @@
         </div>
     </div>
 </div>
+
+@if (isManager)
+{
+    @Html.AntiForgeryToken()
+
+    <!-- Modal 1: Quản lý Logo (Instagram-style) -->
+    <div class="modal fade" id="logoManageModal" tabindex="-1" aria-labelledby="logoManageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold text-dark" id="logoManageModalLabel">
+                        <i class="bi bi-camera-fill text-primary me-2"></i>Quản lý Logo Câu Lạc Bộ
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <!-- Khu vực xem trước ảnh -->
+                    <div class="mb-3 d-flex justify-content-center">
+                        <div class="rounded-circle border p-1 shadow-sm position-relative" style="width: 120px; height: 120px; background: #f8fafc;">
+                            <img id="logoModalPreview" src="@(Model.LogoUrl ?? "")" alt="Xem trước Logo" class="rounded-circle w-100 h-100" style="object-fit: cover; @(string.IsNullOrEmpty(Model.LogoUrl) ? "display: none;" : "")" />
+                            <div id="logoModalPlaceholder" class="w-100 h-100 rounded-circle d-flex align-items-center justify-content-center text-muted fs-1" style="@(!string.IsNullOrEmpty(Model.LogoUrl) ? "display: none;" : "")">
+                                <i class="bi bi-shield"></i>
+                            </div>
+                            <div id="logoLoadingSpinner" class="position-absolute top-50 start-50 translate-middle" style="display: none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Đang xử lý...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thông báo phản hồi -->
+                    <div id="logoErrorAlert" class="alert alert-danger py-2 px-3 small text-start" style="display: none;"></div>
+                    <div id="logoSuccessAlert" class="alert alert-success py-2 px-3 small text-start" style="display: none;"></div>
+
+                    <p class="text-muted small mb-3">
+                        Hỗ trợ các định dạng <strong>JPG, PNG, WEBP</strong>. Dung lượng tối đa <strong>5MB</strong>.
+                    </p>
+
+                    <input type="file" id="logoFileInput" accept="image/jpeg,image/png,image/webp" class="d-none" onchange="handleLogoFileSelect(this)" />
+                    
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-arena-primary btn-sm" onclick="document.getElementById('logoFileInput').click()">
+                            <i class="bi bi-upload me-1"></i> Chọn ảnh mới
+                        </button>
+                        <button type="button" id="btnDeleteLogo" class="btn btn-outline-danger btn-sm" onclick="handleDeleteLogo()" @(string.IsNullOrEmpty(Model.LogoUrl) ? "disabled" : "")>
+                            <i class="bi bi-trash3 me-1"></i> Xóa logo
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" id="btnSaveLogo" class="btn btn-arena-primary" onclick="handleUploadLogo()" disabled>
+                        Lưu thay đổi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Quản lý Ảnh bìa (Facebook-style Upload/Replace) -->
+    <div class="modal fade" id="coverUploadModal" tabindex="-1" aria-labelledby="coverUploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold text-dark" id="coverUploadModalLabel">
+                        <i class="bi bi-image text-primary me-2"></i>Chỉnh sửa Ảnh bìa CLB
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Xem trước ảnh bìa -->
+                    <div class="mb-3 rounded-3 overflow-hidden border position-relative" style="height: 180px; background: #0f172a;">
+                        <img id="coverModalPreview" src="@(Model.CoverImageUrl ?? "")" alt="Xem trước Ảnh bìa" class="w-100 h-100" style="object-fit: cover; opacity: @((Model.CoverOpacity ?? 0.7).ToString(System.Globalization.CultureInfo.InvariantCulture)); @(string.IsNullOrEmpty(Model.CoverImageUrl) ? "display: none;" : "")" />
+                        <div id="coverModalPlaceholder" class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-light" style="@(!string.IsNullOrEmpty(Model.CoverImageUrl) ? "display: none;" : "")">
+                            <i class="bi bi-card-image fs-1 mb-2 text-muted"></i>
+                            <span class="small text-muted">Chưa có ảnh bìa hoặc đang chọn ảnh mới</span>
+                        </div>
+                        <div id="coverLoadingSpinner" class="position-absolute top-50 start-50 translate-middle" style="display: none;">
+                            <div class="spinner-border text-light" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phản hồi thông báo -->
+                    <div id="coverErrorAlert" class="alert alert-danger py-2 px-3 small" style="display: none;"></div>
+                    <div id="coverSuccessAlert" class="alert alert-success py-2 px-3 small" style="display: none;"></div>
+
+                    <p class="text-muted small mb-3">
+                        Ảnh bìa phong cách thể thao cho hồ sơ CLB. Dung lượng tối đa <strong>10MB</strong> (JPG, PNG, WEBP). Độ mờ mặc định ban đầu là <strong>70%</strong> để nội dung hồ sơ luôn rõ nét.
+                    </p>
+
+                    <input type="file" id="coverFileInput" accept="image/jpeg,image/png,image/webp" class="d-none" onchange="handleCoverFileSelect(this)" />
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-arena-outline btn-sm" onclick="document.getElementById('coverFileInput').click()">
+                            <i class="bi bi-folder2-open me-1"></i> Chọn tệp từ máy tính
+                        </button>
+                        <span id="coverSelectedFileName" class="small text-muted text-truncate ms-2" style="max-width: 300px;"></span>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" id="btnSaveCover" class="btn btn-arena-primary" onclick="handleUploadCover()" disabled>
+                        <i class="bi bi-cloud-arrow-up me-1"></i> Tải lên & Lưu ảnh bìa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Điều chỉnh độ mờ Ảnh bìa (Opacity Slider 0 - 100%) -->
+    <div class="modal fade" id="coverOpacityModal" tabindex="-1" aria-labelledby="coverOpacityModalLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold text-dark" id="coverOpacityModalLabel">
+                        <i class="bi bi-sliders text-success me-2"></i>Độ Mờ Ảnh Bìa (Opacity)
+                    </h5>
+                    <button type="button" class="btn-close" onclick="cancelCoverOpacity()"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-4">
+                        Kéo thanh trượt để xem trước trực tiếp độ mờ ảnh nền từ <strong>0%</strong> (trong suốt hoàn toàn) đến <strong>100%</strong> (rõ nét nhất). Lớp nội dung chữ và logo của hồ sơ sẽ luôn giữ độ nét 100%.
+                    </p>
+
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label for="coverOpacityRange" class="form-label fw-bold mb-0">Mức độ hiển thị:</label>
+                        <span id="opacityBadgeValue" class="badge bg-primary px-3 py-2 fs-6 fw-bold">@((int)((Model.CoverOpacity ?? 0.7) * 100))%</span>
+                    </div>
+
+                    <input type="range" class="form-range" id="coverOpacityRange" min="0" max="100" step="1" value="@((int)((Model.CoverOpacity ?? 0.7) * 100))" oninput="previewCoverOpacity(this.value)" />
+                    <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 11px;">
+                        <span>0% (Ẩn nền)</span>
+                        <span>50%</span>
+                        <span>70% (Khuyên dùng)</span>
+                        <span>100% (Rõ nhất)</span>
+                    </div>
+
+                    <div id="opacityAlertBox" class="alert py-2 px-3 small mt-3" style="display: none;"></div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-arena-outline" onclick="cancelCoverOpacity()">
+                        Hủy
+                    </button>
+                    <button type="button" id="btnSaveOpacity" class="btn btn-arena-primary" onclick="saveCoverOpacity()">
+                        <i class="bi bi-check2 me-1"></i> Lưu cài đặt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+@if (isManager)
+{
+<script>
+    const teamId = '@Model.Id';
+    let savedOpacity = @((int)((Model.CoverOpacity ?? 0.7) * 100));
+    let selectedLogoFile = null;
+    let selectedCoverFile = null;
+
+    function getAntiForgeryToken() {
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        return tokenInput ? tokenInput.value : '';
+    }
+
+    // --- LOGO MANAGEMENT ---
+    function handleLogoFileSelect(input) {
+        const errEl = document.getElementById('logoErrorAlert');
+        const succEl = document.getElementById('logoSuccessAlert');
+        const btnSave = document.getElementById('btnSaveLogo');
+        errEl.style.display = 'none';
+        succEl.style.display = 'none';
+
+        if (!input.files || !input.files[0]) {
+            selectedLogoFile = null;
+            btnSave.disabled = true;
+            return;
+        }
+
+        const file = input.files[0];
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type.toLowerCase())) {
+            errEl.textContent = 'Định dạng file không hợp lệ. Vui lòng chọn ảnh JPG, PNG hoặc WEBP.';
+            errEl.style.display = 'block';
+            input.value = '';
+            selectedLogoFile = null;
+            btnSave.disabled = true;
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            errEl.textContent = 'Dung lượng ảnh vượt quá giới hạn 5MB.';
+            errEl.style.display = 'block';
+            input.value = '';
+            selectedLogoFile = null;
+            btnSave.disabled = true;
+            return;
+        }
+
+        selectedLogoFile = file;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const preview = document.getElementById('logoModalPreview');
+            const placeholder = document.getElementById('logoModalPlaceholder');
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+            btnSave.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function handleUploadLogo() {
+        if (!selectedLogoFile) return;
+
+        const spinner = document.getElementById('logoLoadingSpinner');
+        const btnSave = document.getElementById('btnSaveLogo');
+        const errEl = document.getElementById('logoErrorAlert');
+        const succEl = document.getElementById('logoSuccessAlert');
+
+        spinner.style.display = 'block';
+        btnSave.disabled = true;
+        errEl.style.display = 'none';
+        succEl.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('teamId', teamId);
+        formData.append('logoFile', selectedLogoFile);
+        formData.append('__RequestVerificationToken', getAntiForgeryToken());
+
+        try {
+            const response = await fetch('/Teams/UploadLogo', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { success: false, message: 'Phản hồi từ máy chủ không hợp lệ (' + response.status + ').' };
+            }
+
+            spinner.style.display = 'none';
+
+            if (response.ok && data.success) {
+                succEl.textContent = data.message || 'Cập nhật logo thành công!';
+                succEl.style.display = 'block';
+
+                // Cập nhật logo trực tiếp trên giao diện
+                const artLogoDisplay = document.getElementById('passportArtLogoDisplay');
+                if (artLogoDisplay) {
+                    artLogoDisplay.innerHTML = `<img id="passportArtLogoImg" src="${data.logoUrl}?t=${Date.now()}" alt="Logo @Model.Name" />`;
+                }
+                const artLogoWrapper = document.getElementById('passportArtLogoWrapper');
+                if (artLogoWrapper) {
+                    artLogoWrapper.classList.add('has-logo');
+                }
+                const mainLogoDisplay = document.getElementById('clubLogoDisplay');
+                if (mainLogoDisplay) {
+                    mainLogoDisplay.innerHTML = `<img id="clubLogoImg" src="${data.logoUrl}?t=${Date.now()}" alt="Logo @Model.Name" />`;
+                }
+
+                document.getElementById('btnDeleteLogo').disabled = false;
+                selectedLogoFile = null;
+                document.getElementById('logoFileInput').value = '';
+
+                setTimeout(() => {
+                    const modalEl = document.getElementById('logoManageModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    succEl.style.display = 'none';
+                }, 900);
+            } else {
+                errEl.textContent = data.message || 'Lỗi khi tải ảnh lên.';
+                errEl.style.display = 'block';
+                btnSave.disabled = false;
+            }
+        } catch (err) {
+            spinner.style.display = 'none';
+            errEl.textContent = 'Lỗi kết nối máy chủ khi tải logo.';
+            errEl.style.display = 'block';
+            btnSave.disabled = false;
+        }
+    }
+
+    async function handleDeleteLogo() {
+        if (!confirm('Bạn có chắc chắn muốn xóa logo hiện tại của CLB không?')) return;
+
+        const spinner = document.getElementById('logoLoadingSpinner');
+        const errEl = document.getElementById('logoErrorAlert');
+        const succEl = document.getElementById('logoSuccessAlert');
+
+        spinner.style.display = 'block';
+        errEl.style.display = 'none';
+        succEl.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('teamId', teamId);
+        formData.append('__RequestVerificationToken', getAntiForgeryToken());
+
+        try {
+            const response = await fetch('/Teams/DeleteLogo', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { success: false, message: 'Phản hồi từ máy chủ không hợp lệ (' + response.status + ').' };
+            }
+
+            spinner.style.display = 'none';
+
+            if (response.ok && data.success) {
+                succEl.textContent = data.message || 'Đã xóa logo thành công!';
+                succEl.style.display = 'block';
+
+                // Cập nhật hiển thị về placeholder
+                const artLogoDisplay = document.getElementById('passportArtLogoDisplay');
+                if (artLogoDisplay) {
+                    artLogoDisplay.innerHTML = `<i id="passportArtPlaceholder" class="bi bi-shield-shaded"></i>`;
+                }
+                const artLogoWrapper = document.getElementById('passportArtLogoWrapper');
+                if (artLogoWrapper) {
+                    artLogoWrapper.classList.remove('has-logo');
+                }
+                const mainLogoDisplay = document.getElementById('clubLogoDisplay');
+                if (mainLogoDisplay) {
+                    mainLogoDisplay.innerHTML = `<i id="clubLogoPlaceholder" class="bi bi-shield"></i>`;
+                }
+                document.getElementById('logoModalPreview').style.display = 'none';
+                document.getElementById('logoModalPlaceholder').style.display = 'flex';
+                document.getElementById('btnDeleteLogo').disabled = true;
+
+                setTimeout(() => {
+                    const modalEl = document.getElementById('logoManageModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    succEl.style.display = 'none';
+                }, 900);
+            } else {
+                errEl.textContent = data.message || 'Lỗi khi xóa logo.';
+                errEl.style.display = 'block';
+            }
+        } catch (err) {
+            spinner.style.display = 'none';
+            errEl.textContent = 'Lỗi kết nối máy chủ khi xóa logo.';
+            errEl.style.display = 'block';
+        }
+    }
+
+    // --- COVER MANAGEMENT ---
+    function handleCoverFileSelect(input) {
+        const errEl = document.getElementById('coverErrorAlert');
+        const succEl = document.getElementById('coverSuccessAlert');
+        const btnSave = document.getElementById('btnSaveCover');
+        const nameEl = document.getElementById('coverSelectedFileName');
+        errEl.style.display = 'none';
+        succEl.style.display = 'none';
+
+        if (!input.files || !input.files[0]) {
+            selectedCoverFile = null;
+            btnSave.disabled = true;
+            nameEl.textContent = '';
+            return;
+        }
+
+        const file = input.files[0];
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type.toLowerCase())) {
+            errEl.textContent = 'Định dạng file không hợp lệ. Vui lòng chọn ảnh JPG, PNG hoặc WEBP.';
+            errEl.style.display = 'block';
+            input.value = '';
+            selectedCoverFile = null;
+            btnSave.disabled = true;
+            nameEl.textContent = '';
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            errEl.textContent = 'Dung lượng ảnh vượt quá giới hạn 10MB.';
+            errEl.style.display = 'block';
+            input.value = '';
+            selectedCoverFile = null;
+            btnSave.disabled = true;
+            nameEl.textContent = '';
+            return;
+        }
+
+        selectedCoverFile = file;
+        nameEl.textContent = file.name;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const preview = document.getElementById('coverModalPreview');
+            const placeholder = document.getElementById('coverModalPlaceholder');
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+            btnSave.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function handleUploadCover() {
+        if (!selectedCoverFile) return;
+
+        const spinner = document.getElementById('coverLoadingSpinner');
+        const btnSave = document.getElementById('btnSaveCover');
+        const errEl = document.getElementById('coverErrorAlert');
+        const succEl = document.getElementById('coverSuccessAlert');
+
+        spinner.style.display = 'block';
+        btnSave.disabled = true;
+        errEl.style.display = 'none';
+        succEl.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('teamId', teamId);
+        formData.append('coverFile', selectedCoverFile);
+        formData.append('__RequestVerificationToken', getAntiForgeryToken());
+
+        try {
+            const response = await fetch('/Teams/UploadCover', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { success: false, message: 'Phản hồi từ máy chủ không hợp lệ (' + response.status + ').' };
+            }
+
+            spinner.style.display = 'none';
+
+            if (response.ok && data.success) {
+                succEl.textContent = data.message || 'Cập nhật ảnh bìa thành công!';
+                succEl.style.display = 'block';
+
+                savedOpacity = data.opacity;
+
+                // Cập nhật lớp ảnh bìa ở trang Passport
+                const coverLayer = document.getElementById('passportCoverLayer');
+                coverLayer.style.backgroundImage = `url('${data.coverUrl}?t=${Date.now()}')`;
+                coverLayer.style.opacity = (data.opacity / 100);
+                coverLayer.style.display = 'block';
+
+                // Cập nhật Passport container
+                const passportBody = document.querySelector('.passport-body');
+                if (passportBody) passportBody.classList.add('has-cover');
+
+                // Cập nhật menu ảnh bìa
+                document.getElementById('coverUploadMenuItemText').textContent = 'Thay đổi ảnh bìa';
+                document.getElementById('coverOpacityMenuItem').style.display = '';
+                document.getElementById('coverDeleteDivider').style.display = '';
+                document.getElementById('coverDeleteMenuItem').style.display = '';
+                document.getElementById('coverCurrentOpacityText').textContent = `${data.opacity}%`;
+
+                // Cập nhật slider modal
+                document.getElementById('coverOpacityRange').value = data.opacity;
+                document.getElementById('opacityBadgeValue').textContent = `${data.opacity}%`;
+
+                selectedCoverFile = null;
+                document.getElementById('coverFileInput').value = '';
+
+                setTimeout(() => {
+                    const modalEl = document.getElementById('coverUploadModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    succEl.style.display = 'none';
+                }, 900);
+            } else {
+                errEl.textContent = data.message || 'Lỗi khi tải ảnh bìa lên.';
+                errEl.style.display = 'block';
+                btnSave.disabled = false;
+            }
+        } catch (err) {
+            spinner.style.display = 'none';
+            errEl.textContent = 'Lỗi kết nối máy chủ khi tải ảnh bìa.';
+            errEl.style.display = 'block';
+            btnSave.disabled = false;
+        }
+    }
+
+    // --- OPACITY SLIDER (LIVE PREVIEW, SAVE & CANCEL) ---
+    function previewCoverOpacity(value) {
+        document.getElementById('opacityBadgeValue').textContent = `${value}%`;
+        const coverLayer = document.getElementById('passportCoverLayer');
+        if (coverLayer) {
+            coverLayer.style.opacity = (value / 100);
+        }
+    }
+
+    function cancelCoverOpacity() {
+        // Hoàn tác về giá trị đã lưu
+        const coverLayer = document.getElementById('passportCoverLayer');
+        if (coverLayer) {
+            coverLayer.style.opacity = (savedOpacity / 100);
+        }
+        document.getElementById('coverOpacityRange').value = savedOpacity;
+        document.getElementById('opacityBadgeValue').textContent = `${savedOpacity}%`;
+
+        const modalEl = document.getElementById('coverOpacityModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+
+    async function saveCoverOpacity() {
+        const rangeEl = document.getElementById('coverOpacityRange');
+        const value = parseInt(rangeEl.value, 10);
+        const btnSave = document.getElementById('btnSaveOpacity');
+        const alertBox = document.getElementById('opacityAlertBox');
+
+        btnSave.disabled = true;
+        alertBox.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('teamId', teamId);
+        formData.append('opacityPercent', value);
+        formData.append('__RequestVerificationToken', getAntiForgeryToken());
+
+        try {
+            const response = await fetch('/Teams/UpdateCoverOpacity', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { success: false, message: 'Phản hồi từ máy chủ không hợp lệ (' + response.status + ').' };
+            }
+
+            btnSave.disabled = false;
+
+            if (response.ok && data.success) {
+                savedOpacity = value;
+                document.getElementById('coverCurrentOpacityText').textContent = `${value}%`;
+
+                alertBox.className = 'alert alert-success py-2 px-3 small mt-3';
+                alertBox.textContent = 'Đã lưu cài đặt độ mờ thành công!';
+                alertBox.style.display = 'block';
+
+                setTimeout(() => {
+                    const modalEl = document.getElementById('coverOpacityModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    alertBox.style.display = 'none';
+                }, 700);
+            } else {
+                alertBox.className = 'alert alert-danger py-2 px-3 small mt-3';
+                alertBox.textContent = data.message || 'Lỗi khi lưu độ mờ.';
+                alertBox.style.display = 'block';
+            }
+        } catch (err) {
+            btnSave.disabled = false;
+            alertBox.className = 'alert alert-danger py-2 px-3 small mt-3';
+            alertBox.textContent = 'Lỗi kết nối máy chủ khi lưu độ mờ.';
+            alertBox.style.display = 'block';
+        }
+    }
+
+    async function openDeleteCoverConfirm() {
+        if (!confirm('Bạn có chắc chắn muốn xóa ảnh bìa này của CLB không?')) return;
+
+        const formData = new FormData();
+        formData.append('teamId', teamId);
+        formData.append('__RequestVerificationToken', getAntiForgeryToken());
+
+        try {
+            const response = await fetch('/Teams/DeleteCover', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': getAntiForgeryToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { success: false, message: 'Phản hồi từ máy chủ không hợp lệ (' + response.status + ').' };
+            }
+
+            if (response.ok && data.success) {
+                const coverLayer = document.getElementById('passportCoverLayer');
+                if (coverLayer) {
+                    coverLayer.style.display = 'none';
+                    coverLayer.style.backgroundImage = '';
+                }
+
+                const passportBody = document.querySelector('.passport-body');
+                if (passportBody) passportBody.classList.remove('has-cover');
+
+                document.getElementById('coverUploadMenuItemText').textContent = 'Thêm ảnh bìa';
+                document.getElementById('coverOpacityMenuItem').style.display = 'none';
+                document.getElementById('coverDeleteDivider').style.display = 'none';
+                document.getElementById('coverDeleteMenuItem').style.display = 'none';
+
+                alert('Đã xóa ảnh bìa thành công!');
+            } else {
+                alert(data.message || 'Lỗi khi xóa ảnh bìa.');
+            }
+        } catch (err) {
+            alert('Lỗi kết nối máy chủ khi xóa ảnh bìa.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const coverOpacityModalEl = document.getElementById('coverOpacityModal');
+        if (coverOpacityModalEl) {
+            coverOpacityModalEl.addEventListener('hidden.bs.modal', function () {
+                // Đảm bảo hoàn tác mức độ hiển thị xem trước về giá trị đã lưu nếu đóng modal bằng phím Esc hoặc nút Hủy
+                const coverLayer = document.getElementById('passportCoverLayer');
+                if (coverLayer) {
+                    coverLayer.style.opacity = (savedOpacity / 100);
+                }
+                const rangeEl = document.getElementById('coverOpacityRange');
+                if (rangeEl) rangeEl.value = savedOpacity;
+                const badgeEl = document.getElementById('opacityBadgeValue');
+                if (badgeEl) badgeEl.textContent = `${savedOpacity}%`;
+                const alertBox = document.getElementById('opacityAlertBox');
+                if (alertBox) alertBox.style.display = 'none';
+            });
+        }
+    });
+</script>
+}
+
+<script>
+    function removeVietnameseTones(str) {
+        if (!str) return '';
+        str = str.toLowerCase();
+        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+        str = str.replace(/đ/g, "d");
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function setPublicRosterViewMode(mode, save = true) {
+        const validModes = ['details', 'content', 'list', 'tiles', 'large-icons', 'medium-icons', 'small-icons'];
+        if (!validModes.includes(mode)) mode = 'details';
+
+        const container = document.getElementById('publicRosterViewContainer');
+        if (container) {
+            validModes.forEach(m => container.classList.remove('mode-' + m));
+            container.classList.add('mode-' + mode);
+        }
+
+        const labels = {
+            'details': '<i class="bi bi-table text-primary me-1"></i> Chi tiết',
+            'content': '<i class="bi bi-card-text text-primary me-1"></i> Nội dung',
+            'list': '<i class="bi bi-list-ul text-primary me-1"></i> Danh sách',
+            'tiles': '<i class="bi bi-grid-fill text-primary me-1"></i> Ô gạch',
+            'large-icons': '<i class="bi bi-grid text-primary me-1"></i> Biểu tượng lớn',
+            'medium-icons': '<i class="bi bi-grid-3x2-gap text-primary me-1"></i> Biểu tượng vừa',
+            'small-icons': '<i class="bi bi-grid-3x3 text-primary me-1"></i> Biểu tượng nhỏ'
+        };
+
+        const labelEl = document.getElementById('activePublicViewModeLabel');
+        if (labelEl && labels[mode]) {
+            labelEl.innerHTML = labels[mode];
+        }
+
+        document.querySelectorAll('.public-view-mode-item').forEach(btn => {
+            if (btn.getAttribute('data-mode') === mode) {
+                btn.classList.add('active', 'bg-light');
+            } else {
+                btn.classList.remove('active', 'bg-light');
+            }
+        });
+
+        if (save) {
+            try {
+                localStorage.setItem('aloball_public_roster_view_mode', mode);
+            } catch (e) { }
+        }
+    }
+
+    function filterPublicPlayers() {
+        const searchEl = document.getElementById('publicPlayerSearch');
+        const filterEl = document.getElementById('publicPositionFilter');
+        if (!searchEl || !filterEl) return;
+
+        const rawQuery = searchEl.value.trim();
+        const query = removeVietnameseTones(rawQuery);
+        const posFilter = filterEl.value.toLowerCase();
+
+        let visibleCount = 0;
+        const items = document.querySelectorAll('.public-roster-filterable');
+
+        items.forEach(item => {
+            const rawName = item.getAttribute('data-name') || '';
+            const name = removeVietnameseTones(rawName);
+            const num = item.getAttribute('data-number') || '';
+            const rawPos = item.getAttribute('data-pos') || '';
+            const pos = removeVietnameseTones(rawPos);
+
+            const matchQuery = !query || name.includes(query) || num.includes(query) || pos.includes(query);
+            const matchPos = (posFilter === 'all') || rawPos.includes(posFilter) || pos.includes(removeVietnameseTones(posFilter));
+
+            item.style.display = (matchQuery && matchPos) ? '' : 'none';
+        });
+
+        // Đếm số dòng hiển thị dựa trên bảng chi tiết
+        const tableRows = document.querySelectorAll('#publicMemberTableBody .public-roster-filterable');
+        tableRows.forEach(r => {
+            if (r.style.display !== 'none') visibleCount++;
+        });
+
+        const countBadge = document.getElementById('publicPlayerCount');
+        if (countBadge) countBadge.textContent = visibleCount;
+
+        const noFoundEl = document.getElementById('noPublicPlayerFound');
+        if (noFoundEl) {
+            noFoundEl.style.display = (visibleCount === 0 && tableRows.length > 0) ? 'block' : 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        let savedMode = 'details';
+        try {
+            savedMode = localStorage.getItem('aloball_public_roster_view_mode') || 'details';
+        } catch (e) { }
+        setPublicRosterViewMode(savedMode, false);
+        filterPublicPlayers();
+    });
+</script>
+}
+

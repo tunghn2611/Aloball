@@ -10,6 +10,7 @@ public interface IMatchmakingService
     Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment);
     Task UpdateTeamRatingAndBlacklistStatusAsync(Guid teamId);
     Task<(bool Success, string Message)> ResolveAppealAsync(Guid appealId, bool invalidateReview, string adminNote, string adminUserId);
+    Task<(bool Success, string Message)> SetTeamBlacklistStatusAsync(Guid teamId, bool isRestricted, string? reason, string adminUserId);
 }
 
 public class MatchmakingService : IMatchmakingService
@@ -205,14 +206,26 @@ public class MatchmakingService : IMatchmakingService
             team.AverageRating = 5.0;
         }
 
-        // QUY TẮC BLACKLIST BẮT BUỘC:
-        // "Một đánh giá 1 sao hợp lệ khiến đội được đánh giá tự động bị hạn chế bắt đối.
-        // Không tự đổi sang nhiều đánh giá hoặc điểm trung bình dưới ngưỡng."
-        var hasValidOneStar = validReviews.Any(r => r.RatingStars == 1);
-        if (hasValidOneStar)
+        // Blueprint 2.4 / D-05: Đánh giá 1 sao KHÔNG tự động đưa đội vào Blacklist.
+        // Quyết định đưa vào hoặc gỡ bỏ blacklist thuộc thẩm quyền của PlatformAdmin.
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<(bool Success, string Message)> SetTeamBlacklistStatusAsync(Guid teamId, bool isRestricted, string? reason, string adminUserId)
+    {
+        if (!await _auth.IsPlatformAdminAsync(adminUserId))
+            return (false, "Chỉ Platform Admin mới có quyền áp dụng hoặc gỡ bỏ hạn chế bắt đối.");
+
+        var team = await _db.Teams.FirstOrDefaultAsync(t => t.Id == teamId);
+        if (team == null)
+            return (false, "Đội bóng không tồn tại.");
+
+        if (isRestricted)
         {
             team.IsRestrictedFromMatchmaking = true;
-            team.MatchmakingRestrictionReason = "Nhận đánh giá 1 sao từ đối thủ thi đấu (hạn chế bắt đối tự động).";
+            team.MatchmakingRestrictionReason = string.IsNullOrWhiteSpace(reason)
+                ? "Hạn chế bắt đối bởi Platform Admin."
+                : reason.Trim();
 
             // Tự động tạm ngưng các bài đăng tìm đối đang Open của đội này
             var openPosts = await _db.MatchmakingPosts
@@ -226,12 +239,12 @@ public class MatchmakingService : IMatchmakingService
         }
         else
         {
-            // Nếu không còn đánh giá 1 sao hợp lệ nào (ví dụ sau khi admin hủy đánh giá sai do khiếu nại)
             team.IsRestrictedFromMatchmaking = false;
             team.MatchmakingRestrictionReason = null;
         }
 
         await _db.SaveChangesAsync();
+        return (true, isRestricted ? "Đã áp dụng hạn chế bắt đối cho đội." : "Đã gỡ bỏ hạn chế bắt đối cho đội.");
     }
 
     public async Task<(bool Success, string Message)> ResolveAppealAsync(Guid appealId, bool invalidateReview, string adminNote, string adminUserId)
@@ -257,7 +270,7 @@ public class MatchmakingService : IMatchmakingService
 
         await _db.SaveChangesAsync();
 
-        // Tính toán lại rating và blacklist cho đội được đánh giá
+        // Tính toán lại rating cho đội được đánh giá
         await UpdateTeamRatingAndBlacklistStatusAsync(appeal.Review.TargetTeamId);
 
         return (true, "Đã xử lý khiếu nại thành công.");

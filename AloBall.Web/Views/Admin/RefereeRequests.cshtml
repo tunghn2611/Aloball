@@ -1,0 +1,145 @@
+@model IEnumerable<AloBall.Web.Data.Entities.RefereeRequest>
+@{
+    ViewData["Title"] = "Hộp thư yêu cầu trọng tài - Admin";
+    var currentStatus = ViewBag.CurrentStatus as AloBall.Web.Data.Entities.RefereeRequestStatus?;
+    var searchTerm = ViewBag.SearchTerm as string;
+}
+
+<div class="page-heading editorial-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ ĐIỀU PHỐI DỊCH VỤ</span>
+        <h1>Hộp thư yêu cầu trọng tài</h1>
+        <p class="text-muted mb-0">Tiếp nhận yêu cầu từ các đội bóng, kiểm tra tính khả dụng và tạo báo giá dịch vụ trọn gói.</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-shield-exclamation me-1"></i> Khiếu nại & Blacklist
+        </a>
+        <a asp-action="Referees" class="btn btn-arena-primary">
+            <i class="bi bi-person-lines-fill me-1"></i> Danh bạ trọng tài
+        </a>
+    </div>
+</div>
+
+<!-- Navigation Tabs for Admin Sections -->
+<div class="d-flex gap-2 border-bottom pb-2 mb-4 flex-wrap">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Khiếu nại & Blacklist</a>
+    <a asp-action="RefereeRequests" class="btn btn-sm btn-dark">Hộp thư trọng tài (@Model.Count())</a>
+    <a asp-action="Referees" class="btn btn-sm btn-outline-secondary">Danh bạ trọng tài</a>
+    <a asp-action="PitchBookingRequests" class="btn btn-sm btn-outline-secondary">Hộp thư đặt sân</a>
+    <a asp-action="PitchVenues" class="btn btn-sm btn-outline-secondary">Danh bạ sân bóng</a>
+</div>
+
+<!-- Bộ lọc trạng thái & tìm kiếm -->
+<div class="arena-card p-3 mb-4">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
+            <input type="text" name="search" value="@searchTerm" class="form-control form-control-sm" placeholder="Tìm theo tên đội, sân, địa chỉ..." />
+        </div>
+        <div class="col-12 col-md-3">
+            <select name="status" class="form-select form-select-sm">
+                <option value="">-- Tất cả trạng thái --</option>
+                <option value="0" selected="@(currentStatus == AloBall.Web.Data.Entities.RefereeRequestStatus.Pending)">Chờ tiếp nhận (@ViewBag.TotalPending)</option>
+                <option value="1" selected="@(currentStatus == AloBall.Web.Data.Entities.RefereeRequestStatus.UnderReview)">Đang xử lý (@ViewBag.TotalUnderReview)</option>
+                <option value="2" selected="@(currentStatus == AloBall.Web.Data.Entities.RefereeRequestStatus.AwaitingTeamDecision)">Chờ đội duyệt (@ViewBag.TotalAwaitingDecision)</option>
+                <option value="3" selected="@(currentStatus == AloBall.Web.Data.Entities.RefereeRequestStatus.Confirmed)">Đã chốt (@ViewBag.TotalConfirmed)</option>
+                <option value="4" selected="@(currentStatus == AloBall.Web.Data.Entities.RefereeRequestStatus.Cancelled)">Đã hủy (@ViewBag.TotalCancelled)</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-arena-dark">
+                <i class="bi bi-filter me-1"></i> Lọc
+            </button>
+            <a asp-action="RefereeRequests" class="btn btn-sm btn-outline-secondary">Xóa lọc</a>
+        </div>
+    </form>
+</div>
+
+<!-- Danh sách Yêu cầu trong Inbox -->
+@if (!Model.Any())
+{
+    <div class="arena-empty-state">
+        <i class="bi bi-inbox"></i>
+        <h3>Hộp thư trống</h3>
+        <p>Hiện không có yêu cầu trọng tài nào khớp với điều kiện lọc.</p>
+    </div>
+}
+else
+{
+    <div class="table-responsive arena-card p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Trạng thái</th>
+                    <th>Đội bóng</th>
+                    <th>Ngày thi đấu & Giờ</th>
+                    <th>Địa điểm & Thể thức</th>
+                    <th>Số TT</th>
+                    <th>Ngân sách</th>
+                    <th>Báo giá</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr>
+                        <td>
+                            @switch (r.Status)
+                            {
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.Pending:
+                                    <span class="badge bg-danger text-white"><i class="bi bi-exclamation-circle me-1"></i> Mới (Chờ nhận)</span>
+                                    break;
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.UnderReview:
+                                    <span class="badge bg-info-subtle text-info"><i class="bi bi-search me-1"></i> Đang xử lý</span>
+                                    break;
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.AwaitingTeamDecision:
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-bell-fill me-1"></i> Chờ đội duyệt</span>
+                                    break;
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.Confirmed:
+                                    <span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-1"></i> Đã chốt</span>
+                                    break;
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.Cancelled:
+                                    <span class="badge bg-light text-muted border">Đã hủy</span>
+                                    break;
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.UnableToFulfill:
+                                    <span class="badge bg-dark-subtle text-dark">Không nhận</span>
+                                    break;
+                                case AloBall.Web.Data.Entities.RefereeRequestStatus.Completed:
+                                    <span class="badge bg-primary text-white">Hoàn thành</span>
+                                    break;
+                            }
+                        </td>
+                        <td>
+                            <strong class="text-dark">@r.Team?.Name</strong>
+                            <small class="text-muted d-block">Tạo: @r.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                        </td>
+                        <td>
+                            <strong class="text-dark">@r.ServiceDate.ToString("dd/MM/yyyy")</strong>
+                            <small class="text-muted d-block">@r.StartTime.ToString(@"hh\:mm") – @r.EndTime.ToString(@"hh\:mm")</small>
+                        </td>
+                        <td>
+                            <div>@r.VenueName</div>
+                            <small class="text-muted d-block text-truncate" style="max-width: 200px;">@r.VenueAddress</small>
+                            <span class="badge bg-light text-dark border">Sân @r.MatchFormat</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">@r.RefereeCount TT</span>
+                        </td>
+                        <td>
+                            @(r.BudgetVND.HasValue ? $"{r.BudgetVND.Value:N0} đ" : "-")
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">@r.Proposals.Count() gói</span>
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="RefereeRequestDetails" asp-route-id="@r.Id" class="btn btn-sm btn-arena-outline">
+                                Xử lý <i class="bi bi-arrow-right"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,448 @@
+@model IEnumerable<AloBall.Web.Data.Entities.RefereeRequest>
+@{
+    ViewData["Title"] = "Liên hệ";
+    var currentTab = ViewBag.CurrentTab as string ?? "referee";
+    var isPlatformAdmin = ViewBag.IsPlatformAdmin as bool? ?? false;
+    var managedTeams = ViewBag.ManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+
+    var venues = ViewBag.Venues as IEnumerable<AloBall.Web.Data.Entities.PitchVenue> ?? Enumerable.Empty<AloBall.Web.Data.Entities.PitchVenue>();
+    var cities = ViewBag.AvailableCities as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var districts = ViewBag.AvailableDistricts as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var pitchBookings = ViewBag.PitchBookingRequests as IEnumerable<AloBall.Web.Data.Entities.PitchBookingRequest> ?? Enumerable.Empty<AloBall.Web.Data.Entities.PitchBookingRequest>();
+}
+
+<header class="page-heading editorial-heading">
+    <div>
+        <span class="eyebrow">DỊCH VỤ TRẬN ĐẤU & KẾT NỐI</span>
+        <h1>Liên hệ dịch vụ.<br />Chuyên nghiệp trên sân cỏ.</h1>
+        <p>Điều phối trọng tài uy tín và liên kết hệ thống sân bóng phong trào chất lượng cao trên toàn quốc.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+        @if (isPlatformAdmin)
+        {
+            @if (currentTab == "referee")
+            {
+                <a asp-controller="Admin" asp-action="RefereeRequests" class="btn btn-arena-outline">
+                    <i class="bi bi-inbox me-1"></i> Hộp thư trọng tài (Admin)
+                </a>
+                <a asp-controller="Admin" asp-action="Referees" class="btn btn-arena-outline">
+                    <i class="bi bi-person-lines-fill me-1"></i> Danh bạ trọng tài
+                </a>
+            }
+            else
+            {
+                <a asp-controller="Admin" asp-action="PitchBookingRequests" class="btn btn-arena-outline">
+                    <i class="bi bi-inbox me-1"></i> Hộp thư đặt sân (Admin)
+                </a>
+                <a asp-controller="Admin" asp-action="PitchVenues" class="btn btn-arena-outline">
+                    <i class="bi bi-building-gear me-1"></i> Quản lý sân bóng
+                </a>
+            }
+        }
+        @if (managedTeams.Any())
+        {
+            @if (currentTab == "referee")
+            {
+                <a asp-action="CreateRefereeRequest" class="btn btn-arena-primary">
+                    <i class="bi bi-plus-lg me-1"></i> Gửi yêu cầu trọng tài
+                </a>
+            }
+            else
+            {
+                <a asp-action="CreatePitchBookingRequest" class="btn btn-arena-primary">
+                    <i class="bi bi-plus-lg me-1"></i> Yêu cầu đặt sân mới
+                </a>
+            }
+        }
+    </div>
+</header>
+
+<!-- Navigation Tabs: Trọng tài & Sân bóng -->
+<div class="d-flex gap-3 border-bottom pb-2 mb-4">
+    <a asp-action="Index" asp-route-tab="referee"
+       class="btn @(currentTab == "referee" ? "btn-arena-dark" : "btn-arena-outline") px-4">
+        <i class="bi bi-flag me-2"></i> Trọng tài
+    </a>
+    <a asp-action="Index" asp-route-tab="stadium"
+       class="btn @(currentTab == "stadium" ? "btn-arena-dark" : "btn-arena-outline") px-4">
+        <i class="bi bi-geo-alt me-2"></i> Sân bóng (@venues.Count() cụm sân)
+    </a>
+</div>
+
+@if (currentTab == "referee")
+{
+    <!-- TAB TRỌNG TÀI -->
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="arena-card p-3 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-2 rounded bg-success-subtle text-success fs-3">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Chuyên nghiệp & Chuẩn mực</h6>
+                        <small class="text-muted">Được thẩm định chuyên môn, bắt chuẩn luật sân 5, sân 7 và sân 11.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="arena-card p-3 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-2 rounded bg-primary-subtle text-primary fs-3">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Minh bạch chi phí</h6>
+                        <small class="text-muted">Báo giá rõ ràng trọn gói. Đội bóng chỉ chốt khi hài lòng với phương án.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="arena-card p-3 h-100">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-2 rounded bg-warning-subtle text-warning fs-3">
+                        <i class="bi bi-lock-fill"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Bảo mật & Trực tiếp</h6>
+                        <small class="text-muted">Thông tin liên hệ trọng tài được mở khóa ngay khi đội xác nhận báo giá.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="mt-4">
+        <div class="section-heading mb-3">
+            <h2>Yêu cầu điều phối trọng tài của đội bạn</h2>
+            <span class="count-tag">@Model.Count() yêu cầu</span>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="arena-empty-state">
+                <i class="bi bi-flag"></i>
+                <h3>Chưa có yêu cầu trọng tài nào</h3>
+                <p>Đội bạn sắp có trận giao hữu hoặc giải đấu? Hãy tạo yêu cầu để được AloBall điều phối trọng tài chất lượng nhất.</p>
+                @if (managedTeams.Any())
+                {
+                    <a asp-action="CreateRefereeRequest" class="btn btn-arena-primary mt-3">
+                        <i class="bi bi-plus-lg me-1"></i> Tạo yêu cầu ngay
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3">
+                @foreach (var item in Model)
+                {
+                    <article class="invitation-card">
+                        <div class="invitation-date">
+                            <strong>@item.ServiceDate.ToString("dd")</strong>
+                            <span>THÁNG @item.ServiceDate.ToString("MM")</span>
+                        </div>
+                        <div class="invitation-main">
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                @switch (item.Status)
+                                {
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.Pending:
+                                        <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-clock me-1"></i> Chờ tiếp nhận</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.UnderReview:
+                                        <span class="badge bg-info-subtle text-info"><i class="bi bi-search me-1"></i> Đang xử lý</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.AwaitingTeamDecision:
+                                        <span class="badge bg-warning-subtle text-warning fw-bold"><i class="bi bi-bell-fill me-1"></i> Đã có báo giá</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.Confirmed:
+                                        <span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-1"></i> Đã chốt dịch vụ</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.Cancelled:
+                                        <span class="badge bg-danger-subtle text-danger"><i class="bi bi-x-circle me-1"></i> Đã hủy</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.UnableToFulfill:
+                                        <span class="badge bg-dark-subtle text-dark"><i class="bi bi-exclamation-octagon me-1"></i> Không thể đáp ứng</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.RefereeRequestStatus.Completed:
+                                        <span class="badge bg-primary text-white"><i class="bi bi-award-fill me-1"></i> Hoàn thành</span>
+                                        break;
+                                }
+                                <span class="small text-muted">@item.Team?.Name</span>
+                                <span class="small text-muted">· Sân @item.MatchFormat</span>
+                                <span class="small text-muted">· Cần @item.RefereeCount trọng tài</span>
+                            </div>
+
+                            <h3 class="h5 fw-bold mb-1">@item.VenueName</h3>
+                            <div class="invitation-meta">
+                                <span><i class="bi bi-geo-alt"></i> @item.VenueAddress</span>
+                                <span><i class="bi bi-clock"></i> @item.StartTime.ToString(@"hh\:mm") – @item.EndTime.ToString(@"hh\:mm")</span>
+                                @if (item.BudgetVND.HasValue)
+                                {
+                                    <span><i class="bi bi-wallet2"></i> Ngân sách: @item.BudgetVND.Value.ToString("N0") VNĐ</span>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(item.Notes))
+                            {
+                                <p class="small text-muted mt-2 mb-0"><strong>Ghi chú:</strong> @item.Notes</p>
+                            }
+
+                            @if (item.Proposals.Any())
+                            {
+                                <div class="mt-2 text-primary small fw-semibold">
+                                    <i class="bi bi-chat-left-text me-1"></i> @item.Proposals.Count() phương án báo giá từ AloBall
+                                </div>
+                            }
+                        </div>
+                        <a asp-action="RefereeRequestDetails" asp-route-id="@item.Id" class="btn btn-arena-outline align-self-center">
+                            Xem chi tiết <i class="bi bi-arrow-up-right"></i>
+                        </a>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+}
+else
+{
+    <!-- TAB SÂN BÓNG (PITCH DISCOVERY & BOOKING) -->
+    @if (pitchBookings.Any())
+    {
+        <section class="mb-5">
+            <div class="section-heading mb-3">
+                <h2>Yêu cầu đặt sân của đội bạn</h2>
+                <span class="count-tag">@pitchBookings.Count() yêu cầu</span>
+            </div>
+
+            <div class="d-flex flex-column gap-3">
+                @foreach (var b in pitchBookings)
+                {
+                    <article class="invitation-card">
+                        <div class="invitation-date">
+                            <strong>@b.ServiceDate.ToString("dd")</strong>
+                            <span>THÁNG @b.ServiceDate.ToString("MM")</span>
+                        </div>
+                        <div class="invitation-main">
+                            <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                                @switch (b.Status)
+                                {
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.Pending:
+                                        <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-clock me-1"></i> Chờ tiếp nhận</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.UnderReview:
+                                        <span class="badge bg-info-subtle text-info"><i class="bi bi-search me-1"></i> Admin đang liên hệ sân</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.AwaitingTeamDecision:
+                                        <span class="badge bg-warning-subtle text-warning fw-bold"><i class="bi bi-bell-fill me-1"></i> Đã có báo giá đặt sân</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.Confirmed:
+                                        <span class="badge bg-success text-white"><i class="bi bi-check-circle-fill me-1"></i> Đã xác nhận đặt sân</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.Cancelled:
+                                        <span class="badge bg-danger-subtle text-danger"><i class="bi bi-x-circle me-1"></i> Đã hủy</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.UnableToFulfill:
+                                        <span class="badge bg-dark-subtle text-dark"><i class="bi bi-exclamation-octagon me-1"></i> Sân đã kín lịch</span>
+                                        break;
+                                    case AloBall.Web.Data.Entities.PitchBookingStatus.Completed:
+                                        <span class="badge bg-primary text-white"><i class="bi bi-award-fill me-1"></i> Hoàn thành</span>
+                                        break;
+                                }
+                                <span class="small text-muted">@b.Team?.Name</span>
+                                <span class="small text-muted">· Sân @b.PitchFormat</span>
+                                <span class="small text-muted">· Thuê @b.PitchCount sân</span>
+                            </div>
+
+                            <h3 class="h5 fw-bold mb-1">@b.PitchVenue?.Name</h3>
+                            <div class="invitation-meta">
+                                <span><i class="bi bi-geo-alt"></i> @b.PitchVenue?.FullAddress</span>
+                                <span><i class="bi bi-clock"></i> @b.StartTime.ToString(@"hh\:mm") – @b.EndTime.ToString(@"hh\:mm")</span>
+                                @if (b.BudgetVND.HasValue)
+                                {
+                                    <span><i class="bi bi-wallet2"></i> Ngân sách: @b.BudgetVND.Value.ToString("N0") VNĐ</span>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(b.ConfirmedFieldCode))
+                            {
+                                <div class="mt-2 text-success small fw-bold">
+                                    <i class="bi bi-geo-fill me-1"></i> Sân con xác nhận: @b.ConfirmedFieldCode
+                                </div>
+                            }
+
+                            @if (b.Offers.Any())
+                            {
+                                <div class="mt-2 text-primary small fw-semibold">
+                                    <i class="bi bi-receipt me-1"></i> @b.Offers.Count() phương án báo giá từ Super Admin
+                                </div>
+                            }
+                        </div>
+                        <a asp-action="PitchBookingRequestDetails" asp-route-id="@b.Id" class="btn btn-arena-outline align-self-center">
+                            Xem chi tiết <i class="bi bi-arrow-up-right"></i>
+                        </a>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+
+    <!-- BỘ LỌC & TÌM KIẾM SÂN BÓNG -->
+    <div class="market-layout">
+        <aside class="market-filter arena-card">
+            <span class="eyebrow">KHÁM PHÁ SÂN THI ĐẤU</span>
+            <h2>Tìm sân bóng phù hợp</h2>
+            <form method="get" class="d-grid gap-3">
+                <input type="hidden" name="tab" value="stadium" />
+
+                <div>
+                    <label class="form-label" for="filterSearch">Tên sân hoặc từ khóa</label>
+                    <input id="filterSearch" name="search" value="@ViewBag.SelectedSearch" class="form-control" placeholder="Thành Phát, Cầu Giấy..." />
+                </div>
+
+                <div>
+                    <label class="form-label" for="filterCity">Thành phố</label>
+                    <select id="filterCity" name="city" class="form-select">
+                        <option value="">Tất cả thành phố</option>
+                        @foreach (var c in cities)
+                        {
+                            <option value="@c" selected="@(ViewBag.SelectedCity == c)">@c</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" for="filterDistrict">Quận / Huyện</label>
+                    <select id="filterDistrict" name="district" class="form-select">
+                        <option value="">Tất cả quận/huyện</option>
+                        @foreach (var d in districts)
+                        {
+                            <option value="@d" selected="@(ViewBag.SelectedDistrict == d)">@d</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" for="filterFormat">Thể thức sân</label>
+                    <select id="filterFormat" name="format" class="form-select">
+                        <option value="">Tất cả thể thức</option>
+                        <option value="5 người" selected="@(ViewBag.SelectedFormat == "5 người")">Sân 5 người</option>
+                        <option value="7 người" selected="@(ViewBag.SelectedFormat == "7 người")">Sân 7 người</option>
+                        <option value="11 người" selected="@(ViewBag.SelectedFormat == "11 người")">Sân 11 người</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="form-label" for="filterSurface">Mặt sân</label>
+                    <select id="filterSurface" name="surface" class="form-select">
+                        <option value="">Tất cả mặt sân</option>
+                        <option value="Cỏ nhân tạo" selected="@(ViewBag.SelectedSurface == "Cỏ nhân tạo")">Cỏ nhân tạo</option>
+                        <option value="Cỏ tự nhiên" selected="@(ViewBag.SelectedSurface == "Cỏ tự nhiên")">Cỏ tự nhiên</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-arena-dark" type="submit">
+                    <i class="bi bi-search me-1"></i> Lọc sân
+                </button>
+                <a asp-action="Index" asp-route-tab="stadium" class="text-center small text-muted">Xóa bộ lọc</a>
+            </form>
+
+            <div class="filter-note">
+                <i class="bi bi-info-circle"></i>
+                <p>AloBall hỗ trợ kết nối trực tiếp với ban quản lý sân để giữ khung giờ chuẩn và nhận giá ưu đãi đối tác.</p>
+            </div>
+        </aside>
+
+        <!-- DANH SÁCH SÂN BÓNG -->
+        <section>
+            <div class="section-heading mb-3">
+                <h2>Cụm sân bóng đối tác (@venues.Count())</h2>
+                @if (managedTeams.Any())
+                {
+                    <a asp-action="CreatePitchBookingRequest" class="btn btn-sm btn-arena-primary">
+                        <i class="bi bi-plus-lg me-1"></i> Đặt sân nhanh
+                    </a>
+                }
+            </div>
+
+            @if (!venues.Any())
+            {
+                <div class="arena-empty-state">
+                    <i class="bi bi-geo-alt"></i>
+                    <h3>Không tìm thấy sân bóng phù hợp</h3>
+                    <p>Hãy thử tìm với từ khóa hoặc khu vực quận/huyện khác.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var v in venues)
+                    {
+                        <div class="col-12 col-md-6">
+                            <div class="arena-card h-100 p-0 overflow-hidden d-flex flex-column border shadow-sm">
+                                @if (!string.IsNullOrWhiteSpace(v.ImageUrl))
+                                {
+                                    <div style="height: 180px; background: url('@v.ImageUrl') center/cover no-repeat; position: relative;">
+                                        <span class="badge bg-dark bg-opacity-75 text-white position-absolute top-0 start-0 m-2">
+                                            <i class="bi bi-geo-alt me-1"></i> @v.District, @v.City
+                                        </span>
+                                        <span class="badge bg-success position-absolute top-0 end-0 m-2">
+                                            @v.TotalPitches sân con
+                                        </span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="bg-secondary bg-opacity-10 d-flex align-items-center justify-content-center text-muted" style="height: 180px;">
+                                        <i class="bi bi-image fs-1"></i>
+                                    </div>
+                                }
+
+                                <div class="p-3 d-flex flex-column flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <h5 class="fw-bold text-dark mb-0">@v.Name</h5>
+                                    </div>
+                                    <small class="text-muted mb-2"><i class="bi bi-pin-map me-1 text-danger"></i>@v.FullAddress</small>
+
+                                    <div class="d-flex gap-1 flex-wrap mb-2">
+                                        <span class="badge bg-light text-dark border">Sân @v.SupportedFormats</span>
+                                        <span class="badge bg-light text-dark border">@v.SurfaceType</span>
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(v.Facilities))
+                                    {
+                                        <small class="text-secondary d-block text-truncate mb-2" title="@v.Facilities">
+                                            <i class="bi bi-check2-circle text-success me-1"></i>@v.Facilities
+                                        </small>
+                                    }
+
+                                    <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="text-muted small">Giá tham khảo:</span>
+                                            <div class="fw-bold text-success">
+                                                @(v.IndicativePricePerHour.HasValue ? $"{v.IndicativePricePerHour.Value:N0} đ/giờ" : "Liên hệ")
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <a asp-action="PitchVenueDetails" asp-route-id="@v.Id" class="btn btn-sm btn-outline-secondary">
+                                                Chi tiết
+                                            </a>
+                                            @if (managedTeams.Any())
+                                            {
+                                                <a asp-action="CreatePitchBookingRequest" asp-route-venueId="@v.Id" class="btn btn-sm btn-arena-primary">
+                                                    Đặt sân
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+}

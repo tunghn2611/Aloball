@@ -1,0 +1,284 @@
+@model AloBall.Web.Data.Entities.PitchBookingRequest
+@{
+    ViewData["Title"] = $"Xử lý yêu cầu đặt sân #{Model.Id.ToString()[..8]}";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ ĐIỀU PHỐI ĐẶT SÂN</span>
+        <h1>Xử lý đặt sân: @Model.PitchVenue?.Name</h1>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            @switch (Model.Status)
+            {
+                case AloBall.Web.Data.Entities.PitchBookingStatus.Pending:
+                    <span class="badge bg-secondary-subtle text-secondary fs-6"><i class="bi bi-clock me-1"></i> Chờ tiếp nhận</span>
+                    break;
+                case AloBall.Web.Data.Entities.PitchBookingStatus.UnderReview:
+                    <span class="badge bg-info text-white fs-6"><i class="bi bi-telephone-outbound me-1"></i> Đang liên hệ chủ sân</span>
+                    break;
+                case AloBall.Web.Data.Entities.PitchBookingStatus.AwaitingTeamDecision:
+                    <span class="badge bg-warning text-dark fs-6 fw-bold"><i class="bi bi-bell-fill me-1"></i> Đã gửi báo giá</span>
+                    break;
+                case AloBall.Web.Data.Entities.PitchBookingStatus.Confirmed:
+                    <span class="badge bg-success text-white fs-6"><i class="bi bi-check-circle-fill me-1"></i> Đội đã xác nhận</span>
+                    break;
+                case AloBall.Web.Data.Entities.PitchBookingStatus.Cancelled:
+                    <span class="badge bg-danger-subtle text-danger fs-6"><i class="bi bi-x-circle me-1"></i> Đã hủy</span>
+                    break;
+                case AloBall.Web.Data.Entities.PitchBookingStatus.UnableToFulfill:
+                    <span class="badge bg-dark-subtle text-dark fs-6"><i class="bi bi-exclamation-octagon me-1"></i> Sân kín lịch</span>
+                    break;
+                case AloBall.Web.Data.Entities.PitchBookingStatus.Completed:
+                    <span class="badge bg-primary text-white fs-6"><i class="bi bi-award-fill me-1"></i> Hoàn thành</span>
+                    break;
+            }
+            <span class="text-muted small">Đội bóng: <strong>@Model.Team?.Name</strong></span>
+        </div>
+    </div>
+    <div>
+        <a asp-action="PitchBookingRequests" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Quay lại hộp thư
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Cột trái: Thông tin Snapshot & Hành động -->
+    <div class="col-12 col-lg-5">
+        <div class="arena-card p-4 mb-4">
+            <h5 class="fw-bold mb-3 text-dark"><i class="bi bi-building text-primary me-2"></i>Thông Tin Yêu Cầu Đặt Sân</h5>
+            <div class="list-group list-group-flush mb-3">
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Đội bóng:</span>
+                    <strong class="text-dark">@Model.Team?.Name</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Cụm sân:</span>
+                    <strong class="text-dark text-end">@Model.PitchVenue?.Name</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Hotline chủ sân:</span>
+                    <strong class="text-danger font-monospace">@Model.PitchVenue?.ContactPhone</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Địa chỉ:</span>
+                    <span class="text-dark text-end small">@Model.PitchVenue?.FullAddress</span>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Ngày thi đấu:</span>
+                    <strong class="text-dark">@Model.ServiceDate.ToString("dd/MM/yyyy")</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Khung giờ:</span>
+                    <strong class="text-dark">@Model.StartTime.ToString(@"hh\:mm") – @Model.EndTime.ToString(@"hh\:mm")</strong>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Thể thức / Số sân:</span>
+                    <span>Sân <strong>@Model.PitchFormat</strong> · <strong>@Model.PitchCount sân</strong></span>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Quy mô cụm sân:</span>
+                    <span class="badge bg-light text-dark border">@Model.PitchVenue?.TotalPitches sân con</span>
+                </div>
+                <div class="list-group-item px-0 py-2 d-flex justify-content-between">
+                    <span class="text-muted">Ngân sách dự kiến:</span>
+                    <strong class="text-success">@(Model.BudgetVND.HasValue ? $"{Model.BudgetVND.Value:N0} VNĐ" : "Không đề xuất")</strong>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.ConfirmedFieldCode))
+                {
+                    <div class="list-group-item px-0 py-2 d-flex justify-content-between bg-success-subtle bg-opacity-25 rounded px-2">
+                        <span class="text-success fw-bold">Sân con xác nhận:</span>
+                        <strong class="text-success">@Model.ConfirmedFieldCode</strong>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <div class="list-group-item px-0 py-2">
+                        <span class="text-muted d-block small">Ghi chú của đội:</span>
+                        <span class="text-dark small">@Model.Notes</span>
+                    </div>
+                }
+            </div>
+
+            <!-- Hành động Super Admin -->
+            <div class="d-flex flex-column gap-2 pt-3 border-top">
+                @if (Model.Status == AloBall.Web.Data.Entities.PitchBookingStatus.Confirmed)
+                {
+                    <form asp-action="CompletePitchBooking" method="post" onsubmit="return confirm('Xác nhận hoàn thành trận đấu và dịch vụ đặt sân?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="requestId" value="@Model.Id" />
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check2-all me-1"></i> Đánh dấu hoàn tất trận đấu
+                        </button>
+                    </form>
+                }
+
+                @if (Model.Status != AloBall.Web.Data.Entities.PitchBookingStatus.Cancelled
+                    && Model.Status != AloBall.Web.Data.Entities.PitchBookingStatus.Completed
+                    && Model.Status != AloBall.Web.Data.Entities.PitchBookingStatus.UnableToFulfill)
+                {
+                    <button class="btn btn-outline-danger btn-sm w-100" type="button" data-bs-toggle="collapse" data-bs-target="#unableForm">
+                        <i class="bi bi-x-octagon me-1"></i> Đánh dấu không thể đáp ứng (Hết sân / Kín lịch)
+                    </button>
+                    <div class="collapse mt-2" id="unableForm">
+                        <form asp-action="MarkPitchBookingUnableToFulfill" method="post" class="border p-3 rounded bg-light">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="requestId" value="@Model.Id" />
+                            <label class="form-label small fw-semibold">Lý do từ chối / kín lịch:</label>
+                            <textarea name="reason" rows="2" class="form-control form-control-sm mb-2" placeholder="Ví dụ: Chủ sân báo khung giờ 19h-20h30 đã có đội cố định thuê cả tháng..."></textarea>
+                            <button type="submit" class="btn btn-sm btn-danger w-100">Xác nhận</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Form Tạo Báo Giá & Danh Sách Phương Án -->
+    <div class="col-12 col-lg-7">
+        @if (Model.Status != AloBall.Web.Data.Entities.PitchBookingStatus.Cancelled
+            && Model.Status != AloBall.Web.Data.Entities.PitchBookingStatus.Completed
+            && Model.Status != AloBall.Web.Data.Entities.PitchBookingStatus.Confirmed)
+        {
+            <div class="arena-card p-4 mb-4 border-primary">
+                <h5 class="fw-bold text-dark mb-2">
+                    <i class="bi bi-send-plus text-primary me-2"></i>Gửi Phương Án Báo Giá Đặt Sân
+                </h5>
+                <p class="small text-muted mb-3">
+                    Sau khi liên hệ chủ sân xác minh giờ và giá thực tế, nhập thông tin xác nhận để gửi đội bóng duyệt.
+                </p>
+
+                <form asp-action="SubmitPitchBookingOffer" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="RequestId" value="@Model.Id" />
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Tên cụm sân xác nhận <span class="text-danger">*</span></label>
+                            <input type="text" name="ConfirmedVenueName" value="@Model.PitchVenue?.Name" class="form-control" required />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Địa chỉ cụ thể <span class="text-danger">*</span></label>
+                            <input type="text" name="ConfirmedAddress" value="@Model.PitchVenue?.FullAddress" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Ngày thi đấu <span class="text-danger">*</span></label>
+                            <input type="date" name="ConfirmedDate" value="@Model.ServiceDate.ToString("yyyy-MM-dd")" class="form-control" required />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fw-semibold">Giờ bắt đầu <span class="text-danger">*</span></label>
+                            <input type="time" name="ConfirmedStartTime" value="@Model.StartTime.ToString(@"hh\:mm")" class="form-control" required />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fw-semibold">Giờ kết thúc <span class="text-danger">*</span></label>
+                            <input type="time" name="ConfirmedEndTime" value="@Model.EndTime.ToString(@"hh\:mm")" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Thể thức sân</label>
+                            <input type="text" name="ConfirmedPitchFormat" value="@Model.PitchFormat" class="form-control" required />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fw-semibold">Số sân</label>
+                            <input type="number" name="ConfirmedPitchCount" value="@Model.PitchCount" min="1" max="20" class="form-control" required />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label fw-semibold">Vị trí sân con (Tùy chọn)</label>
+                            <input type="text" name="SpecificFieldCode" class="form-control" placeholder="Ví dụ: Sân 2, Sân B" />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Tổng giá tiền sân (VNĐ) <span class="text-danger">*</span></label>
+                            <input type="number" name="TotalPriceVND" step="10000" min="0" class="form-control"
+                                   value="@(Model.BudgetVND ?? 600000)" required />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Hướng dẫn cọc / thanh toán</label>
+                            <input type="text" name="DepositInstructions" class="form-control"
+                                   placeholder="Cọc 200k qua STK Vietcombank... hoặc thanh toán tại sân" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Ghi chú thêm cho đội</label>
+                        <input type="text" name="Notes" class="form-control"
+                               placeholder="Có bóng phụ, yêu cầu mang giày bata / TF..." />
+                    </div>
+
+                    <button type="submit" class="btn btn-arena-primary w-100">
+                        <i class="bi bi-send-check me-1"></i> Gửi báo giá cho Đội bóng
+                    </button>
+                </form>
+            </div>
+        }
+
+        <!-- Lịch sử báo giá đã gửi -->
+        <div class="arena-card p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-clock-history text-secondary me-2"></i>Lịch Sử Báo Giá Cho Yêu Cầu Này (@Model.Offers.Count())
+            </h5>
+
+            @if (!Model.Offers.Any())
+            {
+                <div class="text-center py-4 text-muted small bg-light rounded">
+                    Chưa có báo giá nào được gửi cho yêu cầu đặt sân này.
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var o in Model.Offers.OrderByDescending(x => x.SubmittedAt))
+                    {
+                        var isAccepted = o.Status == AloBall.Web.Data.Entities.PitchBookingOfferStatus.Accepted;
+                        <div class="border rounded p-3 @(isAccepted ? "border-success bg-success-subtle bg-opacity-10" : "bg-white")">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="fs-5 text-dark">@o.TotalPriceVND.ToString("N0") VNĐ</strong>
+                                <div>
+                                    @switch (o.Status)
+                                    {
+                                        case AloBall.Web.Data.Entities.PitchBookingOfferStatus.Pending:
+                                            <span class="badge bg-warning text-dark">Chờ đội duyệt</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.PitchBookingOfferStatus.Accepted:
+                                            <span class="badge bg-success text-white"><i class="bi bi-check-lg"></i> Đã chấp nhận</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.PitchBookingOfferStatus.Declined:
+                                            <span class="badge bg-danger-subtle text-danger">Đã từ chối</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.PitchBookingOfferStatus.NotSelected:
+                                            <span class="badge bg-light text-muted border">Không chọn</span>
+                                            break;
+                                        case AloBall.Web.Data.Entities.PitchBookingOfferStatus.Withdrawn:
+                                            <span class="badge bg-secondary-subtle text-secondary">Đã thu hồi</span>
+                                            break;
+                                    }
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mb-1">Gửi lúc: @o.SubmittedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                            <div class="small text-dark mb-1">
+                                <strong>Sân:</strong> @o.ConfirmedVenueName (@o.ConfirmedPitchCount sân @o.ConfirmedPitchFormat)
+                                @if (!string.IsNullOrWhiteSpace(o.SpecificFieldCode))
+                                {
+                                    <span class="badge bg-light text-dark border ms-1">@o.SpecificFieldCode</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(o.DepositInstructions))
+                            {
+                                <div class="small text-muted bg-light p-2 rounded mb-1">
+                                    <strong>Hướng dẫn cọc:</strong> @o.DepositInstructions
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>

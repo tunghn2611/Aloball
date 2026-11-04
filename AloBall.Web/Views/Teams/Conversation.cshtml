@@ -1,0 +1,86 @@
+@model AloBall.Web.Services.ConversationDetailDto
+@{
+    var team = ViewBag.Team as AloBall.Web.Data.Entities.Team;
+    ViewData["Title"] = $"{Model.Title} - {team?.Name}";
+    bool isManager = ViewBag.IsManager ?? false;
+}
+
+@await Html.PartialAsync("_TeamNavigation", team!.Id)
+
+<div class="page-heading mb-3">
+    <div>
+        <div class="mb-1">
+            <a asp-action="Messages" asp-route-teamId="@team?.Id" class="text-decoration-none small text-muted">
+                <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách tin nhắn
+            </a>
+        </div>
+        <span class="eyebrow">CUỘC TRÒ CHUYỆN · @team?.Name</span>
+        <h1 class="h3 fw-bold mb-1">@Model.Title</h1>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-8 mx-auto">
+        <!-- Thread Container -->
+        <div class="arena-card p-3 p-md-4 mb-4">
+            <div class="d-flex flex-column gap-3 mb-4">
+                @foreach (var m in Model.Messages)
+                {
+                    <div class="d-flex @(m.IsMe ? "justify-content-end" : "justify-content-start")">
+                        <div class="d-flex gap-2" style="max-width: 85%;">
+                            @if (!m.IsMe)
+                            {
+                                <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center flex-shrink-0 text-primary fw-bold" style="width: 38px; height: 38px; font-size: 0.95rem;">
+                                    @(string.IsNullOrEmpty(m.SenderName) ? "A" : m.SenderName.Substring(0, 1).ToUpperInvariant())
+                                </div>
+                            }
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1 @(m.IsMe ? "justify-content-end" : "justify-content-start")">
+                                    <span class="small fw-bold text-dark">@(m.IsMe ? "Bạn" : m.SenderName)</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0" style="font-size: 10px;">@m.SenderRole</span>
+                                    <span class="text-muted" style="font-size: 11px;">@m.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                </div>
+                                <div class="p-3 rounded-3 shadow-sm @(m.IsMe ? "bg-primary text-white" : "bg-light border text-dark")" style="white-space: pre-line; word-break: break-word; line-height: 1.5;">
+                                    @m.Content
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <hr class="my-4" />
+
+            <!-- Reply Box -->
+            @if (Model.IsAnnouncement)
+            {
+                <div class="alert alert-secondary text-center small mb-0 py-3">
+                    <i class="bi bi-info-circle me-1"></i> Đây là thông báo chung từ Ban cán sự đội bóng. Thông báo không hỗ trợ trả lời trực tiếp.
+                </div>
+            }
+            else
+            {
+                <form asp-action="ReplyMessage" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <input type="hidden" name="conversationId" value="@Model.ConversationId" />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">Phản hồi cuộc trò chuyện này:</label>
+                        <textarea name="content" class="form-control" rows="4" placeholder="Nhập câu trả lời của bạn..." maxlength="2000" required></textarea>
+                        <div class="form-text text-end">Tối đa 2000 ký tự.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a asp-action="Messages" asp-route-teamId="@team?.Id" class="btn btn-arena-outline btn-sm">
+                            <i class="bi bi-chevron-left me-1"></i> Trở về
+                        </a>
+                        <button type="submit" class="btn btn-arena-primary btn-sm px-4">
+                            <i class="bi bi-send-fill me-1"></i> Gửi phản hồi
+                        </button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>

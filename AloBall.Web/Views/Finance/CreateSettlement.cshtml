@@ -1,0 +1,598 @@
+@model AloBall.Web.Models.SettlementWizardViewModel
+@{
+    ViewData["Title"] = $"Quyết toán trận đấu - vs {Model.OpponentName}";
+}
+
+@await Html.PartialAsync("_TeamNavigation", Model.TeamId)
+
+<div class="container-fluid px-0">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a asp-controller="Matches" asp-action="Detail" asp-route-id="@Model.MatchId">Matchday Center</a></li>
+                    <li class="breadcrumb-item"><a asp-action="MatchFinance" asp-route-matchId="@Model.MatchId" asp-route-teamId="@Model.TeamId">Tài chính</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Quyết toán trận đấu</li>
+                </ol>
+            </nav>
+            <h2 class="h3 fw-bold mb-1 text-dark">Quyết Toán Chi Phí Trận Đấu</h2>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-calendar3 me-1"></i>@Model.MatchDateTime.ToString("dd/MM/yyyy HH:mm") · 
+                <i class="bi bi-geo-alt me-1 text-danger"></i>@Model.PitchName · 
+                vs <strong>@Model.OpponentName</strong>
+            </p>
+        </div>
+        <div>
+            <a asp-action="MatchFinance" asp-route-matchId="@Model.MatchId" asp-route-teamId="@Model.TeamId" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-x-lg me-1"></i> Hủy quyết toán
+            </a>
+        </div>
+    </div>
+
+    <!-- Stepper Navigation Header -->
+    <div class="arena-card p-3 mb-4 bg-white shadow-sm">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="step-nav-item d-flex align-items-center gap-2 active" id="stepIndicator1">
+                <span class="step-badge rounded-circle d-flex align-items-center justify-content-center bg-primary text-white fw-bold" style="width: 32px; height: 32px; font-size: 13px;">1</span>
+                <div>
+                    <span class="d-block fw-bold text-dark small">1. Chi phí thực tế</span>
+                    <small class="text-muted" style="font-size: 10px;">Kiểm tra tiền sân &amp; trọng tài</small>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-muted d-none d-md-block"></i>
+
+            <div class="step-nav-item d-flex align-items-center gap-2 opacity-50" id="stepIndicator2">
+                <span class="step-badge rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white fw-bold" style="width: 32px; height: 32px; font-size: 13px;">2</span>
+                <div>
+                    <span class="d-block fw-bold text-dark small">2. Người tham gia</span>
+                    <small class="text-muted" style="font-size: 10px;">Chốt người có mặt thực tế</small>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-muted d-none d-md-block"></i>
+
+            <div class="step-nav-item d-flex align-items-center gap-2 opacity-50" id="stepIndicator3">
+                <span class="step-badge rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white fw-bold" style="width: 32px; height: 32px; font-size: 13px;">3</span>
+                <div>
+                    <span class="d-block fw-bold text-dark small">3. Phân bổ &amp; Làm tròn</span>
+                    <small class="text-muted" style="font-size: 10px;">Chia đều bảo toàn VNĐ</small>
+                </div>
+            </div>
+            <i class="bi bi-chevron-right text-muted d-none d-md-block"></i>
+
+            <div class="step-nav-item d-flex align-items-center gap-2 opacity-50" id="stepIndicator4">
+                <span class="step-badge rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white fw-bold" style="width: 32px; height: 32px; font-size: 13px;">4</span>
+                <div>
+                    <span class="d-block fw-bold text-dark small">4. Lưu quyết toán</span>
+                    <small class="text-muted" style="font-size: 10px;">Tạo biên bản snapshot</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form asp-action="CreateSettlement" method="post" id="settlementForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="MatchId" value="@Model.MatchId" />
+        <input type="hidden" name="TeamId" value="@Model.TeamId" />
+
+        <!-- ============================================================= -->
+        <!-- BƯỚC 1: XÁC MINH CÁC KHOẢN CHI THỰC TẾ -->
+        <!-- ============================================================= -->
+        <div class="settlement-step-panel arena-card p-4 mb-4" id="stepPanel1">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">
+                        <i class="bi bi-receipt text-primary me-2"></i>Bước 1: Rà Soát Chi Phí Thực Tế Trận Đấu
+                    </h5>
+                    <p class="text-muted small mb-0">Hệ thống tự động trích xuất các dịch vụ đã chốt trên sàn. Bạn có thể thêm các khoản chi thực tế khác.</p>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addNewExpenseRow()">
+                    <i class="bi bi-plus-lg me-1"></i> Thêm khoản chi khác
+                </button>
+            </div>
+
+            <div class="table-responsive mb-3">
+                <table class="table table-hover align-middle mb-0" id="expensesTable">
+                    <thead class="bg-light">
+                        <tr class="small text-muted text-uppercase">
+                            <th>Tên khoản mục</th>
+                            <th>Phân loại</th>
+                            <th style="width: 240px;" class="text-end">Số tiền thực tế (VNĐ)</th>
+                            <th style="width: 60px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="expensesTableBody">
+                        @for (int i = 0; i < Model.ExpenseItems.Count; i++)
+                        {
+                            var item = Model.ExpenseItems[i];
+                            <tr class="expense-row">
+                                <td>
+                                    <input type="text" class="form-control form-control-sm expense-desc" name="Expenses[@i].Description" value="@item.Description" required />
+                                    <input type="hidden" name="Expenses[@i].IsFromConfirmedService" value="@(item.IsFromConfirmedService ? "true" : "false")" />
+                                    <input type="hidden" name="Expenses[@i].SourceReferenceId" value="@item.SourceReferenceId" />
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" name="Expenses[@i].Category">
+                                        <option value="0" selected="@(item.Category == AloBall.Web.Data.Entities.SettlementExpenseCategory.Pitch)">Sân bóng</option>
+                                        <option value="1" selected="@(item.Category == AloBall.Web.Data.Entities.SettlementExpenseCategory.Referee)">Trọng tài</option>
+                                        <option value="2" selected="@(item.Category == AloBall.Web.Data.Entities.SettlementExpenseCategory.Refreshment)">Nước uống</option>
+                                        <option value="3" selected="@(item.Category == AloBall.Web.Data.Entities.SettlementExpenseCategory.Media)">Quay phim/Ảnh</option>
+                                        <option value="4" selected="@(item.Category == AloBall.Web.Data.Entities.SettlementExpenseCategory.Other)">Khác</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control form-control-sm text-end expense-amount" name="Expenses[@i].Amount" value="@item.Amount.ToString("0")" min="0" step="1000" oninput="calculateTotalExpenses()" required />
+                                        <span class="input-group-text">đ</span>
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    @if (!item.IsFromConfirmedService)
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm p-1 px-2" onclick="removeExpenseRow(this)" title="Xóa khoản chi">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="bg-light">
+                        <tr class="fw-bold">
+                            <td colspan="2" class="text-uppercase small">Tổng Chi Phí Trận Thực Tế</td>
+                            <td class="text-end text-primary fs-5" id="displayTotalExpense">
+                                @Model.TotalActualExpenses.ToString("N0") đ
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-arena-primary btn-sm px-4 fw-bold" onclick="goToStep(2)">
+                    Tiếp tục: Chọn người tham gia <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- BƯỚC 2: XÁC NHẬN NGƯỜI THAM GIA THỰC TẾ -->
+        <!-- ============================================================= -->
+        <div class="settlement-step-panel arena-card p-4 mb-4 d-none" id="stepPanel2">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">
+                        <i class="bi bi-people-fill text-primary me-2"></i>Bước 2: Xác Nhận Thành Viên Có Mặt Thực Tế
+                    </h5>
+                    <p class="text-muted small mb-0">
+                        Chỉ phân bổ chi phí cho những thành viên thực tế có mặt trên sân. <span class="text-danger fw-semibold">Tuyệt đối không tự động chia đều cho cả danh sách CLB.</span>
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSelectAllParticipants(true)">
+                        <i class="bi bi-check-all me-1"></i> Chọn tất cả
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleSelectAllParticipants(false)">
+                        <i class="bi bi-dash me-1"></i> Bỏ chọn tất cả
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive mb-3">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr class="small text-muted text-uppercase">
+                            <th style="width: 50px;" class="ps-3">Chọn</th>
+                            <th>Cầu thủ</th>
+                            <th>Vị trí</th>
+                            <th>Căn cứ thực tế</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.Candidates)
+                        {
+                            <tr class="candidate-row">
+                                <td class="ps-3">
+                                    <input class="form-check-input participant-checkbox" type="checkbox" name="SelectedPlayerIds" value="@c.PlayerId" id="chk_@c.PlayerId" @(c.IsSelected ? "checked" : "") onchange="updateSelectedParticipantsCount()" data-name="@c.FullName" data-kit="@c.KitNumber" data-pos="@c.Position" />
+                                </td>
+                                <td>
+                                    <label class="form-check-label fw-bold text-dark cursor-pointer d-block" for="chk_@c.PlayerId">
+                                        @c.FullName
+                                    </label>
+                                    @if (c.KitNumber.HasValue)
+                                    {
+                                        <small class="badge bg-secondary-subtle text-secondary border">#@c.KitNumber</small>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">@(c.Position ?? "Cầu thủ")</span>
+                                </td>
+                                <td>
+                                    <span class="small @(c.HasAuthoritativeAttendance || c.HasLineupAppearance ? "text-success fw-semibold" : "text-muted")">
+                                        @c.AttendanceNote
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (c.HasAuthoritativeAttendance && c.HasLineupAppearance)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle-fill me-1"></i>Đủ căn cứ</span>
+                                    }
+                                    else if (c.HasAuthoritativeAttendance || c.HasLineupAppearance)
+                                    {
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="bi bi-info-circle-fill me-1"></i>Có mặt</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border">BHL kiểm tra</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="goToStep(1)">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại Bước 1
+                </button>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="small text-muted">Đã chọn: <strong class="text-primary fs-6" id="selectedCountDisplay">@Model.SelectedCount</strong> người</span>
+                    <button type="button" class="btn btn-arena-primary btn-sm px-4 fw-bold" onclick="generateAllocationPreview()">
+                        Tiếp tục: Xem phân bổ tiền <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- BƯỚC 3: XEM TRƯỚC PHÂN BỔ & ĐIỀU CHỈNH LÀM TRÒN -->
+        <!-- ============================================================= -->
+        <div class="settlement-step-panel arena-card p-4 mb-4 d-none" id="stepPanel3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1">
+                        <i class="bi bi-calculator-fill text-primary me-2"></i>Bước 3: Phân Bổ Số Tiền Cho Từng Thành Viên
+                    </h5>
+                    <p class="text-muted small mb-0">Hệ thống tự động chia đều và xử lý làm tròn theo bội số 1.000 VNĐ để tổng tiền đóng luôn khớp 100% với chi phí.</p>
+                </div>
+            </div>
+
+            <!-- Thẻ tóm tắt số học -->
+            <div class="row g-2 mb-3 text-center">
+                <div class="col-6 col-md-3">
+                    <div class="p-2 border rounded bg-light">
+                        <span class="small text-muted d-block">Tổng chi phí</span>
+                        <strong class="text-dark fs-6" id="allocTotalExpense">0 đ</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 border rounded bg-light">
+                        <span class="small text-muted d-block">Số người chia</span>
+                        <strong class="text-dark fs-6" id="allocParticipantsCount">0</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 border rounded bg-light">
+                        <span class="small text-muted d-block">Mức chia cơ sở</span>
+                        <strong class="text-primary fs-6" id="allocBaseShare">0 đ</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-2 border rounded bg-light">
+                        <span class="small text-muted d-block">Chênh lệch làm tròn</span>
+                        <strong class="text-success fs-6" id="allocRoundingDiff">0 đ (Khớp 100%)</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive mb-3">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr class="small text-muted text-uppercase">
+                            <th class="ps-3">Cầu thủ</th>
+                            <th class="text-end">Mức chia gốc</th>
+                            <th class="text-end" style="width: 200px;">Thực thu (VNĐ)</th>
+                            <th style="width: 320px;">Lý do điều chỉnh (Nếu có)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allocationPreviewBody">
+                        <!-- Render dynamic via Javascript -->
+                    </tbody>
+                    <tfoot class="bg-light">
+                        <tr class="fw-bold">
+                            <td class="text-uppercase small">Tổng tiền thu dự tính</td>
+                            <td colspan="2" class="text-end text-primary fs-5" id="sumAllocatedDisplay">0 đ</td>
+                            <td id="allocationStatusCell">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Bảo toàn số học chính xác
+                                </span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="goToStep(2)">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại Bước 2
+                </button>
+                <button type="button" class="btn btn-arena-primary btn-sm px-4 fw-bold" onclick="goToStep(4)">
+                    Tiếp tục: Xác nhận quyết toán <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- BƯỚC 4: XÁC NHẬN & LƯU BIÊN BẢN QUYẾT TOÁN -->
+        <!-- ============================================================= -->
+        <div class="settlement-step-panel arena-card p-4 mb-4 d-none" id="stepPanel4">
+            <div class="mb-4">
+                <h5 class="fw-bold text-dark mb-1">
+                    <i class="bi bi-shield-check text-success me-2"></i>Bước 4: Kiểm Tra Lại &amp; Chốt Lưu Quyết Toán
+                </h5>
+                <p class="text-muted small mb-0">Biên bản quyết toán sau khi lưu sẽ được bảo toàn bất biến dưới dạng snapshot lịch sử.</p>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-md-6">
+                    <div class="border rounded p-3 bg-light h-100">
+                        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-info-circle me-1 text-primary"></i>Thông tin trận đấu</h6>
+                        <ul class="list-unstyled mb-0 small d-flex flex-column gap-2 text-dark">
+                            <li><strong>Đối thủ:</strong> @Model.OpponentName</li>
+                            <li><strong>Thời gian:</strong> @Model.MatchDateTime.ToString("dd/MM/yyyy HH:mm")</li>
+                            <li><strong>Địa điểm sân:</strong> @Model.PitchName</li>
+                            <li><strong>Tổng chi phí:</strong> <span class="fw-bold text-danger fs-6" id="summaryTotalExpense">0 đ</span></li>
+                            <li><strong>Số người chia:</strong> <span class="fw-bold text-primary" id="summaryParticipantsCount">0 người</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="border rounded p-3 bg-light h-100">
+                        <h6 class="fw-bold text-dark mb-2"><i class="bi bi-pencil-square me-1 text-primary"></i>Ghi chú quyết toán (Tùy chọn)</h6>
+                        <textarea class="form-control" name="Notes" rows="4" placeholder="Ví dụ: Đội bạn chia đôi tiền sân 50-50, tiền nước tự túc. Anh Tuấn hỗ trợ thêm 50k quỹ đội..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning border border-warning-subtle small mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2 text-warning fs-5"></i>
+                <strong>Lưu ý quan trọng:</strong> Sau khi xác nhận, biên bản quyết toán sẽ được tạo chính thức và mở giao diện theo dõi thu tiền của từng cầu thủ. Không thể tạo biên bản quyết toán thứ hai cho cùng một trận đấu này.
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="goToStep(3)">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại Bước 3
+                </button>
+                <button type="submit" class="btn btn-arena-primary btn-sm px-4 fw-bold shadow">
+                    <i class="bi bi-floppy-fill me-1"></i> Xác Nhận &amp; Lưu Biên Bản Quyết Toán
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+    let currentStep = 1;
+    let cachedAllocations = [];
+
+    function goToStep(step) {
+        if (step === 2) {
+            calculateTotalExpenses();
+            const total = getTotalExpenseValue();
+            if (total <= 0) {
+                alert("Vui lòng nhập tổng chi phí thực tế lớn hơn 0 VNĐ.");
+                return;
+            }
+        } else if (step === 3) {
+            const selected = document.querySelectorAll('.participant-checkbox:checked');
+            if (selected.length === 0) {
+                alert("Vui lòng chọn ít nhất một thành viên tham gia để chia sẻ chi phí.");
+                return;
+            }
+        }
+
+        // Hide all panels
+        for (let s = 1; s <= 4; s++) {
+            document.getElementById(`stepPanel${s}`).classList.add('d-none');
+            const indicator = document.getElementById(`stepIndicator${s}`);
+            indicator.classList.remove('active');
+            indicator.classList.add('opacity-50');
+            indicator.querySelector('.step-badge').classList.remove('bg-primary');
+            indicator.querySelector('.step-badge').classList.add('bg-secondary');
+        }
+
+        // Show target panel
+        document.getElementById(`stepPanel${step}`).classList.remove('d-none');
+        const activeIndicator = document.getElementById(`stepIndicator${step}`);
+        activeIndicator.classList.add('active');
+        activeIndicator.classList.remove('opacity-50');
+        activeIndicator.querySelector('.step-badge').classList.remove('bg-secondary');
+        activeIndicator.querySelector('.step-badge').classList.add('bg-primary');
+
+        currentStep = step;
+        window.scrollTo({ top: 150, behavior: 'smooth' });
+    }
+
+    function getTotalExpenseValue() {
+        const inputs = document.querySelectorAll('.expense-amount');
+        let total = 0;
+        inputs.forEach(inp => {
+            const val = parseFloat(inp.value) || 0;
+            total += val;
+        });
+        return total;
+    }
+
+    function calculateTotalExpenses() {
+        const total = getTotalExpenseValue();
+        document.getElementById('displayTotalExpense').innerText = total.toLocaleString('vi-VN') + ' đ';
+        document.getElementById('allocTotalExpense').innerText = total.toLocaleString('vi-VN') + ' đ';
+        document.getElementById('summaryTotalExpense').innerText = total.toLocaleString('vi-VN') + ' đ';
+    }
+
+    function addNewExpenseRow() {
+        const tbody = document.getElementById('expensesTableBody');
+        const count = tbody.querySelectorAll('.expense-row').length;
+
+        const tr = document.createElement('tr');
+        tr.className = 'expense-row';
+        tr.innerHTML = `
+            <td>
+                <input type="text" class="form-control form-control-sm expense-desc" name="Expenses[${count}].Description" placeholder="Ví dụ: Nước suối &amp; đá" required />
+                <input type="hidden" name="Expenses[${count}].IsFromConfirmedService" value="false" />
+            </td>
+            <td>
+                <select class="form-select form-select-sm" name="Expenses[${count}].Category">
+                    <option value="2">Nước uống</option>
+                    <option value="3">Quay phim/Ảnh</option>
+                    <option value="4" selected>Khác</option>
+                </select>
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control form-control-sm text-end expense-amount" name="Expenses[${count}].Amount" value="50000" min="0" step="1000" oninput="calculateTotalExpenses()" required />
+                    <span class="input-group-text">đ</span>
+                </div>
+            </td>
+            <td class="text-end">
+                <button type="button" class="btn btn-outline-danger btn-sm p-1 px-2" onclick="removeExpenseRow(this)" title="Xóa">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+        calculateTotalExpenses();
+    }
+
+    function removeExpenseRow(btn) {
+        const tr = btn.closest('tr');
+        tr.remove();
+        calculateTotalExpenses();
+    }
+
+    function toggleSelectAllParticipants(select) {
+        const checkboxes = document.querySelectorAll('.participant-checkbox');
+        checkboxes.forEach(cb => cb.checked = select);
+        updateSelectedParticipantsCount();
+    }
+
+    function updateSelectedParticipantsCount() {
+        const selected = document.querySelectorAll('.participant-checkbox:checked').length;
+        document.getElementById('selectedCountDisplay').innerText = selected;
+        document.getElementById('allocParticipantsCount').innerText = selected;
+        document.getElementById('summaryParticipantsCount').innerText = selected + ' người';
+    }
+
+    function generateAllocationPreview() {
+        const selectedCheckboxes = document.querySelectorAll('.participant-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert("Vui lòng chọn ít nhất một thành viên tham gia.");
+            return;
+        }
+
+        const totalExpense = getTotalExpenseValue();
+        const n = selectedCheckboxes.length;
+        updateSelectedParticipantsCount();
+
+        // Thuật toán làm tròn bội số 1.000 VNĐ
+        const step = totalExpense >= n * 1000 ? 1000 : 1;
+        const baseUnits = Math.floor((totalExpense / step) / n);
+        const baseShare = baseUnits * step;
+        const remainder = totalExpense - (baseShare * n);
+        const remainderCount = Math.round(remainder / step);
+
+        document.getElementById('allocBaseShare').innerText = baseShare.toLocaleString('vi-VN') + ' đ';
+        document.getElementById('allocRoundingDiff').innerText = remainder > 0 
+            ? `+${remainder.toLocaleString('vi-VN')} đ (Bù vào ${remainderCount} người)`
+            : '0 đ (Chia chẵn)';
+
+        const tbody = document.getElementById('allocationPreviewBody');
+        tbody.innerHTML = '';
+
+        let index = 0;
+        selectedCheckboxes.forEach(cb => {
+            const playerId = cb.value;
+            const name = cb.dataset.name || 'Cầu thủ';
+            const kit = cb.dataset.kit ? `#${cb.dataset.kit}` : '';
+            const pos = cb.dataset.pos || 'Cầu thủ';
+
+            const fairCalculated = Math.round(totalExpense / n);
+            const fairAdjusted = (index < remainderCount) ? (baseShare + step) : baseShare;
+            const isRounded = (index < remainderCount && remainderCount > 0);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-3">
+                    <span class="fw-bold text-dark">${name}</span>
+                    <small class="text-muted ms-1">${kit} (${pos})</small>
+                    <input type="hidden" name="Allocations[${index}].PlayerId" value="${playerId}" />
+                    <input type="hidden" name="Allocations[${index}].FullName" value="${name}" />
+                    <input type="hidden" name="Allocations[${index}].CalculatedAmount" value="${fairCalculated}" />
+                </td>
+                <td class="text-end text-muted small">${fairCalculated.toLocaleString('vi-VN')} đ</td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" class="form-control form-control-sm text-end allocation-amount" name="Allocations[${index}].AdjustedAmount" value="${fairAdjusted}" min="0" step="1000" oninput="recalculateAllocationSum()" required />
+                        <span class="input-group-text">đ</span>
+                    </div>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm allocation-reason" name="Allocations[${index}].AdjustmentReason" value="${isRounded ? 'Làm tròn số lẻ tiền chênh lệch theo quy chuẩn VNĐ' : ''}" placeholder="Lý do (nếu khác số gốc)" />
+                </td>
+            `;
+            tbody.appendChild(tr);
+            index++;
+        });
+
+        recalculateAllocationSum();
+        goToStep(3);
+    }
+
+    function recalculateAllocationSum() {
+        const inputs = document.querySelectorAll('.allocation-amount');
+        let sum = 0;
+        inputs.forEach(inp => {
+            sum += parseFloat(inp.value) || 0;
+        });
+
+        const totalExpense = getTotalExpenseValue();
+        document.getElementById('sumAllocatedDisplay').innerText = sum.toLocaleString('vi-VN') + ' đ';
+
+        const statusCell = document.getElementById('allocationStatusCell');
+        if (sum === totalExpense) {
+            statusCell.innerHTML = `
+                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    <i class="bi bi-check-circle-fill me-1"></i>Bảo toàn số học chính xác (Khớp 100%)
+                </span>
+            `;
+        } else {
+            const diff = totalExpense - sum;
+            statusCell.innerHTML = `
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>Lệch ${Math.abs(diff).toLocaleString('vi-VN')} đ so với tổng chi phí
+                </span>
+            `;
+        }
+    }
+
+    document.getElementById('settlementForm').addEventListener('submit', function(e) {
+        const totalExpense = getTotalExpenseValue();
+        let sum = 0;
+        document.querySelectorAll('.allocation-amount').forEach(inp => sum += parseFloat(inp.value) || 0);
+
+        if (sum !== totalExpense) {
+            e.preventDefault();
+            alert(`Tổng số tiền phân bổ (${sum.toLocaleString('vi-VN')} đ) không khớp với tổng chi phí (${totalExpense.toLocaleString('vi-VN')} đ). Vui lòng điều chỉnh lại.`);
+        }
+    });
+
+    // Khởi tạo
+    calculateTotalExpenses();
+    updateSelectedParticipantsCount();
+</script>
+}

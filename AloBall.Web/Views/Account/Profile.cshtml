@@ -1,0 +1,104 @@
+@model AloBall.Web.Controllers.UserProfileViewModel
+@{ ViewData["Title"] = "Hồ sơ cá nhân"; }
+
+<div class="workspace-heading">
+    <div>
+        <span class="eyebrow">Tài khoản & Cầu thủ</span>
+        <h1>@(Model.IsSelf ? "Hồ sơ cá nhân" : $"Quản lý hồ sơ: {Model.FullName}")</h1>
+        <p>Thông tin thi đấu, chân thuận, kinh nghiệm và khu vực hoạt động trên AloBall.</p>
+    </div>
+</div>
+
+<form asp-action="Profile" method="post" class="arena-card editor-panel mx-auto" style="max-width:850px">
+    <input type="hidden" asp-for="UserId" />
+    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+    <section class="editor-section">
+        <h2>01. Thông tin tài khoản</h2>
+        <div class="row g-3 mt-1">
+            <div class="col-md-6">
+                <label class="form-label text-muted">Địa chỉ Email</label>
+                <input type="text" class="form-control bg-light" value="@Model.Email" readonly disabled />
+                <small class="text-muted">Email định danh tài khoản, không thể thay đổi.</small>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="FullName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                <input asp-for="FullName" class="form-control" required maxlength="100" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="PhoneNumber" class="form-label">Số điện thoại</label>
+                <input asp-for="PhoneNumber" class="form-control" placeholder="09xxxxxxxx" maxlength="20" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                <small class="text-muted">Riêng tư, không bao giờ hiển thị trên trang công khai.</small>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label text-muted">Trạng thái Onboarding</label>
+                <div>
+                    @if (Model.HasCompletedOnboarding)
+                    {
+                        <span class="badge bg-success py-2 px-3"><i class="bi bi-check-circle me-1"></i> Đã hoàn tất</span>
+                        @if (Model.OnboardingCompletedAt.HasValue)
+                        {
+                            <small class="text-muted ms-2">(@Model.OnboardingCompletedAt.Value.ToString("dd/MM/yyyy HH:mm"))</small>
+                        }
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark py-2 px-3"><i class="bi bi-clock-history me-1"></i> Chưa hoàn tất</span>
+                        <a asp-action="Onboarding" class="btn btn-sm btn-outline-success ms-2">Đi đến Onboarding</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="editor-section">
+        <h2>02. Thông số thi đấu</h2>
+        <p>Hồ sơ bóng đá giúp gợi ý chia đội tự động và kết nối bắt đối giao lưu.</p>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="PreferredFoot" class="form-label">Chân thuận</label>
+                <select asp-for="PreferredFoot" class="form-select">
+                    <option value="">Chưa chọn</option>
+                    <option value="Phải">Chân Phải</option>
+                    <option value="Trái">Chân Trái</option>
+                    <option value="Hai chân">Hai chân (Thuận cả hai)</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="PrimaryPosition" class="form-label">Vị trí sở trường</label>
+                <select asp-for="PrimaryPosition" class="form-select">
+                    <option value="">Chưa xác định</option>
+                    <option value="Tiền đạo">Tiền đạo (FW)</option>
+                    <option value="Tiền vệ">Tiền vệ (MF)</option>
+                    <option value="Trung vệ">Trung vệ (CB)</option>
+                    <option value="Hậu vệ">Hậu vệ cánh (FB)</option>
+                    <option value="Thủ môn">Thủ môn (GK)</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Experience" class="form-label">Kinh nghiệm thi đấu</label>
+                <input asp-for="Experience" class="form-control" list="profileExpList" placeholder="VD: 3 năm, Bán chuyên..." maxlength="50" />
+                <datalist id="profileExpList">
+                    <option value="Dưới 1 năm"></option>
+                    <option value="1 - 3 năm"></option>
+                    <option value="3 - 5 năm"></option>
+                    <option value="Trên 5 năm"></option>
+                    <option value="Bán chuyên"></option>
+                </datalist>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Region" class="form-label">Khu vực sinh hoạt</label>
+                <input asp-for="Region" class="form-control" placeholder="VD: Cầu Giấy, Hà Nội" maxlength="100" />
+            </div>
+        </div>
+    </section>
+
+    <div class="editor-footer d-flex justify-content-between align-items-center">
+        <a asp-controller="Teams" asp-action="Index" class="btn btn-arena-outline">Quay lại</a>
+        <button type="submit" class="btn btn-arena-primary">Lưu thay đổi <i class="bi bi-check-lg"></i></button>
+    </div>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

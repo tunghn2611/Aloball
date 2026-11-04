@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Platform Admin - Quản Trị Đánh Giá & Blacklist";
     var blacklistedTeams = ViewBag.BlacklistedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+    var flaggedReviews = ViewBag.FlaggedReviews as IEnumerable<AloBall.Web.Data.Entities.TeamMatchReview> ?? Enumerable.Empty<AloBall.Web.Data.Entities.TeamMatchReview>();
 }
 
 <div class="page-heading">
@@ -9,6 +10,22 @@
         <span class="eyebrow">QUẢN TRỊ CỘNG ĐỒNG</span><h1>Giữ sân chơi công bằng.</h1>
         <p class="text-muted small mb-0">Xử lý khiếu nại đánh giá đối thủ, điều phối và gỡ Blacklist</p>
     </div>
+    <div class="d-flex gap-2">
+        <a asp-action="RefereeRequests" class="btn btn-outline-secondary">
+            <i class="bi bi-inbox me-1"></i> Hộp thư trọng tài
+        </a>
+        <a asp-action="Referees" class="btn btn-arena-primary">
+            <i class="bi bi-person-lines-fill me-1"></i> Danh bạ trọng tài
+        </a>
+    </div>
+</div>
+
+<div class="d-flex gap-2 border-bottom pb-2 mb-4 flex-wrap">
+    <a asp-action="Index" class="btn btn-sm btn-dark">Khiếu nại & Blacklist</a>
+    <a asp-action="RefereeRequests" class="btn btn-sm btn-outline-secondary">Hộp thư trọng tài</a>
+    <a asp-action="Referees" class="btn btn-sm btn-outline-secondary">Danh bạ trọng tài</a>
+    <a asp-action="PitchBookingRequests" class="btn btn-sm btn-outline-secondary">Hộp thư đặt sân</a>
+    <a asp-action="PitchVenues" class="btn btn-sm btn-outline-secondary">Danh bạ sân bóng</a>
 </div>
 
 <div class="row g-4">
@@ -35,7 +52,14 @@
                                 <span class="badge bg-danger">Blacklisted</span>
                             </div>
                             <small class="text-danger d-block mt-1">Lý do: @t.MatchmakingRestrictionReason</small>
-                            <small class="text-muted">Đánh giá TB: @t.AverageRating ⭐ (@t.ValidReviewCount lượt)</small>
+                            <small class="text-muted d-block">Đánh giá TB: @t.AverageRating ⭐ (@t.ValidReviewCount lượt)</small>
+                            <form asp-action="ManualUnrestrict" method="post" class="mt-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="teamId" value="@t.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-unlock me-1"></i> Gỡ Hạn Chế
+                                </button>
+                            </form>
                         </div>
                     }
                 </div>
@@ -95,6 +119,85 @@
                         }
                     </div>
                 }
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="arena-card p-4">
+            <h5 class="fw-bold text-dark mb-3">
+                <i class="bi bi-flag-fill text-danger me-2"></i>Đánh Giá 1 Sao / Báo Cáo Cần Thẩm Định (@flaggedReviews.Count())
+            </h5>
+            @if (!flaggedReviews.Any())
+            {
+                <div class="text-center py-4 text-muted small bg-light rounded-3">
+                    Không có đánh giá 1 sao nào cần thẩm định.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Thời gian</th>
+                                <th>Đội Đánh Giá</th>
+                                <th>Đội Bị Đánh Giá</th>
+                                <th>Lý Do / Nhận Xét</th>
+                                <th>Trạng Thái Đội</th>
+                                <th>Thao Tác Admin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rev in flaggedReviews)
+                            {
+                                <tr>
+                                    <td><small class="text-muted">@rev.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small></td>
+                                    <td><strong>@rev.ReviewerTeam.Name</strong></td>
+                                    <td><strong>@rev.TargetTeam.Name</strong></td>
+                                    <td><span class="text-danger">⭐ 1 sao:</span> @rev.Comment</td>
+                                    <td>
+                                        @if (rev.TargetTeam.IsRestrictedFromMatchmaking)
+                                        {
+                                            <span class="badge bg-danger">Đang bị hạn chế</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Bình thường</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!rev.TargetTeam.IsRestrictedFromMatchmaking)
+                                        {
+                                            <form asp-action="SetTeamBlacklist" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="teamId" value="@rev.TargetTeamId" />
+                                                <input type="hidden" name="isRestricted" value="true" />
+                                                <input type="hidden" name="reason" value="Bị báo cáo vi phạm qua đánh giá 1 sao: @rev.Comment" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-slash-circle me-1"></i> Áp Dụng Blacklist
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="SetTeamBlacklist" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="teamId" value="@rev.TargetTeamId" />
+                                                <input type="hidden" name="isRestricted" value="false" />
+                                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                                    <i class="bi bi-unlock me-1"></i> Gỡ Blacklist
+                                                </button>
+                                            </form>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
         </div>
     </div>

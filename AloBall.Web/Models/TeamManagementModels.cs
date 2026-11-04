@@ -27,11 +27,16 @@ public class PlayerProfileInput
     [StringLength(50)] public string? ShirtName { get; set; }
     [StringLength(20)] public string? ShirtSize { get; set; }
     [StringLength(20)] public string? ShortSize { get; set; }
+    [StringLength(20)] public string? PreferredFoot { get; set; }
+    [StringLength(50)] public string? Experience { get; set; }
+    [StringLength(100)] public string? Region { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsPublicProfile { get; set; } = true;
     public bool PublicKitNumber { get; set; } = true;
     public bool PublicPosition { get; set; } = true;
-    public bool PublicHeightWeight { get; set; } = true;
+    public bool PublicHeightWeight { get; set; } = false;
+    public bool PublicPreferredFoot { get; set; } = false;
+    public bool PublicExperience { get; set; } = false;
 }
 
 public class AchievementInput

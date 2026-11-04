@@ -14,6 +14,8 @@
 project.lock.json
 project.fragment.lock.json
 artifacts/
+Backup/
+UpgradeLog.htm
 
 # ------------------------------------------------------------------------------
 # Visual Studio / Visual Studio Code / JetBrains Rider

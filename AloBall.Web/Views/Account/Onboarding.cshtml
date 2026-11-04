@@ -1,0 +1,76 @@
+@model AloBall.Web.Controllers.OnboardingViewModel
+@{ ViewData["Title"] = "Hoàn tất hồ sơ"; }
+<div class="auth-layout">
+    <section class="auth-story">
+        <span class="eyebrow">ONBOARDING · BƯỚC KHỞI ĐẦU</span>
+        <h1>Sẵn sàng<br />bước ra <em>sân cỏ.</em></h1>
+        <p>Hoàn thiện hồ sơ cầu thủ giúp bạn dễ dàng kết nối cùng đồng đội và tìm kèo giao lưu tương xứng trình độ.</p>
+        <span class="auth-mark" aria-hidden="true">AB.</span>
+    </section>
+    <section class="auth-form">
+        <span class="eyebrow">HỒ SƠ CỦA BẠN</span>
+        <h2>Thông tin thi đấu</h2>
+        <p>Nhập thông tin cơ bản để bắt đầu tham gia cùng các đội bóng.</p>
+
+        <form asp-action="Onboarding" method="post">
+            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                <input asp-for="FullName" class="form-control" placeholder="Tên đồng đội sẽ gọi bạn" required maxlength="100" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label asp-for="PreferredFoot" class="form-label">Chân thuận <span class="text-danger">*</span></label>
+                    <select asp-for="PreferredFoot" class="form-select" required>
+                        <option value="">-- Chọn chân thuận --</option>
+                        <option value="Phải">Chân Phải</option>
+                        <option value="Trái">Chân Trái</option>
+                        <option value="Hai chân">Hai chân (Thuận cả hai)</option>
+                    </select>
+                    <span asp-validation-for="PreferredFoot" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="PrimaryPosition" class="form-label">Vị trí sở trường</label>
+                    <select asp-for="PrimaryPosition" class="form-select">
+                        <option value="">Chưa xác định</option>
+                        <option value="Tiền đạo">Tiền đạo (FW)</option>
+                        <option value="Tiền vệ">Tiền vệ (MF)</option>
+                        <option value="Trung vệ">Trung vệ (CB)</option>
+                        <option value="Hậu vệ">Hậu vệ cánh (FB)</option>
+                        <option value="Thủ môn">Thủ môn (GK)</option>
+                    </select>
+                    <span asp-validation-for="PrimaryPosition" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label asp-for="Experience" class="form-label">Kinh nghiệm thi đấu <span class="text-danger">*</span></label>
+                    <input asp-for="Experience" class="form-control" list="experienceOptions" placeholder="Chọn hoặc nhập số năm" required maxlength="50" />
+                    <datalist id="experienceOptions">
+                        <option value="Dưới 1 năm"></option>
+                        <option value="1 - 3 năm"></option>
+                        <option value="3 - 5 năm"></option>
+                        <option value="Trên 5 năm"></option>
+                        <option value="Bán chuyên"></option>
+                    </datalist>
+                    <span asp-validation-for="Experience" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Region" class="form-label">Khu vực sinh hoạt <span class="text-danger">*</span></label>
+                    <input asp-for="Region" class="form-control" placeholder="VD: Cầu Giấy, Hà Nội" required maxlength="100" />
+                    <span asp-validation-for="Region" class="text-danger"></span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-arena-primary w-100 py-2">
+                Hoàn tất & Khám phá AloBall <i class="bi bi-arrow-right"></i>
+            </button>
+        </form>
+    </section>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

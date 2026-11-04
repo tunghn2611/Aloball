@@ -41,6 +41,12 @@ public static class DbInitializer
 
             // 6. Tạo hoặc bổ sung Kèo giao lưu Matchmaking & Trận đấu thực tế
             await EnsureMatchmakingAndMatchesAsync(db, teams);
+
+            // 7. Tạo danh bạ Trọng tài mẫu phục vụ điều phối
+            await EnsureRefereesAsync(db);
+
+            // 8. Tạo danh bạ Sân bóng mẫu (Pitch Venues) phục vụ khám phá & đặt sân
+            await EnsurePitchVenuesAsync(db);
         }
         catch (Exception ex)
         {
@@ -59,6 +65,21 @@ public static class DbInitializer
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Matches ADD COLUMN FormationCode TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN StandardPrimaryPosition TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN AllowedSecondaryPositionsJson TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PreferredFoot TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN Experience TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN Region TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PublicPreferredFoot INTEGER NOT NULL DEFAULT 0;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PublicExperience INTEGER NOT NULL DEFAULT 0;"); } catch { }
+
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN CoverImageUrl TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN CoverOpacity REAL NULL;"); } catch { }
+
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN PreferredFoot TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN Experience TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN Region TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN PrimaryPosition TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN HasCompletedOnboarding INTEGER NOT NULL DEFAULT 0;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN OnboardingCompletedAt TEXT NULL;"); } catch { }
 
         try
         {
@@ -103,7 +124,268 @@ public static class DbInitializer
             ");
         }
         catch { }
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ""TeamMessages"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_TeamMessages"" PRIMARY KEY,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""SenderUserId"" TEXT NOT NULL,
+                    ""RecipientUserId"" TEXT NULL,
+                    ""ConversationId"" TEXT NOT NULL,
+                    ""MessageType"" INTEGER NOT NULL DEFAULT 0,
+                    ""Title"" TEXT NOT NULL,
+                    ""Content"" TEXT NOT NULL,
+                    ""IsRead"" INTEGER NOT NULL DEFAULT 0,
+                    ""ReadAt"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    CONSTRAINT ""FK_TeamMessages_Teams_TeamId"" FOREIGN KEY (""TeamId"") REFERENCES ""Teams"" (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_TeamMessages_AspNetUsers_SenderUserId"" FOREIGN KEY (""SenderUserId"") REFERENCES ""AspNetUsers"" (""Id"") ON DELETE RESTRICT,
+                    CONSTRAINT ""FK_TeamMessages_AspNetUsers_RecipientUserId"" FOREIGN KEY (""RecipientUserId"") REFERENCES ""AspNetUsers"" (""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_TeamMessages_TeamId_ConversationId"" ON ""TeamMessages"" (""TeamId"", ""ConversationId"");
+                CREATE INDEX IF NOT EXISTS ""IX_TeamMessages_RecipientUserId_IsRead"" ON ""TeamMessages"" (""RecipientUserId"", ""IsRead"");
+                CREATE INDEX IF NOT EXISTS ""IX_TeamMessages_TeamId_SenderUserId_CreatedAt"" ON ""TeamMessages"" (""TeamId"", ""SenderUserId"", ""CreatedAt"");
+            ");
+        }
+        catch { }
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ""Referees"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_Referees"" PRIMARY KEY,
+                    ""Name"" TEXT NOT NULL,
+                    ""ContactInfo"" TEXT NOT NULL,
+                    ""ExperienceSummary"" TEXT NOT NULL,
+                    ""SupportedFormats"" TEXT NULL,
+                    ""ServiceNotes"" TEXT NULL,
+                    ""DefaultPriceVND"" TEXT NULL,
+                    ""IsActive"" INTEGER NOT NULL DEFAULT 1
+                );
+
+                CREATE TABLE IF NOT EXISTS ""RefereeRequests"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_RefereeRequests"" PRIMARY KEY,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""MatchId"" TEXT NULL,
+                    ""ServiceDate"" TEXT NOT NULL,
+                    ""StartTime"" TEXT NOT NULL,
+                    ""EndTime"" TEXT NOT NULL,
+                    ""VenueName"" TEXT NOT NULL,
+                    ""VenueAddress"" TEXT NOT NULL,
+                    ""MatchFormat"" TEXT NOT NULL,
+                    ""RefereeCount"" INTEGER NOT NULL,
+                    ""PreferredExperience"" TEXT NULL,
+                    ""BudgetVND"" TEXT NULL,
+                    ""Notes"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""UpdatedAt"" TEXT NULL,
+                    CONSTRAINT ""FK_RefereeRequests_Teams_TeamId"" FOREIGN KEY (""TeamId"") REFERENCES ""Teams"" (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_RefereeRequests_Matches_MatchId"" FOREIGN KEY (""MatchId"") REFERENCES ""Matches"" (""Id"") ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_RefereeRequests_TeamId"" ON ""RefereeRequests"" (""TeamId"");
+                CREATE INDEX IF NOT EXISTS ""IX_RefereeRequests_Status"" ON ""RefereeRequests"" (""Status"");
+
+                CREATE TABLE IF NOT EXISTS ""RefereeProposals"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_RefereeProposals"" PRIMARY KEY,
+                    ""RequestId"" TEXT NOT NULL,
+                    ""AdminId"" TEXT NOT NULL,
+                    ""TotalPriceVND"" TEXT NOT NULL,
+                    ""ServiceNote"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""SubmittedAt"" TEXT NOT NULL,
+                    CONSTRAINT ""FK_RefereeProposals_RefereeRequests_RequestId"" FOREIGN KEY (""RequestId"") REFERENCES ""RefereeRequests"" (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_RefereeProposals_AspNetUsers_AdminId"" FOREIGN KEY (""AdminId"") REFERENCES ""AspNetUsers"" (""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_RefereeProposals_RequestId"" ON ""RefereeProposals"" (""RequestId"");
+                CREATE INDEX IF NOT EXISTS ""IX_RefereeProposals_Status"" ON ""RefereeProposals"" (""Status"");
+
+                CREATE TABLE IF NOT EXISTS ""RefereeAssignments"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_RefereeAssignments"" PRIMARY KEY,
+                    ""ProposalId"" TEXT NOT NULL,
+                    ""RefereeId"" TEXT NOT NULL,
+                    CONSTRAINT ""FK_RefereeAssignments_RefereeProposals_ProposalId"" FOREIGN KEY (""ProposalId"") REFERENCES ""RefereeProposals"" (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_RefereeAssignments_Referees_RefereeId"" FOREIGN KEY (""RefereeId"") REFERENCES ""Referees"" (""Id"") ON DELETE RESTRICT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_RefereeAssignments_ProposalId_RefereeId"" ON ""RefereeAssignments"" (""ProposalId"", ""RefereeId"");
+            ");
+        }
+        catch { }
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ""PitchVenues"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_PitchVenues"" PRIMARY KEY,
+                    ""Name"" TEXT NOT NULL,
+                    ""Description"" TEXT NULL,
+                    ""City"" TEXT NOT NULL,
+                    ""District"" TEXT NOT NULL,
+                    ""FullAddress"" TEXT NOT NULL,
+                    ""ContactPhone"" TEXT NOT NULL,
+                    ""SupportedFormats"" TEXT NOT NULL,
+                    ""SurfaceType"" TEXT NOT NULL,
+                    ""Facilities"" TEXT NULL,
+                    ""OpeningHours"" TEXT NULL,
+                    ""IndicativePricePerHour"" TEXT NULL,
+                    ""PriceNotes"" TEXT NULL,
+                    ""ImageUrl"" TEXT NULL,
+                    ""MapLink"" TEXT NULL,
+                    ""TotalPitches"" INTEGER NOT NULL DEFAULT 4,
+                    ""IsActive"" INTEGER NOT NULL DEFAULT 1,
+                    ""CreatedAt"" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PitchVenues_City"" ON ""PitchVenues"" (""City"");
+                CREATE INDEX IF NOT EXISTS ""IX_PitchVenues_District"" ON ""PitchVenues"" (""District"");
+                CREATE INDEX IF NOT EXISTS ""IX_PitchVenues_IsActive"" ON ""PitchVenues"" (""IsActive"");
+
+                CREATE TABLE IF NOT EXISTS ""PitchBookingRequests"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_PitchBookingRequests"" PRIMARY KEY,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""PitchVenueId"" TEXT NOT NULL,
+                    ""MatchId"" TEXT NULL,
+                    ""ServiceDate"" TEXT NOT NULL,
+                    ""StartTime"" TEXT NOT NULL,
+                    ""EndTime"" TEXT NOT NULL,
+                    ""PitchFormat"" TEXT NOT NULL,
+                    ""PitchCount"" INTEGER NOT NULL DEFAULT 1,
+                    ""BudgetVND"" TEXT NULL,
+                    ""Notes"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""ConfirmedFieldCode"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""UpdatedAt"" TEXT NULL,
+                    CONSTRAINT ""FK_PitchBookingRequests_Teams_TeamId"" FOREIGN KEY (""TeamId"") REFERENCES ""Teams"" (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_PitchBookingRequests_PitchVenues_PitchVenueId"" FOREIGN KEY (""PitchVenueId"") REFERENCES ""PitchVenues"" (""Id"") ON DELETE RESTRICT,
+                    CONSTRAINT ""FK_PitchBookingRequests_Matches_MatchId"" FOREIGN KEY (""MatchId"") REFERENCES ""Matches"" (""Id"") ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PitchBookingRequests_TeamId"" ON ""PitchBookingRequests"" (""TeamId"");
+                CREATE INDEX IF NOT EXISTS ""IX_PitchBookingRequests_PitchVenueId"" ON ""PitchBookingRequests"" (""PitchVenueId"");
+                CREATE INDEX IF NOT EXISTS ""IX_PitchBookingRequests_Status"" ON ""PitchBookingRequests"" (""Status"");
+
+                CREATE TABLE IF NOT EXISTS ""PitchBookingOffers"" (
+                    ""Id"" TEXT NOT NULL CONSTRAINT ""PK_PitchBookingOffers"" PRIMARY KEY,
+                    ""RequestId"" TEXT NOT NULL,
+                    ""AdminId"" TEXT NOT NULL,
+                    ""ConfirmedVenueName"" TEXT NOT NULL,
+                    ""ConfirmedAddress"" TEXT NOT NULL,
+                    ""ConfirmedDate"" TEXT NOT NULL,
+                    ""ConfirmedStartTime"" TEXT NOT NULL,
+                    ""ConfirmedEndTime"" TEXT NOT NULL,
+                    ""ConfirmedPitchFormat"" TEXT NOT NULL,
+                    ""ConfirmedPitchCount"" INTEGER NOT NULL DEFAULT 1,
+                    ""SpecificFieldCode"" TEXT NULL,
+                    ""TotalPriceVND"" TEXT NOT NULL,
+                    ""DepositInstructions"" TEXT NULL,
+                    ""Notes"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""SubmittedAt"" TEXT NOT NULL,
+                    CONSTRAINT ""FK_PitchBookingOffers_PitchBookingRequests_RequestId"" FOREIGN KEY (""RequestId"") REFERENCES ""PitchBookingRequests"" (""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_PitchBookingOffers_AspNetUsers_AdminId"" FOREIGN KEY (""AdminId"") REFERENCES ""AspNetUsers"" (""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PitchBookingOffers_RequestId"" ON ""PitchBookingOffers"" (""RequestId"");
+                CREATE INDEX IF NOT EXISTS ""IX_PitchBookingOffers_Status"" ON ""PitchBookingOffers"" (""Status"");
+            ");
+        }
+        catch { }
+
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ""MatchExpenseEstimates"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""MatchId"" TEXT NOT NULL,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""Description"" TEXT NOT NULL,
+                    ""EstimatedAmount"" TEXT NOT NULL,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""CreatedByUserId"" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_MatchExpenseEstimates_MatchId_TeamId"" ON ""MatchExpenseEstimates"" (""MatchId"", ""TeamId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchSettlements"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""MatchId"" TEXT NOT NULL,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""SettlementDate"" TEXT NOT NULL,
+                    ""TotalPitchCost"" TEXT NOT NULL,
+                    ""TotalRefereeCost"" TEXT NOT NULL,
+                    ""TotalOtherExpenses"" TEXT NOT NULL,
+                    ""TotalAmount"" TEXT NOT NULL,
+                    ""ParticipantCount"" INTEGER NOT NULL,
+                    ""PerPersonShare"" TEXT NOT NULL,
+                    ""Status"" INTEGER NOT NULL,
+                    ""ConfirmedAt"" TEXT NULL,
+                    ""ConfirmedByUserId"" TEXT NULL,
+                    ""Notes"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchSettlements_MatchId_TeamId"" ON ""MatchSettlements"" (""MatchId"", ""TeamId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchSettlementItems"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""SettlementId"" TEXT NOT NULL,
+                    ""Category"" INTEGER NOT NULL,
+                    ""Description"" TEXT NOT NULL,
+                    ""Amount"" TEXT NOT NULL,
+                    ""IsFromConfirmedService"" INTEGER NOT NULL,
+                    ""SourceReferenceId"" TEXT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_MatchSettlementItems_SettlementId"" ON ""MatchSettlementItems"" (""SettlementId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchSettlementMemberAllocations"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""SettlementId"" TEXT NOT NULL,
+                    ""PlayerId"" TEXT NOT NULL,
+                    ""UserId"" TEXT NULL,
+                    ""CalculatedAmount"" TEXT NOT NULL,
+                    ""AdjustedAmount"" TEXT NOT NULL,
+                    ""AdjustmentReason"" TEXT NULL,
+                    ""AmountPaid"" TEXT NOT NULL,
+                    ""PaymentStatus"" INTEGER NOT NULL,
+                    ""LastPaymentDate"" TEXT NULL,
+                    ""Notes"" TEXT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchSettlementMemberAllocations_SettlementId_PlayerId"" ON ""MatchSettlementMemberAllocations"" (""SettlementId"", ""PlayerId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchSettlementPayments"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""AllocationId"" TEXT NOT NULL,
+                    ""Amount"" TEXT NOT NULL,
+                    ""PaymentDate"" TEXT NOT NULL,
+                    ""PaymentMethod"" INTEGER NOT NULL,
+                    ""ReferenceCode"" TEXT NULL,
+                    ""Note"" TEXT NULL,
+                    ""RecordedByUserId"" TEXT NOT NULL,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""IsReversed"" INTEGER NOT NULL,
+                    ""ReversalReason"" TEXT NULL,
+                    ""ReversedAt"" TEXT NULL,
+                    ""ReversedByUserId"" TEXT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_MatchSettlementPayments_AllocationId"" ON ""MatchSettlementPayments"" (""AllocationId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchSettlementAdjustmentAudits"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""AllocationId"" TEXT NOT NULL,
+                    ""PreviousAmount"" TEXT NOT NULL,
+                    ""NewAmount"" TEXT NOT NULL,
+                    ""MandatoryReason"" TEXT NOT NULL,
+                    ""AdjustedByUserId"" TEXT NOT NULL,
+                    ""AdjustedAt"" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_MatchSettlementAdjustmentAudits_AllocationId"" ON ""MatchSettlementAdjustmentAudits"" (""AllocationId"");
+            ");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error migrating Finance tables: {ex.Message}");
+        }
     }
+
+
 
     private class SeededUsers
     {
@@ -656,6 +938,146 @@ public static class DbInitializer
             db.Matches.Add(derbyMatch);
         }
 
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureRefereesAsync(ApplicationDbContext db)
+    {
+        if (await db.Referees.AnyAsync()) return;
+
+        var referees = new List<Referee>
+        {
+            new Referee
+            {
+                Name = "Nguyễn Văn Tuấn",
+                ContactInfo = "0912.345.678 - tuan.ref@aloball.vn",
+                ExperienceSummary = "Trọng tài cấp Quốc gia C2, 5 năm bắt giải phong trào Hà Nội, điều hành hơn 200 trận.",
+                SupportedFormats = "7 người, 11 người",
+                ServiceNotes = "Bắt nhiệt tình, nghiêm khắc, kiểm soát tốt các tình huống tranh chấp.",
+                DefaultPriceVND = 350000,
+                IsActive = true
+            },
+            new Referee
+            {
+                Name = "Trần Đình Trọng",
+                ContactInfo = "0987.654.321 - trong.ref@aloball.vn",
+                ExperienceSummary = "Trọng tài Futsal & sân 7 VFF, kinh nghiệm điều hành giải các doanh nghiệp.",
+                SupportedFormats = "5 người, 7 người",
+                ServiceNotes = "Di chuyển linh hoạt, xử lý chính xác luật bóng đá mini 7 người.",
+                DefaultPriceVND = 300000,
+                IsActive = true
+            },
+            new Referee
+            {
+                Name = "Lê Minh Đức",
+                ContactInfo = "0903.112.233 - duc.ref@aloball.vn",
+                ExperienceSummary = "Cựu cầu thủ sinh viên ĐHQG, chứng chỉ trọng tài sơ cấp, chuyên sân 7.",
+                SupportedFormats = "7 người",
+                ServiceNotes = "Thân thiện, giải thích luật rõ ràng, hỗ trợ ghi biên bản trận đấu.",
+                DefaultPriceVND = 250000,
+                IsActive = true
+            },
+            new Referee
+            {
+                Name = "Hoàng Quốc Việt",
+                ContactInfo = "0944.888.999 - viet.ref@aloball.vn",
+                ExperienceSummary = "Trọng tài sân 11 & sân 7, 7 năm kinh nghiệm các giải phủi miền Bắc.",
+                SupportedFormats = "7 người, 11 người",
+                ServiceNotes = "Chuyên bắt các trận cầu căng thẳng, tính chất cạnh tranh cao.",
+                DefaultPriceVND = 400000,
+                IsActive = true
+            }
+        };
+
+        db.Referees.AddRange(referees);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsurePitchVenuesAsync(ApplicationDbContext db)
+    {
+        if (await db.PitchVenues.AnyAsync()) return;
+
+        var venues = new List<PitchVenue>
+        {
+            new PitchVenue
+            {
+                Name = "Sân bóng Thành Phát",
+                Description = "Cụm sân cỏ nhân tạo hiện đại bậc nhất khu vực Cầu Giấy, hệ thống chiếu sáng chuẩn và thoát nước cực tốt.",
+                City = "Hà Nội",
+                District = "Cầu Giấy",
+                FullAddress = "Số 2 Hoàng Minh Giám, Trung Hòa, Cầu Giấy, Hà Nội",
+                ContactPhone = "0912.345.888",
+                SupportedFormats = "5 người, 7 người",
+                SurfaceType = "Cỏ nhân tạo tiêu chuẩn FIFA",
+                Facilities = "Đèn LED cao cấp, Bãi đỗ xe ô tô rộng, Nước uống miễn phí, Phòng thay đồ",
+                OpeningHours = "06:00 - 23:30",
+                IndicativePricePerHour = 450000,
+                PriceNotes = "Khung giờ vàng (17:30 - 20:30): 650.000đ/90p; Ngày thường: 450.000đ/90p",
+                ImageUrl = "https://images.unsplash.com/photo-1529900241477-94a53e3ba439?auto=format&fit=crop&w=800&q=80",
+                MapLink = "https://maps.google.com/?q=Số+2+Hoàng+Minh+Giám+Cầu+Giấy+Hà+Nội",
+                TotalPitches = 4,
+                IsActive = true
+            },
+            new PitchVenue
+            {
+                Name = "Sân bóng Thủy Lợi",
+                Description = "Cụm sân trong khuôn viên Đại học Thủy Lợi, mặt cỏ mềm, khán đài mini có mái che, vị trí trung tâm.",
+                City = "Hà Nội",
+                District = "Đống Đa",
+                FullAddress = "Ngõ 95 Chùa Bộc, Trung Liệt, Đống Đa, Hà Nội",
+                ContactPhone = "0988.777.666",
+                SupportedFormats = "7 người, 11 người",
+                SurfaceType = "Cỏ nhân tạo sợi đay cao cấp",
+                Facilities = "Khán đài mini, Căn tin nước giải khát, Tắm nóng lạnh, Gửi xe trường học",
+                OpeningHours = "06:00 - 23:00",
+                IndicativePricePerHour = 400000,
+                PriceNotes = "Khung giờ tối: 600.000đ/trận 90p; Cuối tuần phụ thu 50.000đ",
+                ImageUrl = "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80",
+                MapLink = "https://maps.google.com/?q=Ngõ+95+Chùa+Bộc+Đống+Đa+Hà+Nội",
+                TotalPitches = 6,
+                IsActive = true
+            },
+            new PitchVenue
+            {
+                Name = "Sân bóng PVV - Vinaconex 39",
+                Description = "Sân bóng quen thuộc của giới phủi Hà thành, không gian thoáng đãng, mặt sân được bảo dưỡng định kỳ.",
+                City = "Hà Nội",
+                District = "Cầu Giấy",
+                FullAddress = "Số 72 Trần Thái Tông, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
+                ContactPhone = "0904.123.456",
+                SupportedFormats = "7 người",
+                SurfaceType = "Cỏ nhân tạo monofilament",
+                Facilities = "Bãi đỗ ô tô xe máy, Đèn chiếu sáng chống chói, Cho thuê giày & áo tập",
+                OpeningHours = "06:00 - 22:30",
+                IndicativePricePerHour = 500000,
+                PriceNotes = "Giá cố định 700.000đ/trận 90p giờ cao điểm",
+                ImageUrl = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80",
+                MapLink = "https://maps.google.com/?q=72+Trần+Thái+Tông+Cầu+Giấy+Hà+Nội",
+                TotalPitches = 3,
+                IsActive = true
+            },
+            new PitchVenue
+            {
+                Name = "Sân vận động Bách Khoa",
+                Description = "Sân vận động kích thước tiêu chuẩn thi đấu 11 người hoặc chia thành 8 sân 7 người, khán đài A-B sức chứa lớn.",
+                City = "Hà Nội",
+                District = "Hai Bà Trưng",
+                FullAddress = "Số 1 Đại Cồ Việt, Bách Khoa, Hai Bà Trưng, Hà Nội",
+                ContactPhone = "0936.888.999",
+                SupportedFormats = "7 người, 11 người",
+                SurfaceType = "Cỏ tự nhiên & Cỏ nhân tạo",
+                Facilities = "Khán đài có mái che, Phòng thay đồ VIP, Hệ thống âm thanh & bảng điện tử",
+                OpeningHours = "06:00 - 22:00",
+                IndicativePricePerHour = 600000,
+                PriceNotes = "Sân 7: 650.000đ/90p; Sân 11 người: 1.800.000đ/120p",
+                ImageUrl = "https://images.unsplash.com/photo-1489944445301-4475b3d14996?auto=format&fit=crop&w=800&q=80",
+                MapLink = "https://maps.google.com/?q=Sân+vận+động+Bách+Khoa+Hà+Nội",
+                TotalPitches = 8,
+                IsActive = true
+            }
+        };
+
+        db.PitchVenues.AddRange(venues);
         await db.SaveChangesAsync();
     }
 }

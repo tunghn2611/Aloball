@@ -24,119 +24,196 @@
             </a>
         </div>
     }
+    else
+    {
+        <div>
+            <a asp-action="Messages" asp-route-teamId="@team?.Id" class="btn btn-arena-primary btn-sm shadow-sm">
+                <i class="bi bi-chat-left-text-fill me-1"></i> Liên hệ Đội trưởng
+            </a>
+        </div>
+    }
 </div>
 
-<!-- Thanh tìm kiếm & lọc nhanh -->
+
+<!-- Thanh tìm kiếm, lọc nhanh & Chế độ xem Windows Explorer -->
 <div class="arena-card p-2 mb-3">
-    <div class="row g-2">
-        <div class="col-8 col-md-9">
+    <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-4">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
                 <input type="text" id="memberSearch" class="form-control border-start-0" placeholder="Tìm kiếm theo tên, số áo, vị trí..." onkeyup="filterMembers()" />
             </div>
         </div>
-        <div class="col-4 col-md-3">
+        <div class="col-6 col-md-2">
             <select id="statusFilter" class="form-select" onchange="filterMembers()">
-                <option value="all">Tất cả (@Model.Count())</option>
-                <option value="active" selected>Đang đá</option>
+                <option value="all" selected>Tất cả (@Model.Count())</option>
+                <option value="active">Đang đá</option>
                 <option value="inactive">Nghỉ / Tạm dừng</option>
             </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select id="positionFilter" class="form-select" onchange="filterMembers()">
+                <option value="all">Tất cả vị trí</option>
+                <option value="tiền đạo">Tiền đạo</option>
+                <option value="tiền vệ">Tiền vệ</option>
+                <option value="hậu vệ">Hậu vệ</option>
+                <option value="thủ môn">Thủ môn</option>
+            </select>
+        </div>
+        <!-- Bộ chọn 7 Chế độ xem phong cách Windows File Explorer -->
+        <div class="col-12 col-md-4">
+            <div class="dropdown">
+                <button class="btn btn-arena-outline w-100 dropdown-toggle d-flex align-items-center justify-content-between text-truncate" type="button" id="rosterViewModeBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="activeViewModeLabel" class="text-truncate"><i class="bi bi-table text-primary me-1"></i> Chi tiết</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="rosterViewModeBtn">
+                    <li><h6 class="dropdown-header text-uppercase text-muted" style="font-size: 10px; letter-spacing: 1px;">Chế độ xem</h6></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item active bg-light" type="button" data-mode="details" onclick="setRosterViewMode('details')"><i class="bi bi-table text-primary"></i> <span>Chi tiết (Details) <small class="text-muted">(Mặc định)</small></span></button></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item" type="button" data-mode="content" onclick="setRosterViewMode('content')"><i class="bi bi-card-text text-primary"></i> <span>Nội dung (Content)</span></button></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item" type="button" data-mode="list" onclick="setRosterViewMode('list')"><i class="bi bi-list-ul text-primary"></i> <span>Danh sách (List)</span></button></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item" type="button" data-mode="tiles" onclick="setRosterViewMode('tiles')"><i class="bi bi-grid-fill text-primary"></i> <span>Ô gạch (Tiles)</span></button></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item" type="button" data-mode="large-icons" onclick="setRosterViewMode('large-icons')"><i class="bi bi-grid text-primary"></i> <span>Biểu tượng lớn (Large icons)</span></button></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item" type="button" data-mode="medium-icons" onclick="setRosterViewMode('medium-icons')"><i class="bi bi-grid-3x2-gap text-primary"></i> <span>Biểu tượng vừa (Medium icons)</span></button></li>
+                    <li><button class="dropdown-item d-flex align-items-center gap-2 view-mode-item" type="button" data-mode="small-icons" onclick="setRosterViewMode('small-icons')"><i class="bi bi-grid-3x3 text-primary"></i> <span>Biểu tượng nhỏ (Small icons)</span></button></li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Danh sách hiển thị Responsive (Bảng Desktop, Cards Mobile) -->
-<div class="arena-card overflow-hidden">
-    <!-- Desktop Table View -->
-    <div class="table-responsive d-none d-md-block">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-                <tr class="small text-muted text-uppercase">
-                    <th class="ps-3" style="width: 70px;">Số áo</th>
-                    <th>Cầu thủ</th>
-                    <th>Vị trí</th>
-                    <th>Tên in áo</th>
-                    <th>Size Áo / Quần</th>
-                    <th>Thể hình</th>
-                    <th>Trạng thái</th>
-                    @if (isManager) { <th><span class="visually-hidden">Thao tác</span></th> }
-                </tr>
-            </thead>
-            <tbody id="memberTableBody">
-                @foreach (var p in Model)
-                {
-                    <tr class="member-row" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
-                        <td class="ps-3">
-                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fw-bold fs-6">
-                                @(p.KitNumber?.ToString() ?? "-")
-                            </span>
-                        </td>
-                        <td>
-                            <div class="fw-bold text-dark">@p.FullName</div>
-                            @if (!string.IsNullOrEmpty(p.LinkedUserId))
-                            {
-                                <small class="text-success"><i class="bi bi-check-circle-fill"></i> Đã liên kết tài khoản</small>
-                            }
-                        </td>
-                        <td><span class="text-muted">@(p.Position ?? "Chưa đặt")</span></td>
-                        <td><code class="text-dark fw-bold">@(p.ShirtName ?? "-")</code></td>
-                        <td>
-                            <span class="badge bg-light text-dark border">Áo: @(p.ShirtSize ?? "-")</span>
-                            <span class="badge bg-light text-dark border">Quần: @(p.ShortSize ?? "-")</span>
-                        </td>
-                        <td class="small text-muted">
-                            @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "-") / @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "-")
-                        </td>
-                        <td>
-                            <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1">
-                                @(p.IsActive ? "Đang hoạt động" : "Nghỉ đá")
-                            </span>
-                        </td>
-                        @if(isManager) { <td><a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm">Sửa</a></td> }
+<!-- Container 7 Chế độ xem Roster -->
+<div id="rosterViewContainer" class="roster-view-container mode-details">
+    <!-- View Mode: Details (Bảng chi tiết Table) -->
+    <div class="roster-details-table arena-card overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr class="small text-muted text-uppercase">
+                        <th class="ps-3" style="width: 70px;">Số áo</th>
+                        <th>Cầu thủ</th>
+                        <th>Vị trí</th>
+                        <th>Tên in áo</th>
+                        <th>Size Áo / Quần</th>
+                        <th>Thể hình</th>
+                        <th>Trạng thái</th>
+                        @if (isManager) { <th><span class="visually-hidden">Thao tác</span></th> }
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody id="memberTableBody">
+                    @foreach (var p in Model)
+                    {
+                        <tr class="roster-filterable member-row" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
+                            <td class="ps-3">
+                                <span class="badge bg-secondary-subtle text-secondary border px-2 py-1 fw-bold fs-6">
+                                    @(p.KitNumber?.ToString() ?? "-")
+                                </span>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">@p.FullName</div>
+                                @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                                {
+                                    <small class="text-success"><i class="bi bi-check-circle-fill"></i> Đã liên kết tài khoản</small>
+                                }
+                            </td>
+                            <td><span class="text-muted">@(p.Position ?? "Chưa đặt")</span></td>
+                            <td><code class="text-dark fw-bold">@(p.ShirtName ?? "-")</code></td>
+                            <td>
+                                <span class="badge bg-light text-dark border">Áo: @(p.ShirtSize ?? "-")</span>
+                                <span class="badge bg-light text-dark border">Quần: @(p.ShortSize ?? "-")</span>
+                            </td>
+                            <td class="small text-muted">
+                                @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "-") / @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "-")
+                            </td>
+                            <td>
+                                <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1">
+                                    @(p.IsActive ? "Đang hoạt động" : "Nghỉ đá")
+                                </span>
+                            </td>
+                            @if(isManager) {
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                                        {
+                                            <a asp-action="Messages" asp-route-teamId="@team?.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm" title="Nhắn tin cho cầu thủ"><i class="bi bi-chat-dots"></i></a>
+                                        }
+                                        <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm">Sửa</a>
+                                    </div>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Mobile Card View (Dễ quét, không cuộn ngang) -->
-    <div class="d-md-none p-2" id="memberMobileList">
+    <!-- View Modes: Content, List, Tiles, Large icons, Medium icons, Small icons -->
+    <div class="roster-grid" id="rosterGridContainer">
         @foreach (var p in Model)
         {
-            <div class="arena-card p-3 mb-2 member-card" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-dark rounded-circle px-2 py-1 fs-6">
-                            @(p.KitNumber?.ToString() ?? "-")
-                        </span>
-                        <div>
-                            <h6 class="fw-bold mb-0 text-dark">@p.FullName</h6>
-                            <small class="text-muted">@(p.Position ?? "Cầu thủ")</small>
-                        </div>
-                    </div>
-                    <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1">
-                        @(p.IsActive ? "Đang đá" : "Nghỉ")
-                    </span>
+            <div class="roster-filterable roster-item-card" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
+                <!-- Avatar & Kit Number Badge -->
+                <div class="card-avatar-wrap bg-light border d-flex align-items-center justify-content-center text-primary position-relative flex-shrink-0">
+                    @if (p.KitNumber.HasValue)
+                    {
+                        <strong class="fw-bold">@p.KitNumber</strong>
+                    }
+                    else
+                    {
+                        <i class="bi bi-person-fill"></i>
+                    }
                 </div>
 
-                @if(isManager) { <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm mb-2">Chỉnh sửa hồ sơ</a> }
-                <div class="p-2 bg-light rounded-3 small">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-muted">In áo:</span>
-                        <strong class="text-dark">@(p.ShirtName ?? "-")</strong>
+                <!-- Main Info -->
+                <div class="roster-card-body flex-grow-1 min-w-0">
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                        <h6 class="fw-bold mb-0 text-dark text-truncate" title="@p.FullName">@p.FullName</h6>
+                        <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1 card-status-badge">
+                            @(p.IsActive ? "Đang đá" : "Nghỉ")
+                        </span>
                     </div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-muted">Size áo/quần:</span>
-                        <span>Áo: <strong>@(p.ShirtSize ?? "-")</strong> | Quần: <strong>@(p.ShortSize ?? "-")</strong></span>
+
+                    <div class="card-pos-badge mb-1">
+                        <small class="text-muted"><i class="bi bi-shield-fill me-1 text-success"></i>@(p.Position ?? "Cầu thủ")</small>
+                        @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                        {
+                            <span class="badge bg-success-subtle text-success border ms-1" style="font-size: 9px;" title="Đã liên kết tài khoản"><i class="bi bi-check"></i> Liên kết</span>
+                        }
                     </div>
+
+                    <!-- Shirt details (for Content and Tiles mode) -->
+                    <div class="card-shirt-spec small text-muted mb-1" style="font-size: 11px;">
+                        <span>In áo: <strong class="text-dark">@(p.ShirtName ?? "-")</strong></span>
+                        @if (!string.IsNullOrEmpty(p.ShirtSize) || !string.IsNullOrEmpty(p.ShortSize))
+                        {
+                            <span class="ms-1">· Size: @(p.ShirtSize ?? "-")/@(p.ShortSize ?? "-")</span>
+                        }
+                    </div>
+
+                    <!-- Physical details (for Content mode) -->
                     @if (p.HeightCm.HasValue || p.WeightKg.HasValue)
                     {
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted">Thể hình:</span>
-                            <span>@(p.HeightCm ?? 0) cm - @(p.WeightKg ?? 0) kg</span>
+                        <div class="card-body-specs small text-muted" style="font-size: 11px;">
+                            <span>Thể hình: @(p.HeightCm.HasValue ? $"{p.HeightCm}cm" : "-") / @(p.WeightKg.HasValue ? $"{p.WeightKg}kg" : "-")</span>
                         </div>
                     }
                 </div>
+
+                <!-- Action Button for Managers -->
+                @if (isManager)
+                {
+                    <div class="card-action-btn mt-2 mt-sm-0 flex-shrink-0 d-flex gap-1">
+                        @if (!string.IsNullOrEmpty(p.LinkedUserId))
+                        {
+                            <a asp-action="Messages" asp-route-teamId="@team?.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Nhắn tin cho cầu thủ">
+                                <i class="bi bi-chat-dots"></i>
+                            </a>
+                        }
+                        <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;">
+                            <i class="bi bi-pencil-square me-1"></i>Sửa
+                        </a>
+                    </div>
+                }
             </div>
         }
     </div>
@@ -240,35 +317,92 @@
 
 @section Scripts {
 <script>
+    function removeVietnameseTones(str) {
+        if (!str) return '';
+        str = str.toLowerCase();
+        str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+        str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+        str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+        str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+        str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+        str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+        str = str.replace(/đ/g, "d");
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
     function filterMembers() {
-        const query = document.getElementById('memberSearch').value.toLowerCase();
-        const filter = document.getElementById('statusFilter').value;
+        const searchInput = document.getElementById('memberSearch');
+        const statusSelect = document.getElementById('statusFilter');
+        const posSelect = document.getElementById('positionFilter');
 
-        // Filter desktop rows
-        document.querySelectorAll('.member-row').forEach(row => {
-            const name = row.getAttribute('data-name');
-            const num = row.getAttribute('data-number');
-            const pos = row.getAttribute('data-pos');
-            const active = row.getAttribute('data-active');
+        const rawQuery = searchInput ? searchInput.value.trim() : '';
+        const query = removeVietnameseTones(rawQuery);
+        const statusFilter = statusSelect ? statusSelect.value : 'all';
+        const posFilter = posSelect ? posSelect.value.toLowerCase() : 'all';
 
-            let matchQuery = name.includes(query) || num.includes(query) || pos.includes(query);
-            let matchStatus = (filter === 'all') || (filter === active);
+        document.querySelectorAll('.roster-filterable').forEach(item => {
+            const rawName = item.getAttribute('data-name') || '';
+            const name = removeVietnameseTones(rawName);
+            const num = item.getAttribute('data-number') || '';
+            const rawPos = item.getAttribute('data-pos') || '';
+            const pos = removeVietnameseTones(rawPos);
+            const active = item.getAttribute('data-active') || '';
 
-            row.style.display = (matchQuery && matchStatus) ? '' : 'none';
-        });
+            const matchQuery = !query || name.includes(query) || num.includes(query) || pos.includes(query);
+            const matchStatus = (statusFilter === 'all') || (statusFilter === active);
+            const matchPos = (posFilter === 'all') || rawPos.includes(posFilter) || pos.includes(removeVietnameseTones(posFilter));
 
-        // Filter mobile cards
-        document.querySelectorAll('.member-card').forEach(card => {
-            const name = card.getAttribute('data-name');
-            const num = card.getAttribute('data-number');
-            const pos = card.getAttribute('data-pos');
-            const active = card.getAttribute('data-active');
-
-            let matchQuery = name.includes(query) || num.includes(query) || pos.includes(query);
-            let matchStatus = (filter === 'all') || (filter === active);
-
-            card.style.display = (matchQuery && matchStatus) ? 'block' : 'none';
+            item.style.display = (matchQuery && matchStatus && matchPos) ? '' : 'none';
         });
     }
+
+    function setRosterViewMode(mode, save = true) {
+        const validModes = ['details', 'content', 'list', 'tiles', 'large-icons', 'medium-icons', 'small-icons'];
+        if (!validModes.includes(mode)) mode = 'details';
+
+        const container = document.getElementById('rosterViewContainer');
+        if (container) {
+            validModes.forEach(m => container.classList.remove('mode-' + m));
+            container.classList.add('mode-' + mode);
+        }
+
+        const labels = {
+            'details': '<i class="bi bi-table text-primary me-1"></i> Chi tiết',
+            'content': '<i class="bi bi-card-text text-primary me-1"></i> Nội dung',
+            'list': '<i class="bi bi-list-ul text-primary me-1"></i> Danh sách',
+            'tiles': '<i class="bi bi-grid-fill text-primary me-1"></i> Ô gạch',
+            'large-icons': '<i class="bi bi-grid text-primary me-1"></i> Biểu tượng lớn',
+            'medium-icons': '<i class="bi bi-grid-3x2-gap text-primary me-1"></i> Biểu tượng vừa',
+            'small-icons': '<i class="bi bi-grid-3x3 text-primary me-1"></i> Biểu tượng nhỏ'
+        };
+
+        const labelEl = document.getElementById('activeViewModeLabel');
+        if (labelEl && labels[mode]) {
+            labelEl.innerHTML = labels[mode];
+        }
+
+        document.querySelectorAll('.view-mode-item').forEach(btn => {
+            if (btn.getAttribute('data-mode') === mode) {
+                btn.classList.add('active', 'bg-light');
+            } else {
+                btn.classList.remove('active', 'bg-light');
+            }
+        });
+
+        if (save) {
+            try {
+                localStorage.setItem('aloball_roster_view_mode', mode);
+            } catch (e) { }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        let saved = 'details';
+        try {
+            saved = localStorage.getItem('aloball_roster_view_mode') || 'details';
+        } catch (e) { }
+        setRosterViewMode(saved, false);
+        filterMembers();
+    });
 </script>
 }

@@ -1,0 +1,305 @@
+@{
+    var team = ViewBag.Team as AloBall.Web.Data.Entities.Team;
+    ViewData["Title"] = $"Tin nhắn & Liên hệ - {team?.Name}";
+    bool isManager = ViewBag.IsManager ?? false;
+    var userRole = ViewBag.UserRole as AloBall.Web.Data.Entities.TeamRole?;
+    var announcements = ViewBag.Announcements as List<AloBall.Web.Data.Entities.TeamMessage> ?? new();
+    var conversations = ViewBag.Conversations as List<AloBall.Web.Services.ConversationSummaryDto> ?? new();
+    var members = ViewBag.TeamMembers as List<AloBall.Web.Data.Entities.TeamMember> ?? new();
+    int unreadCount = ViewBag.UnreadCount ?? 0;
+    string activeTab = ViewBag.ActiveTab as string ?? "inbox";
+    var preselectedUser = ViewBag.PreselectedUser as AloBall.Web.Data.Entities.ApplicationUser;
+}
+
+@await Html.PartialAsync("_TeamNavigation", team!.Id)
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">LIÊN LẠC NỘI BỘ · @team?.Name</span>
+        <h1>Hộp thư & Thông báo đội.</h1>
+        <p>Kênh trao đổi riêng tư, an toàn giữa cầu thủ và Ban cán sự / Đội trưởng.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        @if (isManager)
+        {
+            <button class="btn btn-arena-outline btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#announcementModal">
+                <i class="bi bi-megaphone-fill me-1 text-warning"></i> Đăng thông báo đội
+            </button>
+            <button class="btn btn-arena-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#messageMemberModal">
+                <i class="bi bi-send-fill me-1"></i> Nhắn tin cho thành viên
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-arena-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#contactCaptainModal">
+                <i class="bi bi-chat-left-text-fill me-1"></i> Liên hệ Đội trưởng
+            </button>
+        }
+    </div>
+</div>
+
+<!-- Nav Tabs -->
+<ul class="nav nav-pills mb-4 gap-2" id="messageTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeTab == "inbox" ? "active" : "") fw-bold px-3 py-2" id="inbox-tab" data-bs-toggle="pill" data-bs-target="#inbox-pane" type="button" role="tab">
+            <i class="bi bi-inbox-fill me-1"></i> Hộp thư liên hệ
+            @if (unreadCount > 0)
+            {
+                <span class="badge bg-danger rounded-pill ms-1">@unreadCount mới</span>
+            }
+            else
+            {
+                <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">@conversations.Count</span>
+            }
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(activeTab == "announcements" ? "active" : "") fw-bold px-3 py-2" id="announcements-tab" data-bs-toggle="pill" data-bs-target="#announcements-pane" type="button" role="tab">
+            <i class="bi bi-megaphone-fill me-1"></i> Thông báo toàn đội
+            <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">@announcements.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="messageTabContent">
+    <!-- Tab 1: Hộp thư liên hệ -->
+    <div class="tab-pane fade @(activeTab == "inbox" ? "show active" : "")" id="inbox-pane" role="tabpanel">
+        @if (!conversations.Any())
+        {
+            <div class="arena-card text-center p-5">
+                <div class="display-4 text-muted mb-3"><i class="bi bi-chat-square-dots"></i></div>
+                <h5 class="fw-bold text-dark">Chưa có cuộc trò chuyện nào</h5>
+                <p class="text-muted small mb-4">
+                    @(isManager ? "Hiện chưa có thành viên nào gửi tin nhắn liên hệ về Ban cán sự." : "Bạn chưa gửi tin nhắn nào tới Đội trưởng hoặc Ban cán sự.")
+                </p>
+                <div>
+                    @if (isManager)
+                    {
+                        <button class="btn btn-arena-primary btn-sm" data-bs-toggle="modal" data-bs-target="#messageMemberModal">
+                            <i class="bi bi-send-fill me-1"></i> Gửi tin nhắn cho thành viên
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-arena-primary btn-sm" data-bs-toggle="modal" data-bs-target="#contactCaptainModal">
+                            <i class="bi bi-chat-left-text-fill me-1"></i> Gửi tin nhắn ngay
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="list-group list-group-flush arena-card overflow-hidden">
+                @foreach (var c in conversations)
+                {
+                    <a asp-action="Conversation" asp-route-teamId="@team?.Id" asp-route-conversationId="@c.ConversationId" class="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between gap-3 border-bottom @(c.UnreadCount > 0 ? "bg-light" : "")">
+                        <div class="d-flex align-items-center gap-3 min-w-0">
+                            <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center flex-shrink-0 text-primary fw-bold" style="width: 44px; height: 44px; font-size: 1.1rem;">
+                                @(string.IsNullOrEmpty(c.OtherPartyName) ? "A" : c.OtherPartyName.Substring(0, 1).ToUpperInvariant())
+                            </div>
+                            <div class="min-w-0">
+                                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                    <span class="fw-bold text-dark text-truncate">@c.OtherPartyName</span>
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0" style="font-size: 11px;">@c.OtherPartyRole</span>
+                                    @if (c.UnreadCount > 0)
+                                    {
+                                        <span class="badge bg-danger rounded-pill" style="font-size: 10px;">@c.UnreadCount tin mới</span>
+                                    }
+                                </div>
+                                <h6 class="fw-semibold text-dark mb-1 text-truncate">@c.Title</h6>
+                                <p class="text-muted small mb-0 text-truncate" style="max-width: 600px;">@c.LastMessageContent</p>
+                            </div>
+                        </div>
+                        <div class="text-end flex-shrink-0">
+                            <small class="text-muted d-block mb-1">@c.LastMessageAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                            <span class="btn btn-arena-outline btn-sm py-0 px-2" style="font-size: 12px;">Xem & Phản hồi <i class="bi bi-chevron-right ms-1"></i></span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Tab 2: Thông báo toàn đội -->
+    <div class="tab-pane fade @(activeTab == "announcements" ? "show active" : "")" id="announcements-pane" role="tabpanel">
+        @if (!announcements.Any())
+        {
+            <div class="arena-card text-center p-5">
+                <div class="display-4 text-warning mb-3"><i class="bi bi-megaphone"></i></div>
+                <h5 class="fw-bold text-dark">Chưa có thông báo nào từ Ban cán sự</h5>
+                <p class="text-muted small mb-0">Các thông báo chung về lịch thi đấu, sân bãi và hoạt động của đội sẽ xuất hiện tại đây.</p>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3">
+                @foreach (var a in announcements)
+                {
+                    <div class="arena-card p-4">
+                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                        <i class="bi bi-pin-angle-fill me-1"></i> Thông báo toàn đội
+                                    </span>
+                                    <span class="small text-muted">
+                                        Người đăng: <strong>@(string.IsNullOrWhiteSpace(a.SenderUser?.FullName) ? a.SenderUser?.UserName : a.SenderUser.FullName)</strong>
+                                    </span>
+                                </div>
+                                <h4 class="fw-bold text-dark mb-0">@a.Title</h4>
+                            </div>
+                            <span class="text-muted small">
+                                <i class="bi bi-clock me-1"></i>@a.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                            </span>
+                        </div>
+                        <hr class="my-2" />
+                        <div class="text-dark py-2" style="white-space: pre-line; line-height: 1.6;">@a.Content</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal 1: Thành viên liên hệ Đội trưởng / Ban cán sự -->
+<div class="modal fade" id="contactCaptainModal" tabindex="-1" aria-labelledby="contactCaptainModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="contactCaptainModalLabel">
+                    <i class="bi bi-chat-left-text text-primary me-2"></i>Liên hệ Đội trưởng / Ban cán sự
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <form asp-action="SendMessageToCaptain" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="teamId" value="@team?.Id" />
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                        Tin nhắn này sẽ được gửi trực tiếp và bảo mật đến Đội trưởng và Ban cán sự đội bóng <strong>@team?.Name</strong>.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tiêu đề tin nhắn <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" placeholder="Ví dụ: Xin phép vắng mặt trận tới, Đăng ký số áo..." maxlength="200" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nội dung chi tiết <span class="text-danger">*</span></label>
+                        <textarea name="content" class="form-control" rows="5" placeholder="Nhập nội dung bạn muốn trao đổi với Đội trưởng..." maxlength="2000" required></textarea>
+                        <div class="form-text text-end">Tối đa 2000 ký tự.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-arena-primary">
+                        <i class="bi bi-send-fill me-1"></i> Gửi tin nhắn
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Lãnh đạo gửi tin nhắn cho thành viên cụ thể -->
+@if (isManager)
+{
+    <div class="modal fade" id="messageMemberModal" tabindex="-1" aria-labelledby="messageMemberModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="messageMemberModalLabel">
+                        <i class="bi bi-send text-primary me-2"></i>Gửi tin nhắn cho thành viên
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form asp-action="SendMessageToMember" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chọn thành viên nhận tin <span class="text-danger">*</span></label>
+                            <select name="recipientUserId" class="form-select" required>
+                                <option value="">-- Chọn cầu thủ / thành viên --</option>
+                                @foreach (var m in members)
+                                {
+                                    bool isSelected = preselectedUser != null && preselectedUser.Id == m.UserId;
+                                    <option value="@m.UserId" selected="@(isSelected ? "selected" : null)">
+                                        @(string.IsNullOrWhiteSpace(m.User.FullName) ? m.User.UserName : m.User.FullName) (@m.Role)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề tin nhắn <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" placeholder="Ví dụ: Nhắc nhở chuyên cần, Phân công nhiệm vụ..." maxlength="200" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nội dung <span class="text-danger">*</span></label>
+                            <textarea name="content" class="form-control" rows="5" placeholder="Nhập nội dung gửi tới thành viên..." maxlength="2000" required></textarea>
+                            <div class="form-text text-end">Tối đa 2000 ký tự.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">
+                            <i class="bi bi-send-fill me-1"></i> Gửi tin nhắn
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Đăng thông báo toàn đội -->
+    <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="announcementModalLabel">
+                        <i class="bi bi-megaphone text-warning me-2"></i>Đăng thông báo toàn đội
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form asp-action="SendAnnouncement" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <div class="modal-body p-4">
+                        <p class="small text-muted mb-3">
+                            Thông báo này sẽ được hiển thị công khai tới <strong>tất cả thành viên hiện tại</strong> của đội bóng trong mục Thông báo đội.
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề thông báo <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" placeholder="Ví dụ: Lịch thi đấu tuần này, Thay đổi sân thi đấu..." maxlength="200" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nội dung thông báo <span class="text-danger">*</span></label>
+                            <textarea name="content" class="form-control" rows="6" placeholder="Nhập đầy đủ thông tin chi tiết cần phổ biến tới toàn đội..." maxlength="2000" required></textarea>
+                            <div class="form-text text-end">Tối đa 2000 ký tự.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-arena-primary">
+                            <i class="bi bi-megaphone-fill me-1"></i> Phát thông báo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+@if (preselectedUser != null && isManager)
+{
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalEl = document.getElementById('messageMemberModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        });
+    </script>
+}
+}

@@ -17,6 +17,8 @@ public partial class MatchesController : Controller
     private readonly IMatchmakingService _matchmaking;
     private readonly IFireKeepingService _fireKeeping;
     private readonly AloBall.Web.Services.TeamDivision.ITeamDivisionEngine _divisionEngine;
+    private readonly ITeamMessagingService? _teamMessaging;
+    private readonly IAttendanceCalculationEngine? _calcEngine;
 
     public MatchesController(
         ApplicationDbContext db,
@@ -24,7 +26,9 @@ public partial class MatchesController : Controller
         ITeamAuthorizationService auth,
         IMatchmakingService matchmaking,
         IFireKeepingService fireKeeping,
-        AloBall.Web.Services.TeamDivision.ITeamDivisionEngine divisionEngine)
+        AloBall.Web.Services.TeamDivision.ITeamDivisionEngine divisionEngine,
+        ITeamMessagingService? teamMessaging = null,
+        IAttendanceCalculationEngine? calcEngine = null)
     {
         _db = db;
         _userManager = userManager;
@@ -32,9 +36,11 @@ public partial class MatchesController : Controller
         _matchmaking = matchmaking;
         _fireKeeping = fireKeeping;
         _divisionEngine = divisionEngine;
+        _teamMessaging = teamMessaging;
+        _calcEngine = calcEngine;
     }
 
-    // 1. Chi tiết trận đấu & Đội hình 2 bên
+    // 1. Chi tiết trận đấu & Đội hình 2 bên (Matchday Center)
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> Detail(Guid id)
@@ -70,11 +76,201 @@ public partial class MatchesController : Controller
             }
         }
 
+        bool memberA = user != null && await _auth.HasMemberAccessAsync(match.TeamAId, user.Id);
+        bool memberB = user != null && match.TeamBId.HasValue && await _auth.HasMemberAccessAsync(match.TeamBId.Value, user.Id);
+
         ViewBag.IsManagerA = isManagerA;
         ViewBag.IsManagerB = isManagerB;
-        ViewBag.MemberA = user != null && await _auth.HasMemberAccessAsync(match.TeamAId, user.Id);
-        ViewBag.MemberB = user != null && match.TeamBId.HasValue && await _auth.HasMemberAccessAsync(match.TeamBId.Value, user.Id);
+        ViewBag.MemberA = memberA;
+        ViewBag.MemberB = memberB;
         ViewBag.CanReview = (isManagerA || isManagerB) && match.Status == MatchStatus.Completed && match.TeamBId.HasValue && match.ConfirmedByTeamA && match.ConfirmedByTeamB && match.MatchDateTime <= CompetitionRules.LocalNow;
+
+        // 1. Tích hợp Sân bóng (PitchBookingRequests) & Phát hiện lệch lịch
+        var pitchRequests = await _db.PitchBookingRequests
+            .Include(p => p.PitchVenue)
+            .Include(p => p.Offers)
+            .Where(p => p.MatchId == match.Id)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var confirmedPitchRequest = pitchRequests.FirstOrDefault(r => r.Status == PitchBookingStatus.Confirmed);
+        var acceptedPitchOffer = confirmedPitchRequest?.Offers.FirstOrDefault(o => o.Status == PitchBookingOfferStatus.Accepted);
+        bool hasPitchDiscrepancy = false;
+        DateTime? confirmedPitchDateTime = null;
+        if (acceptedPitchOffer != null)
+        {
+            confirmedPitchDateTime = acceptedPitchOffer.ConfirmedDate.Date + acceptedPitchOffer.ConfirmedStartTime;
+            bool pitchNameDiff = !string.Equals(match.PitchName?.Trim(), acceptedPitchOffer.ConfirmedVenueName?.Trim(), StringComparison.OrdinalIgnoreCase);
+            bool timeDiff = Math.Abs((match.MatchDateTime - confirmedPitchDateTime.Value).TotalMinutes) > 5;
+            hasPitchDiscrepancy = pitchNameDiff || timeDiff;
+        }
+
+        // 2. Tích hợp Trọng tài (RefereeRequests) - Tuyệt đối không để lộ thông tin liên lạc nhạy cảm trước khi chốt
+        var refereeRequests = await _db.RefereeRequests
+            .Include(r => r.Proposals)
+                .ThenInclude(p => p.Assignments)
+                    .ThenInclude(a => a.Referee)
+            .Where(r => r.MatchId == match.Id)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        var confirmedRefereeRequest = refereeRequests.FirstOrDefault(r => r.Status == RefereeRequestStatus.Confirmed);
+        var acceptedRefereeProposal = confirmedRefereeRequest?.Proposals.FirstOrDefault(p => p.Status == RefereeProposalStatus.Accepted);
+
+        // 3. Tích hợp Điểm danh (RSVP) & Buổi sinh hoạt
+        Guid viewerTeamId = (isManagerB || memberB) && match.TeamBId.HasValue ? match.TeamBId.Value : match.TeamAId;
+
+        var attendanceSession = await _db.AttendanceSessions
+            .Include(s => s.Records)
+                .ThenInclude(r => r.Player)
+            .FirstOrDefaultAsync(s => s.MatchId == match.Id && s.TeamId == viewerTeamId);
+
+        if (attendanceSession == null && (isManagerA || memberA || isManagerB || memberB))
+        {
+            attendanceSession = await _db.AttendanceSessions
+                .Include(s => s.Records)
+                    .ThenInclude(r => r.Player)
+                .FirstOrDefaultAsync(s => s.TeamId == viewerTeamId && s.MatchId == null && s.SessionDateTime.Date == match.MatchDateTime.Date);
+
+            if (attendanceSession != null)
+            {
+                attendanceSession.MatchId = match.Id;
+                await _db.SaveChangesAsync();
+            }
+            else if (isManagerA || isManagerB)
+            {
+                var period = match.MatchDateTime.ToString("yyyy-MM");
+                if (!await CompetitionRules.IsClosedAsync(_db, viewerTeamId, period))
+                {
+                    attendanceSession = new AttendanceSession
+                    {
+                        TeamId = viewerTeamId,
+                        MatchId = match.Id,
+                        Title = $"Trận đấu - {match.PitchName}",
+                        SessionDateTime = match.MatchDateTime,
+                        ResponseDeadline = match.MatchDateTime.Date.AddHours(12),
+                        StatisticalPeriod = period,
+                        PitchName = match.PitchName ?? string.Empty,
+                        PitchType = match.PitchType ?? "7 người",
+                        Status = SessionStatus.Draft,
+                        Notes = match.Notes
+                    };
+                    _db.AttendanceSessions.Add(attendanceSession);
+                    await _db.SaveChangesAsync();
+
+                    var teamPlayers = await _db.Players
+                        .Where(p => p.TeamId == viewerTeamId && p.IsActive)
+                        .ToListAsync();
+                    foreach (var p in teamPlayers)
+                    {
+                        _db.AttendanceRecords.Add(new AttendanceRecord
+                        {
+                            SessionId = attendanceSession.Id,
+                            PlayerId = p.Id,
+                            Response = ResponseStatus.NotRecorded,
+                            Actual = ActualStatus.NotChecked
+                        });
+                    }
+                    await _db.SaveChangesAsync();
+                }
+            }
+        }
+
+        AttendanceRecord? myRecord = null;
+        if (user != null && attendanceSession != null)
+        {
+            myRecord = attendanceSession.Records.FirstOrDefault(r => r.Player.LinkedUserId == user.Id);
+        }
+
+        // 4. Đánh giá độ sẵn sàng của Đội hình (Lineup Readiness)
+        int requiredStartersPerSide = match.PitchType switch
+        {
+            "5 người" => 5,
+            "11 người" => 11,
+            _ => 7
+        };
+
+        bool isLineupReady = false;
+        int startersCountA = 0;
+        int startersCountB = 0;
+        int subsCount = match.Lineups.Count(l => !l.IsStarting);
+
+        if (match.Category == MatchCategory.Internal)
+        {
+            startersCountA = match.Lineups.Count(l => l.TeamSide == "A" && l.IsStarting);
+            startersCountB = match.Lineups.Count(l => l.TeamSide == "B" && l.IsStarting);
+            isLineupReady = startersCountA >= requiredStartersPerSide && startersCountB >= requiredStartersPerSide;
+        }
+        else
+        {
+            startersCountA = match.Lineups.Count(l => l.TeamId == match.TeamAId && l.IsStarting);
+            startersCountB = match.TeamBId.HasValue ? match.Lineups.Count(l => l.TeamId == match.TeamBId.Value && l.IsStarting) : 0;
+
+            if (isManagerB || memberB)
+            {
+                isLineupReady = startersCountB >= requiredStartersPerSide;
+            }
+            else if (isManagerA || memberA)
+            {
+                isLineupReady = startersCountA >= requiredStartersPerSide;
+            }
+            else
+            {
+                isLineupReady = startersCountA >= requiredStartersPerSide && (!match.TeamBId.HasValue || startersCountB >= requiredStartersPerSide);
+            }
+        }
+
+        // 5. Thống kê phong độ chính thức (Chỉ từ các trận ĐÃ XÁC NHẬN)
+        int teamAWins = 0;
+        int teamADraws = 0;
+        int teamALosses = 0;
+        if (match.Status == MatchStatus.Completed)
+        {
+            var confirmedMatches = await _db.Matches
+                .Where(m => m.Status == MatchStatus.Completed && m.ConfirmedByTeamA && (m.ConfirmedByTeamB || !m.TeamBId.HasValue) && (m.TeamAId == match.TeamAId || m.TeamBId == match.TeamAId) && m.ScoreA.HasValue && m.ScoreB.HasValue)
+                .ToListAsync();
+
+            foreach (var cm in confirmedMatches)
+            {
+                bool isHome = cm.TeamAId == match.TeamAId;
+                int myScore = isHome ? cm.ScoreA!.Value : cm.ScoreB!.Value;
+                int oppScore = isHome ? cm.ScoreB!.Value : cm.ScoreA!.Value;
+
+                if (myScore > oppScore) teamAWins++;
+                else if (myScore == oppScore) teamADraws++;
+                else teamALosses++;
+            }
+        }
+
+        ViewBag.PitchRequests = pitchRequests;
+        ViewBag.RefereeRequests = refereeRequests;
+        ViewBag.ConfirmedPitchRequest = confirmedPitchRequest;
+        ViewBag.AcceptedPitchOffer = acceptedPitchOffer;
+        ViewBag.HasPitchDiscrepancy = hasPitchDiscrepancy;
+        ViewBag.ConfirmedPitchDateTime = confirmedPitchDateTime;
+        ViewBag.ConfirmedRefereeRequest = confirmedRefereeRequest;
+        ViewBag.AcceptedRefereeProposal = acceptedRefereeProposal;
+        ViewBag.AttendanceSession = attendanceSession;
+        ViewBag.MyRecord = myRecord;
+        ViewBag.ViewerTeamId = viewerTeamId;
+        ViewBag.IsLineupReady = isLineupReady;
+        ViewBag.RequiredStarters = requiredStartersPerSide;
+        ViewBag.StartersCountA = startersCountA;
+        ViewBag.StartersCountB = startersCountB;
+        ViewBag.SubsCount = subsCount;
+        ViewBag.GatheringDateTime = match.MatchDateTime.AddMinutes(-30);
+        ViewBag.TeamAWins = teamAWins;
+        ViewBag.TeamADraws = teamADraws;
+        ViewBag.TeamALosses = teamALosses;
+
+        // Smart Match Finance Overview
+        var matchSettlement = await _db.MatchSettlements
+            .FirstOrDefaultAsync(s => s.MatchId == id && s.TeamId == viewerTeamId);
+        var customEstimates = await _db.MatchExpenseEstimates
+            .Where(e => e.MatchId == id && e.TeamId == viewerTeamId)
+            .ToListAsync();
+        ViewBag.MatchSettlement = matchSettlement;
+        ViewBag.CustomEstimates = customEstimates;
 
         return View(match);
     }

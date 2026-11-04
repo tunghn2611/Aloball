@@ -11,6 +11,18 @@ public class ApplicationUser : IdentityUser
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Profile & Onboarding
+    [MaxLength(20)]
+    public string? PreferredFoot { get; set; }
+    [MaxLength(50)]
+    public string? Experience { get; set; }
+    [MaxLength(100)]
+    public string? Region { get; set; }
+    [MaxLength(50)]
+    public string? PrimaryPosition { get; set; }
+    public bool HasCompletedOnboarding { get; set; } = false;
+    public DateTime? OnboardingCompletedAt { get; set; }
+
     // Quan hệ với các đội bóng
     public ICollection<TeamMember> TeamMemberships { get; set; } = new List<TeamMember>();
     // Quan hệ với hồ sơ cầu thủ (1 user có thể liên kết hồ sơ cầu thủ)
@@ -36,6 +48,8 @@ public class Team
     public string Slug { get; set; } = string.Empty; // unique slug cho URL công khai
 
     public string? LogoUrl { get; set; }
+    public string? CoverImageUrl { get; set; }
+    public double? CoverOpacity { get; set; } = 0.7; // Default 70% opacity for newly created covers
     public DateTime? EstablishedDate { get; set; }
     public string? Description { get; set; }
     public string? ActivityArea { get; set; }
@@ -60,6 +74,7 @@ public class Team
     public ICollection<KitOrderBatch> KitOrderBatches { get; set; } = new List<KitOrderBatch>();
     public ICollection<MatchmakingPost> MatchmakingPosts { get; set; } = new List<MatchmakingPost>();
     public ICollection<CompetitionAchievement> Achievements { get; set; } = new List<CompetitionAchievement>();
+    public ICollection<TeamMessage> Messages { get; set; } = new List<TeamMessage>();
 }
 
 public class TeamMember
@@ -117,14 +132,61 @@ public class Player
 
     public string? InternalNotes { get; set; }
 
+    [MaxLength(20)]
+    public string? PreferredFoot { get; set; }
+    [MaxLength(50)]
+    public string? Experience { get; set; }
+    [MaxLength(100)]
+    public string? Region { get; set; }
+
     // Cấu hình công khai từng trường
     public bool IsPublicProfile { get; set; } = true;
     public bool PublicKitNumber { get; set; } = true;
     public bool PublicPosition { get; set; } = true;
     public bool PublicHeightWeight { get; set; } = false;
     public bool PublicPhoto { get; set; } = true;
+    public bool PublicPreferredFoot { get; set; } = false;
+    public bool PublicExperience { get; set; } = false;
 
     // Navigation
     public ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
     public ICollection<MatchPlayerLineup> MatchLineups { get; set; } = new List<MatchPlayerLineup>();
 }
+
+public enum TeamMessageType
+{
+    Direct = 0,        // Tin nhắn liên hệ trực tiếp 1-1 giữa Thành viên và Ban cán sự / Đội trưởng
+    Announcement = 1  // Thông báo toàn đội từ Ban cán sự / Đội trưởng
+}
+
+public class TeamMessage
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
+
+    [Required]
+    public string SenderUserId { get; set; } = string.Empty;
+    public ApplicationUser SenderUser { get; set; } = null!;
+
+    public string? RecipientUserId { get; set; }
+    public ApplicationUser? RecipientUser { get; set; }
+
+    public Guid ConversationId { get; set; } = Guid.NewGuid();
+
+    public TeamMessageType MessageType { get; set; } = TeamMessageType.Direct;
+
+    [Required, MaxLength(200)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required, MaxLength(2000)]
+    public string Content { get; set; } = string.Empty;
+
+    public bool IsRead { get; set; } = false;
+    public DateTime? ReadAt { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+

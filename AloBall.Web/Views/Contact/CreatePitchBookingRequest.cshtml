@@ -1,0 +1,121 @@
+@model AloBall.Web.Models.CreatePitchBookingRequestViewModel
+@{
+    ViewData["Title"] = "Gửi yêu cầu đặt sân bóng";
+    var managedTeams = ViewBag.ManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
+    var activeVenues = ViewBag.ActiveVenues as IEnumerable<AloBall.Web.Data.Entities.PitchVenue> ?? Enumerable.Empty<AloBall.Web.Data.Entities.PitchVenue>();
+}
+
+<header class="page-heading">
+    <div>
+        <span class="eyebrow">DỊCH VỤ ĐẶT SÂN BÓNG</span>
+        <h1>Yêu cầu đặt sân thi đấu</h1>
+        <p class="text-muted">Chọn sân bóng, khung giờ và yêu cầu cụ thể. AloBall sẽ liên hệ chủ sân để xác nhận chỗ và gửi báo giá chính xác cho bạn.</p>
+    </div>
+</header>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="arena-card p-4">
+            <form asp-action="CreatePitchBookingRequest" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="MatchId" />
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                @if (Model.MatchId.HasValue)
+                {
+                    <div class="alert alert-success-subtle border-0 mb-4 d-flex align-items-center gap-2">
+                        <i class="bi bi-link-45deg fs-4 text-success"></i>
+                        <div>
+                            <strong>Đặt sân cho trận đấu đã lên lịch.</strong>
+                            <div class="small text-muted">Các thông tin ngày giờ và thể thức đã được tự động điền sẵn từ lịch thi đấu.</div>
+                        </div>
+                    </div>
+                }
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label asp-for="TeamId" class="form-label fw-bold">Đội bóng đặt sân <span class="text-danger">*</span></label>
+                        <select asp-for="TeamId" class="form-select" required>
+                            @foreach (var t in managedTeams)
+                            {
+                                <option value="@t.Id">@t.Name</option>
+                            }
+                        </select>
+                        <span asp-validation-for="TeamId" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label asp-for="PitchVenueId" class="form-label fw-bold">Cụm sân muốn đặt <span class="text-danger">*</span></label>
+                        <select asp-for="PitchVenueId" class="form-select" required>
+                            @foreach (var v in activeVenues)
+                            {
+                                <option value="@v.Id">@v.Name (@v.District, @v.City)</option>
+                            }
+                        </select>
+                        <span asp-validation-for="PitchVenueId" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-4">
+                        <label asp-for="ServiceDate" class="form-label fw-semibold">Ngày thi đấu <span class="text-danger">*</span></label>
+                        <input asp-for="ServiceDate" type="date" class="form-control" required min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        <span asp-validation-for="ServiceDate" class="text-danger small"></span>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label asp-for="StartTime" class="form-label fw-semibold">Giờ bắt đầu <span class="text-danger">*</span></label>
+                        <input asp-for="StartTime" type="time" class="form-control" required />
+                        <span asp-validation-for="StartTime" class="text-danger small"></span>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label asp-for="EndTime" class="form-label fw-semibold">Giờ kết thúc <span class="text-danger">*</span></label>
+                        <input asp-for="EndTime" type="time" class="form-control" required />
+                        <span asp-validation-for="EndTime" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-4">
+                        <label asp-for="PitchFormat" class="form-label fw-semibold">Thể thức sân <span class="text-danger">*</span></label>
+                        <select asp-for="PitchFormat" class="form-select" required>
+                            <option value="7 người">Sân 7 người</option>
+                            <option value="5 người">Sân 5 người</option>
+                            <option value="11 người">Sân 11 người</option>
+                        </select>
+                        <span asp-validation-for="PitchFormat" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="PitchCount" class="form-label fw-semibold">Số lượng sân cần thuê <span class="text-danger">*</span></label>
+                        <input asp-for="PitchCount" type="number" min="1" max="20" class="form-control" required />
+                        <span asp-validation-for="PitchCount" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="BudgetVND" class="form-label fw-semibold">Ngân sách dự kiến (VNĐ)</label>
+                        <input asp-for="BudgetVND" type="number" min="0" step="50000" class="form-control" placeholder="Ví dụ: 650000" />
+                        <span asp-validation-for="BudgetVND" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Notes" class="form-label fw-semibold">Ghi chú hoặc yêu cầu vị trí sân</label>
+                    <textarea asp-for="Notes" rows="3" class="form-control" placeholder="Ví dụ: Cần sân số 1 gần khán đài, bóng mới, yêu cầu thêm nước uống và áo lưới..."></textarea>
+                    <span asp-validation-for="Notes" class="text-danger small"></span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a asp-action="Index" asp-route-tab="stadium" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Quay lại
+                    </a>
+                    <button type="submit" class="btn btn-arena-primary px-4">
+                        <i class="bi bi-send-fill me-1"></i> Gửi yêu cầu đặt sân
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

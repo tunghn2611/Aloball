@@ -1,0 +1,148 @@
+@model AloBall.Web.Models.PitchVenueFormViewModel
+@{
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Sửa thông tin cụm sân" : "Thêm cụm sân mới";
+}
+
+<div class="page-heading">
+    <div>
+        <span class="eyebrow">QUẢN TRỊ DANH BẠ SÂN BÓNG</span>
+        <h1>@(isEdit ? "Cập nhật thông tin cụm sân" : "Thêm cụm sân bóng mới")</h1>
+        <p class="text-muted mb-0">Cung cấp đầy đủ thông tin địa chỉ, hotline và quy mô cụm sân để phục vụ điều phối đặt sân cho các đội bóng.</p>
+    </div>
+    <div>
+        <a asp-action="PitchVenues" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Danh bạ sân bóng
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="arena-card p-4">
+            <form asp-action="@(isEdit ? "EditPitchVenue" : "CreatePitchVenue")" method="post">
+                @Html.AntiForgeryToken()
+                @if (isEdit)
+                {
+                    <input type="hidden" asp-for="Id" />
+                }
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label fw-bold">Tên cụm sân bóng <span class="text-danger">*</span></label>
+                    <input asp-for="Name" class="form-control" placeholder="Ví dụ: Sân bóng Thành Phát" required />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label asp-for="City" class="form-label fw-bold">Tỉnh / Thành phố <span class="text-danger">*</span></label>
+                        <input asp-for="City" class="form-control" placeholder="Hà Nội" required />
+                        <span asp-validation-for="City" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="District" class="form-label fw-bold">Quận / Huyện <span class="text-danger">*</span></label>
+                        <input asp-for="District" class="form-control" placeholder="Cầu Giấy" required />
+                        <span asp-validation-for="District" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-8">
+                        <label asp-for="FullAddress" class="form-label fw-bold">Địa chỉ chi tiết <span class="text-danger">*</span></label>
+                        <input asp-for="FullAddress" class="form-control" placeholder="Số 2 Hoàng Minh Giám, Trung Hòa, Cầu Giấy" required />
+                        <span asp-validation-for="FullAddress" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="ContactPhone" class="form-label fw-bold">Hotline liên hệ sân <span class="text-danger">*</span></label>
+                        <input asp-for="ContactPhone" class="form-control" placeholder="0912.345.888" required />
+                        <span asp-validation-for="ContactPhone" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-4">
+                        <label asp-for="SupportedFormats" class="form-label fw-semibold">Thể thức sân hỗ trợ <span class="text-danger">*</span></label>
+                        <input asp-for="SupportedFormats" class="form-control" placeholder="5 người, 7 người" required />
+                        <span asp-validation-for="SupportedFormats" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="SurfaceType" class="form-label fw-semibold">Loại mặt sân <span class="text-danger">*</span></label>
+                        <input asp-for="SurfaceType" class="form-control" placeholder="Cỏ nhân tạo" required />
+                        <span asp-validation-for="SurfaceType" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="TotalPitches" class="form-label fw-semibold">Tổng số sân con <span class="text-danger">*</span></label>
+                        <input asp-for="TotalPitches" type="number" min="1" max="50" class="form-control" required />
+                        <span asp-validation-for="TotalPitches" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-4">
+                        <label asp-for="OpeningHours" class="form-label fw-semibold">Giờ mở cửa</label>
+                        <input asp-for="OpeningHours" class="form-control" placeholder="06:00 - 23:00" />
+                        <span asp-validation-for="OpeningHours" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="IndicativePricePerHour" class="form-label fw-semibold">Giá tham khảo (VNĐ/giờ)</label>
+                        <input asp-for="IndicativePricePerHour" type="number" step="50000" min="0" class="form-control" placeholder="500000" />
+                        <span asp-validation-for="IndicativePricePerHour" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label asp-for="PriceNotes" class="form-label fw-semibold">Ghi chú biểu phí</label>
+                        <input asp-for="PriceNotes" class="form-control" placeholder="Giờ vàng: 650k, Ngày thường: 450k" />
+                        <span asp-validation-for="PriceNotes" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Facilities" class="form-label fw-semibold">Tiện ích đi kèm (ngăn cách bởi dấu phẩy)</label>
+                    <input asp-for="Facilities" class="form-control" placeholder="Đèn LED, Bãi đỗ ô tô, Phòng thay đồ, Tắm nóng lạnh, Nước miễn phí" />
+                    <span asp-validation-for="Facilities" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label asp-for="ImageUrl" class="form-label fw-semibold">URL Hình ảnh sân bóng</label>
+                        <input asp-for="ImageUrl" class="form-control" placeholder="https://images.unsplash.com/..." />
+                        <span asp-validation-for="ImageUrl" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="MapLink" class="form-label fw-semibold">Liên kết Google Maps</label>
+                        <input asp-for="MapLink" class="form-control" placeholder="https://maps.google.com/..." />
+                        <span asp-validation-for="MapLink" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Description" class="form-label fw-semibold">Mô tả cụm sân</label>
+                    <textarea asp-for="Description" rows="3" class="form-control" placeholder="Giới thiệu không gian, vị trí, đánh giá chất lượng cỏ..."></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                </div>
+
+                <div class="form-check form-switch mb-4">
+                    <input class="form-check-input" type="checkbox" asp-for="IsActive" id="isActiveVenueSwitch" />
+                    <label class="form-check-label fw-semibold" for="isActiveVenueSwitch">
+                        Kích hoạt nhận đặt sân
+                    </label>
+                    <div class="form-text">Khi tắt, cụm sân sẽ ẩn khỏi danh sách tìm kiếm công khai nhưng lịch sử đặt sân vẫn được bảo tồn trọn vẹn.</div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a asp-action="PitchVenues" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Hủy
+                    </a>
+                    <button type="submit" class="btn btn-arena-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Lưu thông tin cụm sân
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

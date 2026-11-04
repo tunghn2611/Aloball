@@ -1,28 +1,286 @@
 @model AloBall.Web.Data.Entities.MatchGame
 @{
-    ViewData["Title"] = $"Chi tiết Trận đấu - {Model.PitchName}";
+    ViewData["Title"] = $"Matchday Center - {Model.PitchName}";
     bool isManagerA = ViewBag.IsManagerA ?? false;
     bool isManagerB = ViewBag.IsManagerB ?? false;
     bool canReview = ViewBag.CanReview ?? false;
     bool memberA = ViewBag.MemberA ?? false;
     bool memberB = ViewBag.MemberB ?? false;
+    bool isManager = isManagerA || isManagerB;
+    bool isMember = memberA || memberB;
+
+    Guid viewerTeamId = ViewBag.ViewerTeamId ?? Model.TeamAId;
+    DateTime gatheringDateTime = ViewBag.GatheringDateTime ?? Model.MatchDateTime.AddMinutes(-30);
+    bool isLineupReady = ViewBag.IsLineupReady ?? false;
+    int requiredStarters = ViewBag.RequiredStarters ?? 7;
+    int startersCountA = ViewBag.StartersCountA ?? 0;
+    int startersCountB = ViewBag.StartersCountB ?? 0;
+    int subsCount = ViewBag.SubsCount ?? 0;
+
+    var pitchRequests = ViewBag.PitchRequests as List<AloBall.Web.Data.Entities.PitchBookingRequest> ?? new();
+    var refereeRequests = ViewBag.RefereeRequests as List<AloBall.Web.Data.Entities.RefereeRequest> ?? new();
+    var confirmedPitchRequest = ViewBag.ConfirmedPitchRequest as AloBall.Web.Data.Entities.PitchBookingRequest;
+    var acceptedPitchOffer = ViewBag.AcceptedPitchOffer as AloBall.Web.Data.Entities.PitchBookingOffer;
+    bool hasPitchDiscrepancy = ViewBag.HasPitchDiscrepancy ?? false;
+    DateTime? confirmedPitchDateTime = ViewBag.ConfirmedPitchDateTime as DateTime?;
+
+    var confirmedRefereeRequest = ViewBag.ConfirmedRefereeRequest as AloBall.Web.Data.Entities.RefereeRequest;
+    var acceptedRefereeProposal = ViewBag.AcceptedRefereeProposal as AloBall.Web.Data.Entities.RefereeProposal;
+
+    var attendanceSession = ViewBag.AttendanceSession as AloBall.Web.Data.Entities.AttendanceSession;
+    var myRecord = ViewBag.MyRecord as AloBall.Web.Data.Entities.AttendanceRecord;
+
+    int teamAWins = ViewBag.TeamAWins ?? 0;
+    int teamADraws = ViewBag.TeamADraws ?? 0;
+    int teamALosses = ViewBag.TeamALosses ?? 0;
+
     bool CanSee(AloBall.Web.Data.Entities.Player p) => p.IsPublicProfile || (p.TeamId == Model.TeamAId && memberA) || (p.TeamId == Model.TeamBId && memberB);
+
+    int attendingCount = attendanceSession?.Records.Count(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.Attending) ?? 0;
+    int excusedCount = attendanceSession?.Records.Count(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.Excused) ?? 0;
+    int unansweredCount = attendanceSession?.Records.Count(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.NotRecorded || r.Response == AloBall.Web.Data.Entities.ResponseStatus.NoResponse) ?? 0;
+    int totalActiveRsvp = attendanceSession?.Records.Count ?? 0;
+
+    // Smart Match Finance Variables
+    var matchSettlement = ViewBag.MatchSettlement as AloBall.Web.Data.Entities.MatchSettlement;
+    var customEstimates = ViewBag.CustomEstimates as List<AloBall.Web.Data.Entities.MatchExpenseEstimate> ?? new();
+    decimal pitchCost = acceptedPitchOffer?.TotalPriceVND ?? 0m;
+    decimal refCost = acceptedRefereeProposal?.TotalPriceVND ?? 0m;
+    decimal customTotal = customEstimates.Sum(e => e.EstimatedAmount);
+    decimal totalForecast = pitchCost + refCost + customTotal;
+    int expectedExpCount = attendingCount > 0 ? attendingCount : (Model.PitchType == "11 người" ? 11 : (Model.PitchType == "5 người" ? 5 : 7));
+    decimal estPerPerson = expectedExpCount > 0 ? Math.Round(totalForecast / expectedExpCount, 0) : totalForecast;
 }
 
 @if (memberA || memberB) { @await Html.PartialAsync("_TeamNavigation", memberA ? Model.TeamAId : Model.TeamBId!.Value) }
 
 <div class="row justify-content-center">
     <div class="col-12">
-        <header class="page-heading"><div><span class="eyebrow">MATCHDAY</span><h1>Ngày thi đấu</h1><p>@Model.MatchDateTime.ToString("dd/MM/yyyy · HH:mm") · @Model.PitchName · @Model.PitchType</p></div><span class="badge bg-light text-dark">@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Đá nội bộ" : Model.Category == AloBall.Web.Data.Entities.MatchCategory.Tournament ? "Đá giải" : "Giao hữu")</span></header>
+        <!-- MATCHDAY CENTER HEADER -->
+        <header class="page-heading mb-3">
+            <div>
+                <span class="eyebrow"><i class="bi bi-broadcast me-1"></i>MATCHDAY CENTER</span>
+                <h1 class="h2 mb-1">Trung tâm Ngày thi đấu</h1>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-calendar3 me-1"></i>@Model.MatchDateTime.ToString("dd/MM/yyyy · dddd") · 
+                    <i class="bi bi-clock me-1"></i>Tập trung: <strong>@gatheringDateTime.ToString("HH:mm")</strong> (Bóng lăn: <strong>@Model.MatchDateTime.ToString("HH:mm")</strong>) · 
+                    <i class="bi bi-geo-alt me-1"></i>@Model.PitchName (@Model.PitchType)
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-dark px-3 py-2">
+                    @(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Đá nội bộ" : Model.Category == AloBall.Web.Data.Entities.MatchCategory.Tournament ? "Đá giải" : "Giao hữu")
+                </span>
+                <span class="badge @(Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed ? "bg-success" : "bg-warning text-dark") px-3 py-2">
+                    @(Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed ? "Đã kết thúc" : "Sắp diễn ra")
+                </span>
+            </div>
+        </header>
+
+        <!-- PREPARATION CHECKLIST PILLS -->
+        <div class="arena-card p-3 mb-3 bg-white">
+            <div class="row g-2 text-center small">
+                <!-- 1. Sân bóng -->
+                <div class="col-6 col-md-3">
+                    <div class="p-2 rounded border @(confirmedPitchRequest != null ? "bg-success-subtle border-success text-success" : pitchRequests.Any() ? "bg-warning-subtle border-warning text-dark" : "bg-light text-muted")">
+                        <span class="d-block text-uppercase fw-bold" style="font-size: 0.72rem;">Sân bóng</span>
+                        <div class="fw-semibold mt-1">
+                            @if (confirmedPitchRequest != null)
+                            {
+                                <i class="bi bi-check-circle-fill me-1"></i><span>Đã chốt sân</span>
+                            }
+                            else if (pitchRequests.Any())
+                            {
+                                <i class="bi bi-hourglass-split me-1"></i><span>Đang đặt sân</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-dash-circle me-1"></i><span>Tự bố trí</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Trọng tài -->
+                <div class="col-6 col-md-3">
+                    <div class="p-2 rounded border @(confirmedRefereeRequest != null ? "bg-success-subtle border-success text-success" : refereeRequests.Any() ? "bg-warning-subtle border-warning text-dark" : "bg-light text-muted")">
+                        <span class="d-block text-uppercase fw-bold" style="font-size: 0.72rem;">Trọng tài</span>
+                        <div class="fw-semibold mt-1">
+                            @if (confirmedRefereeRequest != null)
+                            {
+                                <i class="bi bi-check-circle-fill me-1"></i><span>Đã có trọng tài</span>
+                            }
+                            else if (refereeRequests.Any())
+                            {
+                                <i class="bi bi-hourglass-split me-1"></i><span>Đang yêu cầu</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-dash-circle me-1"></i><span>Chưa yêu cầu</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Điểm danh RSVP -->
+                <div class="col-6 col-md-3">
+                    <div class="p-2 rounded border @(attendingCount >= requiredStarters ? "bg-success-subtle border-success text-success" : "bg-warning-subtle border-warning text-dark")">
+                        <span class="d-block text-uppercase fw-bold" style="font-size: 0.72rem;">Điểm danh (RSVP)</span>
+                        <div class="fw-semibold mt-1">
+                            <i class="bi bi-people-fill me-1"></i><span>@attendingCount có mặt / @unansweredCount chưa báo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Đội hình thi đấu -->
+                <div class="col-6 col-md-3">
+                    <div class="p-2 rounded border @(isLineupReady ? "bg-success-subtle border-success text-success" : "bg-warning-subtle border-warning text-dark")">
+                        <span class="d-block text-uppercase fw-bold" style="font-size: 0.72rem;">Đội hình</span>
+                        <div class="fw-semibold mt-1">
+                            @if (isLineupReady)
+                            {
+                                <i class="bi bi-shield-check me-1"></i><span>Đã sẵn sàng</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-exclamation-triangle me-1"></i><span>Chưa đủ quân</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SMART MATCH FINANCE OVERVIEW PILL / BANNER -->
+        <div class="arena-card p-3 mb-3 bg-white border-start border-4 @(matchSettlement != null ? "border-success" : "border-primary")">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 @(matchSettlement != null ? "bg-success-subtle text-success" : "bg-primary-subtle text-primary")" style="width: 44px; height: 44px; font-size: 20px;">
+                        <i class="bi @(matchSettlement != null ? "bi-check2-circle" : "bi-cash-coin")"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="eyebrow" style="font-size: 0.7rem;">TÀI CHÍNH &amp; QUỸ TRẬN</span>
+                            @if (matchSettlement != null)
+                            {
+                                <span class="badge bg-success text-white px-2 py-0" style="font-size: 0.65rem;">
+                                    <i class="bi bi-patch-check-fill me-1"></i>ĐÃ QUYẾT TOÁN
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0" style="font-size: 0.65rem;">
+                                    DỰ BÁO CHI PHÍ
+                                </span>
+                            }
+                        </div>
+                        <div class="d-flex align-items-baseline gap-2 flex-wrap">
+                            @if (matchSettlement != null)
+                            {
+                                <span class="fs-5 fw-bold text-dark">@matchSettlement.TotalAmount.ToString("N0") đ</span>
+                                <small class="text-muted">(Đã chia cho @matchSettlement.ParticipantCount người: <strong>@matchSettlement.PerPersonShare.ToString("N0") đ/người</strong>)</small>
+                            }
+                            else
+                            {
+                                <span class="fs-5 fw-bold text-dark">~@totalForecast.ToString("N0") đ</span>
+                                <small class="text-muted">Ước tính: <strong class="text-primary">~@estPerPerson.ToString("N0") đ/người</strong> (theo @expectedExpCount người dự kiến)</small>
+                            }
+                        </div>
+                        <div class="small text-muted mt-1 d-flex gap-3 flex-wrap" style="font-size: 11px;">
+                            <span><i class="bi bi-geo-alt me-1 text-danger"></i>Sân: <strong>@(pitchCost > 0 ? $"{pitchCost:N0} đ (Đã chốt)" : "Tự thỏa thuận")</strong></span>
+                            <span><i class="bi bi-person-badge me-1 text-info"></i>Trọng tài: <strong>@(refCost > 0 ? $"{refCost:N0} đ (Đã chốt)" : "Chưa có")</strong></span>
+                            @if (customTotal > 0)
+                            {
+                                <span><i class="bi bi-plus-circle me-1 text-success"></i>Phụ phí: <strong>+@customTotal.ToString("N0") đ</strong></span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    @if (matchSettlement != null)
+                    {
+                        <a asp-controller="Finance" asp-action="SettlementDetail" asp-route-matchId="@Model.Id" asp-route-teamId="@viewerTeamId" class="btn btn-arena-primary btn-sm px-3 shadow-sm">
+                            <i class="bi bi-receipt me-1"></i> Bảng thu chi &amp; nộp tiền
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Finance" asp-action="MatchFinance" asp-route-matchId="@Model.Id" asp-route-teamId="@viewerTeamId" class="btn btn-arena-outline btn-sm">
+                            <i class="bi bi-calculator me-1"></i> Chi tiết dự toán
+                        </a>
+                        @if (isManager)
+                        {
+                            <a asp-controller="Finance" asp-action="CreateSettlement" asp-route-matchId="@Model.Id" asp-route-teamId="@viewerTeamId" class="btn btn-arena-primary btn-sm px-3 fw-bold shadow-sm">
+                                <i class="bi bi-wallet2 me-1"></i> Quyết toán trận
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- DISCREPANCY ALERT BANNER -->
+        @if (hasPitchDiscrepancy && acceptedPitchOffer != null)
+        {
+            <div class="alert alert-warning border border-warning shadow-sm mb-3" role="alert">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-exclamation-circle-fill me-2 text-warning"></i>Phát hiện lệch giờ / địa điểm giữa lịch trận và đơn đặt sân đã chốt!</h6>
+                        <ul class="mb-0 small text-dark ps-3">
+                            <li><strong>Lịch ban đầu:</strong> @Model.PitchName lúc @Model.MatchDateTime.ToString("HH:mm dd/MM/yyyy")</li>
+                            <li><strong>Sân đã chốt:</strong> @acceptedPitchOffer.ConfirmedVenueName (@acceptedPitchOffer.ConfirmedAddress) lúc @confirmedPitchDateTime?.ToString("HH:mm dd/MM/yyyy")</li>
+                        </ul>
+                    </div>
+                    @if (isManager)
+                    {
+                        <form asp-action="SyncMatchWithConfirmedPitch" method="post" class="mt-2 mt-md-0">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@Model.Id" />
+                            <button type="submit" class="btn btn-warning btn-sm fw-bold shadow-sm">
+                                <i class="bi bi-arrow-repeat me-1"></i> Đồng bộ theo Sân đã chốt
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- SCOREBOARD & MATCH RESULT -->
         <div class="match-scoreboard mb-4">
             <div class="scoreboard-teams">
-                <div><span class="scoreboard-crest"><i class="bi bi-shield-shaded"></i></span><h2>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên A" : Model.TeamA.Name)</h2><span class="small">CHỦ NHÀ</span></div>
-                <div class="scoreboard-result"><strong>@(Model.ScoreA?.ToString() ?? "–")<span>:</span>@(Model.ScoreB?.ToString() ?? "–")</strong><small>TỈ SỐ TRẬN ĐẤU</small></div>
-                <div><span class="scoreboard-crest away"><i class="bi bi-shield-shaded"></i></span><h2>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên B" : Model.TeamB?.Name ?? Model.TeamBExternalName ?? "Đối thủ ngoài")</h2><span class="small">ĐỘI KHÁCH</span></div>
-            </div>            <div class="mt-2 d-flex justify-content-center align-items-center gap-2 flex-wrap">
-                <span class="badge @(Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed ? "bg-success" : "bg-warning text-dark") px-3 py-2 rounded-pill">
-                    @(Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed ? "Đã hoàn thành" : "Chưa hoàn thành")
-                </span>
+                <div>
+                    <span class="scoreboard-crest"><i class="bi bi-shield-shaded"></i></span>
+                    <h2>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên A" : Model.TeamA.Name)</h2>
+                    <span class="small">CHỦ NHÀ</span>
+                </div>
+                <div class="scoreboard-result">
+                    <strong>@(Model.ScoreA?.ToString() ?? "–")<span>:</span>@(Model.ScoreB?.ToString() ?? "–")</strong>
+                    <small>TỈ SỐ TRẬN ĐẤU</small>
+                </div>
+                <div>
+                    <span class="scoreboard-crest away"><i class="bi bi-shield-shaded"></i></span>
+                    <h2>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên B" : Model.TeamB?.Name ?? Model.TeamBExternalName ?? "Đối thủ ngoài")</h2>
+                    <span class="small">ĐỘI KHÁCH</span>
+                </div>
+            </div>
+
+            <div class="mt-2 d-flex justify-content-center align-items-center gap-2 flex-wrap">
+                @if (Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed)
+                {
+                    @if (Model.ConfirmedByTeamA && (Model.ConfirmedByTeamB || !Model.TeamBId.HasValue))
+                    {
+                        <span class="badge bg-success px-3 py-2 rounded-pill">
+                            <i class="bi bi-patch-check-fill me-1"></i> Kết quả chính thức (Đã xác nhận 2 bên)
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                            <i class="bi bi-hourglass-split me-1"></i> Đang chờ xác nhận đối chiếu tỉ số
+                        </span>
+                    }
+                }
 
                 @if (Model.Category != AloBall.Web.Data.Entities.MatchCategory.Internal && Model.TeamB != null)
                 {
@@ -57,7 +315,376 @@
             </div>
         </div>
 
-        <!-- Cập nhật tỉ số (Dành cho Lãnh đạo) -->
+        <!-- SECTION 1: CÁ NHÂN ĐIỂM DANH (PLAYER QUICK RSVP) -->
+        @if (myRecord != null && attendanceSession != null)
+        {
+            bool isPastDeadline = DateTime.UtcNow > attendanceSession.ResponseDeadline;
+            <div class="arena-card p-3 mb-3 border-start border-4 border-primary">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <span class="eyebrow text-primary">PHẢN HỒI CỦA BẠN</span>
+                        <h5 class="fw-bold text-dark mb-1">
+                            #@(myRecord.Player.KitNumber?.ToString() ?? "-") @myRecord.Player.FullName
+                        </h5>
+                        <p class="small text-muted mb-0">
+                            Trạng thái hiện tại: 
+                            @if (myRecord.Response == AloBall.Web.Data.Entities.ResponseStatus.Attending)
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Đã xác nhận tham gia</span>
+                            }
+                            else if (myRecord.Response == AloBall.Web.Data.Entities.ResponseStatus.Excused)
+                            {
+                                <span class="badge bg-secondary"><i class="bi bi-x-circle-fill me-1"></i>Đã báo vắng</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark"><i class="bi bi-question-circle-fill me-1"></i>Chưa phản hồi</span>
+                            }
+                            <span class="ms-2">Hạn chót: <strong>@attendanceSession.ResponseDeadline.ToString("HH:mm dd/MM/yyyy")</strong></span>
+                            @if (isPastDeadline)
+                            {
+                                <span class="text-danger fw-semibold ms-1">(Đã hết hạn chót)</span>
+                            }
+                        </p>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <form asp-action="SubmitMatchRsvp" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@Model.Id" />
+                            <input type="hidden" name="recordId" value="@myRecord.Id" />
+                            <input type="hidden" name="responseStatus" value="1" />
+                            <button type="submit" class="btn btn-success btn-sm px-3 fw-bold @(myRecord.Response == AloBall.Web.Data.Entities.ResponseStatus.Attending ? "shadow" : "")" style="min-height: 40px;">
+                                <i class="bi bi-hand-thumbs-up-fill me-1"></i> Tôi sẽ tham gia
+                            </button>
+                        </form>
+
+                        <form asp-action="SubmitMatchRsvp" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@Model.Id" />
+                            <input type="hidden" name="recordId" value="@myRecord.Id" />
+                            <input type="hidden" name="responseStatus" value="2" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm px-3 fw-bold" style="min-height: 40px;">
+                                <i class="bi bi-hand-thumbs-down-fill me-1"></i> Báo vắng
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- SECTION 2: QUẢN LÝ RSVP & ĐIỂM DANH TOÀN ĐỘI (RSVP SUMMARY & REMINDERS) -->
+        @if (attendanceSession != null && isMember)
+        {
+            <div class="arena-card p-3 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold text-dark mb-0">
+                            <i class="bi bi-clipboard-check-fill text-primary me-2"></i>Tình hình Điểm danh & Quân số (@attendanceSession.Team?.Name ?? "Đội bóng")
+                        </h6>
+                        <small class="text-muted">
+                            Hạn chót phản hồi: <strong>@attendanceSession.ResponseDeadline.ToString("HH:mm · dd/MM/yyyy")</strong>
+                        </small>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (isManager)
+                        {
+                            <button type="button" class="btn btn-outline-warning btn-sm fw-semibold text-dark" data-bs-toggle="collapse" data-bs-target="#reminderBox" aria-expanded="false">
+                                <i class="bi bi-bell-fill text-warning me-1"></i> Nhắc nhở (@unansweredCount chưa báo)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#deadlineBox" aria-expanded="false">
+                                <i class="bi bi-calendar-event me-1"></i> Đổi hạn chót
+                            </button>
+                            <a asp-controller="Attendance" asp-action="Detail" asp-route-id="@attendanceSession.Id" class="btn btn-arena-outline btn-sm">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Sổ điểm danh
+                            </a>
+                        }
+                    </div>
+                </div>
+
+                <!-- Form đổi hạn chót (Collapse) -->
+                @if (isManager)
+                {
+                    <div class="collapse mb-3" id="deadlineBox">
+                        <div class="p-3 bg-light rounded border">
+                            <form asp-action="UpdateRsvpDeadline" method="post" class="row g-2 align-items-end">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="matchId" value="@Model.Id" />
+                                <input type="hidden" name="sessionId" value="@attendanceSession.Id" />
+                                <div class="col-12 col-md-6">
+                                    <label class="small fw-semibold text-muted">Hạn chót điểm danh mới:</label>
+                                    <input type="datetime-local" name="responseDeadline" class="form-control form-control-sm" value="@attendanceSession.ResponseDeadline.ToString("yyyy-MM-ddTHH:mm")" required />
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">Cập nhật hạn chót</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Form gửi nhắc nhở (Collapse) -->
+                    <div class="collapse mb-3" id="reminderBox">
+                        <div class="p-3 bg-warning-subtle rounded border border-warning">
+                            <h6 class="fw-bold small text-dark mb-1"><i class="bi bi-send-fill me-1"></i> Gửi thông báo & nhắc nhở thành viên chưa điểm danh</h6>
+                            <p class="small text-muted mb-2">Hệ thống sẽ gửi thông báo toàn đội và tin nhắn trực tiếp đến <strong>@unansweredCount</strong> cầu thủ chưa phản hồi.</p>
+                            <form asp-action="SendMatchReminder" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="matchId" value="@Model.Id" />
+                                <input type="hidden" name="teamId" value="@viewerTeamId" />
+                                <div class="mb-2">
+                                    <input type="text" name="customNote" class="form-control form-control-sm" placeholder="Ghi chú thêm từ BHL (vd: mang đủ 2 bộ áo sáng/tối)..." />
+                                </div>
+                                <button type="submit" class="btn btn-warning btn-sm fw-bold">
+                                    <i class="bi bi-bell-fill me-1"></i> Gửi nhắc nhở ngay
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                }
+
+                <!-- Counters -->
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-4">
+                        <div class="p-2 bg-success-subtle text-success rounded border border-success">
+                            <span class="d-block small fw-bold">THAM GIA</span>
+                            <strong class="fs-5">@attendingCount</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 bg-secondary-subtle text-secondary rounded border border-secondary">
+                            <span class="d-block small fw-bold">BÁO VẮNG</span>
+                            <strong class="fs-5">@excusedCount</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2 bg-warning-subtle text-dark rounded border border-warning">
+                            <span class="d-block small fw-bold">CHƯA PHẢN HỒI</span>
+                            <strong class="fs-5 text-warning-emphasis">@unansweredCount</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danh sách cầu thủ theo trạng thái -->
+                <div class="row g-2">
+                    <div class="col-12 col-md-6">
+                        <div class="p-2 bg-light rounded border h-100">
+                            <span class="small fw-bold text-success d-block mb-1"><i class="bi bi-check-circle-fill me-1"></i> Danh sách tham gia (@attendingCount):</span>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var r in attendanceSession.Records.Where(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.Attending))
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success">#@(r.Player.KitNumber?.ToString() ?? "-") @r.Player.FullName</span>
+                                }
+                                @if (attendingCount == 0)
+                                {
+                                    <span class="small text-muted fst-italic">Chưa có cầu thủ xác nhận</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <div class="p-2 bg-light rounded border h-100">
+                            <span class="small fw-bold text-danger d-block mb-1"><i class="bi bi-bell-fill me-1"></i> Cần phản hồi gấp (@unansweredCount):</span>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var r in attendanceSession.Records.Where(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.NotRecorded || r.Response == AloBall.Web.Data.Entities.ResponseStatus.NoResponse))
+                                {
+                                    <span class="badge bg-warning-subtle text-dark border border-warning">#@(r.Player.KitNumber?.ToString() ?? "-") @r.Player.FullName</span>
+                                }
+                                @if (unansweredCount == 0)
+                                {
+                                    <span class="small text-success fst-italic"><i class="bi bi-check-all me-1"></i>Tất cả đã phản hồi</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- SECTION 3: TÍCH HỢP DỊCH VỤ SÂN BÓNG & TRỌNG TÀI -->
+        <div class="row g-3 mb-3">
+            <!-- Card Sân bóng -->
+            <div class="col-12 col-md-6">
+                <div class="arena-card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-dark mb-0">
+                            <i class="bi bi-pin-map-fill text-danger me-1"></i> Dịch vụ Sân bóng
+                        </h6>
+                        @if (confirmedPitchRequest != null)
+                        {
+                            <span class="badge bg-success">Đã chốt sân</span>
+                        }
+                        else if (pitchRequests.Any())
+                        {
+                            <span class="badge bg-warning text-dark">Đang xử lý</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-light text-muted border">Tự túc</span>
+                        }
+                    </div>
+
+                    @if (confirmedPitchRequest != null && acceptedPitchOffer != null)
+                    {
+                        <div class="p-2 bg-light rounded border mb-2 small">
+                            <div class="fw-bold text-primary">@acceptedPitchOffer.ConfirmedVenueName</div>
+                            <div class="text-muted"><i class="bi bi-geo-alt me-1"></i>@acceptedPitchOffer.ConfirmedAddress</div>
+                            <div><i class="bi bi-clock me-1"></i>@acceptedPitchOffer.ConfirmedStartTime.ToString(@"hh\:mm") – @acceptedPitchOffer.ConfirmedEndTime.ToString(@"hh\:mm") (@acceptedPitchOffer.ConfirmedDate.ToString("dd/MM/yyyy"))</div>
+                            <div><i class="bi bi-cash me-1"></i>Chi phí: <strong>@acceptedPitchOffer.TotalPriceVND.ToString("N0") VNĐ</strong></div>
+                        </div>
+                        <a asp-controller="Contact" asp-action="PitchBookingRequestDetails" asp-route-id="@confirmedPitchRequest.Id" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-eye me-1"></i> Xem chi tiết đơn đặt sân
+                        </a>
+                    }
+                    else if (pitchRequests.Any())
+                    {
+                        var latestPitchReq = pitchRequests.First();
+                        <div class="p-2 bg-light rounded border mb-2 small">
+                            <div>Trạng thái: <strong>@latestPitchReq.Status</strong></div>
+                            <div>Sân dự kiến: @latestPitchReq.PitchVenue?.Name (@latestPitchReq.PitchFormat)</div>
+                            <div class="text-muted">Ngày giờ: @latestPitchReq.ServiceDate.ToString("dd/MM/yyyy") @latestPitchReq.StartTime.ToString(@"hh\:mm")</div>
+                        </div>
+                        <a asp-controller="Contact" asp-action="PitchBookingRequestDetails" asp-route-id="@latestPitchReq.Id" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-eye me-1"></i> Theo dõi tiến độ đặt sân
+                        </a>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-3">Chưa gửi yêu cầu đặt sân qua Aloball cho trận đấu này.</p>
+                        @if (isManager && Model.Status != AloBall.Web.Data.Entities.MatchStatus.Completed)
+                        {
+                            <a asp-controller="Contact" asp-action="Index" class="btn btn-arena-outline btn-sm w-100">
+                                <i class="bi bi-search me-1"></i> Tìm & Đặt sân bóng
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Card Trọng tài -->
+            <div class="col-12 col-md-6">
+                <div class="arena-card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-dark mb-0">
+                            <i class="bi bi-flag-fill text-warning me-1"></i> Dịch vụ Trọng tài
+                        </h6>
+                        @if (confirmedRefereeRequest != null)
+                        {
+                            <span class="badge bg-success">Đã bố trí</span>
+                        }
+                        else if (refereeRequests.Any())
+                        {
+                            <span class="badge bg-warning text-dark">Đang điều phối</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-light text-muted border">Chưa yêu cầu</span>
+                        }
+                    </div>
+
+                    @if (confirmedRefereeRequest != null && acceptedRefereeProposal != null)
+                    {
+                        <div class="p-2 bg-light rounded border mb-2 small">
+                            <div class="fw-bold text-success"><i class="bi bi-check-circle me-1"></i>Đã xác nhận tổ trọng tài</div>
+                            <div>Chi phí: <strong>@acceptedRefereeProposal.TotalPriceVND.ToString("N0") VNĐ</strong></div>
+                            @if (acceptedRefereeProposal.Assignments.Any())
+                            {
+                                <div class="mt-1">
+                                    <span class="fw-semibold">Trọng tài điều hành:</span>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach (var assign in acceptedRefereeProposal.Assignments)
+                                        {
+                                            <li>
+                                                <strong>@assign.Referee.Name</strong>
+                                                @if (!string.IsNullOrEmpty(assign.Referee.ContactInfo))
+                                                {
+                                                    <span class="text-primary ms-1">(@assign.Referee.ContactInfo)</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                        <a asp-controller="Contact" asp-action="RefereeRequestDetails" asp-route-id="@confirmedRefereeRequest.Id" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-eye me-1"></i> Xem chi tiết điều phối trọng tài
+                        </a>
+                    }
+                    else if (refereeRequests.Any())
+                    {
+                        var latestRefReq = refereeRequests.First();
+                        <div class="p-2 bg-light rounded border mb-2 small">
+                            <div>Trạng thái: <strong>@latestRefReq.Status</strong></div>
+                            <div>Số lượng: @latestRefReq.RefereeCount trọng tài (@latestRefReq.MatchFormat)</div>
+                            <div class="text-muted">Ngày: @latestRefReq.ServiceDate.ToString("dd/MM/yyyy") lúc @latestRefReq.StartTime.ToString(@"hh\:mm")</div>
+                        </div>
+                        <a asp-controller="Contact" asp-action="RefereeRequestDetails" asp-route-id="@latestRefReq.Id" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="bi bi-eye me-1"></i> Xem đề xuất trọng tài
+                        </a>
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-3">Chưa gửi yêu cầu trọng tài cho trận đấu này.</p>
+                        @if (isManager && Model.Status != AloBall.Web.Data.Entities.MatchStatus.Completed)
+                        {
+                            <a asp-controller="Contact" asp-action="CreateRefereeRequest" asp-route-matchId="@Model.Id" class="btn btn-arena-outline btn-sm w-100">
+                                <i class="bi bi-flag me-1"></i> Yêu cầu trọng tài
+                            </a>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 4: THỐNG KÊ KẾT QUẢ CHÍNH THỨC & PHONG ĐỘ (POST-MATCH SUMMARY) -->
+        @if (Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed)
+        {
+            <div class="arena-card p-3 mb-3 bg-light border">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-dark mb-0">
+                        <i class="bi bi-trophy-fill text-warning me-2"></i>Tổng kết & Phong độ chính thức
+                    </h6>
+                    <span class="small text-muted">Chỉ ghi nhận từ các trận đã đối soát hoàn tất</span>
+                </div>
+                <div class="row g-2 align-items-center">
+                    <div class="col-12 col-md-6">
+                        <div class="p-2 bg-white rounded border">
+                            <span class="small text-muted d-block">Kết quả trận đấu:</span>
+                            <div class="fw-bold fs-6">
+                                @if (Model.ScoreA.HasValue && Model.ScoreB.HasValue)
+                                {
+                                    if (Model.ScoreA > Model.ScoreB)
+                                    {
+                                        <span class="text-success"><i class="bi bi-award-fill me-1"></i>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên A" : Model.TeamA.Name) thắng (@Model.ScoreA - @Model.ScoreB)</span>
+                                    }
+                                    else if (Model.ScoreB > Model.ScoreA)
+                                    {
+                                        <span class="text-success"><i class="bi bi-award-fill me-1"></i>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên B" : Model.TeamB?.Name ?? Model.TeamBExternalName ?? "Khách") thắng (@Model.ScoreB - @Model.ScoreA)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-primary"><i class="bi bi-dash-circle-fill me-1"></i>Hai đội hòa nhau (@Model.ScoreA - @Model.ScoreB)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="p-2 bg-white rounded border text-center">
+                            <span class="small text-muted d-block">Phong độ chính thức của @Model.TeamA.Name:</span>
+                            <div class="fw-bold fs-6 text-dark">
+                                <span class="text-success">@teamAWins Thắng</span> · 
+                                <span class="text-primary">@teamADraws Hòa</span> · 
+                                <span class="text-danger">@teamALosses Thua</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- SECTION 5: CẬP NHẬT TỈ SỐ (Dành cho Lãnh đạo) -->
         @if (isManagerA || isManagerB)
         {
             <div class="arena-card p-3 mb-3">
@@ -79,81 +706,138 @@
                     </div>
                 </form>
             </div>
+        }
 
-            <!-- Quản lý Đội hình thi đấu & Bàn thắng phục vụ Giữ Lửa -->
-            <div class="arena-card p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="fw-bold text-dark mb-0">
-                        <span class="me-1">🔥</span> Danh sách thi đấu & Bàn thắng (Tính điểm AB)
-                    </h6>
-                    <span class="small text-muted">Có mặt thi đấu: +1 AB nếu thắng • Ghi bàn: +3 AB • Kiến tạo: +1 AB</span>
-                </div>
+        <!-- SECTION 6: QUẢN LÝ ĐỘI HÌNH & BÀN THẮNG PHỤC VỤ GIỮ LỬA -->
+        <div class="arena-card p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold text-dark mb-0">
+                    <span class="me-1">🔥</span> Đội hình thi đấu & Bàn thắng (Tính điểm AB)
+                </h6>
+                <span class="small text-muted">Có mặt thi đấu: +1 AB nếu thắng • Ghi bàn: +3 AB • Kiến tạo: +1 AB</span>
+            </div>
 
-                <!-- Đội hình thi đấu: Phân biệt trận nội bộ (Bên A vs Bên B) và trận đối ngoại (Team A & Team B) -->
-                @{
-                    bool isInternal = Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal;
-                }
+            @{
+                bool isInternal = Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal;
+            }
 
-                @if (isInternal)
+            @if (isInternal)
+            {
+                if (isManagerA)
                 {
-                    if (isManagerA)
-                    {
-                        <partial name="_InternalDivisionPartial" model="Model" />
-                    }
-                    else
-                    {
-                        <div class="row g-3 mb-3">
-                            <div class="col-12 col-md-6">
-                                <div class="p-3 bg-light rounded-3 border">
-                                    <div class="fw-bold text-primary mb-2"><i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)</div>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        @foreach (var l in Model.Lineups.Where(l => l.TeamSide == "A" && l.IsStarting))
-                                        {
-                                            <span class="badge bg-primary-subtle text-primary border">#@(l.Player?.KitNumber?.ToString() ?? "-") @l.Player?.FullName (@(l.AssignedSlotCode ?? l.AssignedPosition ?? "Cầu thủ"))</span>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <div class="p-3 bg-light rounded-3 border">
-                                    <div class="fw-bold text-warning-emphasis mb-2"><i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)</div>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        @foreach (var l in Model.Lineups.Where(l => l.TeamSide == "B" && l.IsStarting))
-                                        {
-                                            <span class="badge bg-warning-subtle text-dark border">#@(l.Player?.KitNumber?.ToString() ?? "-") @l.Player?.FullName (@(l.AssignedSlotCode ?? l.AssignedPosition ?? "Cầu thủ"))</span>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
+                    <partial name="_InternalDivisionPartial" model="Model" />
                 }
                 else
                 {
-                    <!-- Trận giao lưu đối ngoại: Cả Đội A và Đội B đều có thể quản lý đội hình của mình -->
                     <div class="row g-3 mb-3">
-                        <!-- Quản lý đội hình Đội A -->
-                        <div class="col-12 @(Model.TeamB != null ? "col-md-6" : "")">
+                        <div class="col-12 col-md-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="fw-bold text-primary mb-2"><i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var l in Model.Lineups.Where(l => l.TeamSide == "A" && l.IsStarting))
+                                    {
+                                        <span class="badge bg-primary-subtle text-primary border">#@(l.Player?.KitNumber?.ToString() ?? "-") @l.Player?.FullName (@(l.AssignedSlotCode ?? l.AssignedPosition ?? "Cầu thủ"))</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="fw-bold text-warning-emphasis mb-2"><i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var l in Model.Lineups.Where(l => l.TeamSide == "B" && l.IsStarting))
+                                    {
+                                        <span class="badge bg-warning-subtle text-dark border">#@(l.Player?.KitNumber?.ToString() ?? "-") @l.Player?.FullName (@(l.AssignedSlotCode ?? l.AssignedPosition ?? "Cầu thủ"))</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <!-- Trận giao lưu đối ngoại -->
+                <div class="row g-3 mb-3">
+                    <!-- Quản lý đội hình Đội A -->
+                    <div class="col-12 @(Model.TeamB != null ? "col-md-6" : "")">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            @if (isManagerA)
+                            {
+                                <form asp-action="UpdateLineup" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="matchId" value="@Model.Id" />
+                                    <input type="hidden" name="teamId" value="@Model.TeamAId" />
+
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="fw-bold small text-dark">Cầu thủ @Model.TeamA.Name ra sân:</label>
+                                        <button type="submit" class="btn btn-arena-outline btn-sm py-1 px-2">Lưu đội hình</button>
+                                    </div>
+                                    <div class="row g-2" style="max-height: 220px; overflow-y: auto;">
+                                        @foreach (var p in Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                        {
+                                            bool isPlaying = Model.Lineups.Any(l => l.TeamId == Model.TeamAId && l.PlayerId == p.Id);
+                                            <div class="col-12">
+                                                <div class="form-check small p-1">
+                                                    <input class="form-check-input ms-0 me-2" type="checkbox" name="playerIds" value="@p.Id" id="lpA_@p.Id" @(isPlaying ? "checked" : "") style="width: 18px; height: 18px;" />
+                                                    <label class="form-check-label text-dark" for="lpA_@p.Id">
+                                                        #@(p.KitNumber?.ToString() ?? "-") @p.FullName
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </form>
+                            }
+                            else
+                            {
+                                <div class="fw-bold small text-dark mb-2">Đội hình @Model.TeamA.Name:</div>
+                                <div class="small text-muted">
+                                    @{
+                                        var teamAPlayers = Model.Lineups.Where(l => l.TeamId == Model.TeamAId).Select(l => l.Player).ToList();
+                                    }
+                                    @if (teamAPlayers.Any())
+                                    {
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach (var p in teamAPlayers)
+                                            {
+                                                <span class="badge bg-secondary-subtle text-dark border">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="fst-italic text-muted">Chưa cập nhật đội hình ra sân</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Quản lý đội hình Đội B -->
+                    @if (Model.TeamB != null)
+                    {
+                        <div class="col-12 col-md-6">
                             <div class="p-3 bg-light rounded-3 border h-100">
-                                @if (isManagerA)
+                                @if (isManagerB)
                                 {
                                     <form asp-action="UpdateLineup" method="post">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="matchId" value="@Model.Id" />
-                                        <input type="hidden" name="teamId" value="@Model.TeamAId" />
+                                        <input type="hidden" name="teamId" value="@Model.TeamBId!.Value" />
 
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <label class="fw-bold small text-dark">Cầu thủ @Model.TeamA.Name ra sân:</label>
+                                            <label class="fw-bold small text-dark">Cầu thủ @Model.TeamB.Name ra sân:</label>
                                             <button type="submit" class="btn btn-arena-outline btn-sm py-1 px-2">Lưu đội hình</button>
                                         </div>
                                         <div class="row g-2" style="max-height: 220px; overflow-y: auto;">
-                                            @foreach (var p in Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                            @foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
                                             {
-                                                bool isPlaying = Model.Lineups.Any(l => l.TeamId == Model.TeamAId && l.PlayerId == p.Id);
+                                                bool isPlaying = Model.Lineups.Any(l => l.TeamId == Model.TeamBId && l.PlayerId == p.Id);
                                                 <div class="col-12">
                                                     <div class="form-check small p-1">
-                                                        <input class="form-check-input ms-0 me-2" type="checkbox" name="playerIds" value="@p.Id" id="lpA_@p.Id" @(isPlaying ? "checked" : "") style="width: 18px; height: 18px;" />
-                                                        <label class="form-check-label text-dark" for="lpA_@p.Id">
+                                                        <input class="form-check-input ms-0 me-2" type="checkbox" name="playerIds" value="@p.Id" id="lpB_@p.Id" @(isPlaying ? "checked" : "") style="width: 18px; height: 18px;" />
+                                                        <label class="form-check-label text-dark" for="lpB_@p.Id">
                                                             #@(p.KitNumber?.ToString() ?? "-") @p.FullName
                                                         </label>
                                                     </div>
@@ -164,15 +848,15 @@
                                 }
                                 else
                                 {
-                                    <div class="fw-bold small text-dark mb-2">Đội hình @Model.TeamA.Name:</div>
+                                    <div class="fw-bold small text-dark mb-2">Đội hình @Model.TeamB.Name:</div>
                                     <div class="small text-muted">
                                         @{
-                                            var teamAPlayers = Model.Lineups.Where(l => l.TeamId == Model.TeamAId).Select(l => l.Player).ToList();
+                                            var teamBPlayers = Model.Lineups.Where(l => l.TeamId == Model.TeamBId).Select(l => l.Player).ToList();
                                         }
-                                        @if (teamAPlayers.Any())
+                                        @if (teamBPlayers.Any())
                                         {
                                             <div class="d-flex flex-wrap gap-1">
-                                                @foreach (var p in teamAPlayers)
+                                                @foreach (var p in teamBPlayers)
                                                 {
                                                     <span class="badge bg-secondary-subtle text-dark border">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</span>
                                                 }
@@ -186,185 +870,127 @@
                                 }
                             </div>
                         </div>
+                    }
+                </div>
+            }
 
-                        <!-- Quản lý đội hình Đội B (Sao Vàng FC) -->
-                        @if (Model.TeamB != null)
+            <!-- Sự kiện bàn thắng của trận -->
+            <div class="mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold small text-dark">Danh sách bàn thắng đã ghi nhận:</span>
+                </div>
+
+                @if (!Model.GoalEvents.Any())
+                {
+                    <p class="small text-muted mb-2 fst-italic">Chưa có bàn thắng nào được ghi nhận.</p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush mb-3">
+                        @foreach (var ge in Model.GoalEvents)
                         {
-                            <div class="col-12 col-md-6">
-                                <div class="p-3 bg-light rounded-3 border h-100">
-                                    @if (isManagerB)
+                            <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge bg-primary me-1">⚽ @(ge.TeamId == Model.TeamAId ? Model.TeamA.Name : (Model.TeamB?.Name ?? "Khách"))</span>
+                                    <strong>@ge.Scorer.FullName</strong>
+                                    @if (ge.Assist != null)
                                     {
-                                        <form asp-action="UpdateLineup" method="post">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="matchId" value="@Model.Id" />
-                                            <input type="hidden" name="teamId" value="@Model.TeamBId!.Value" />
-
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <label class="fw-bold small text-dark">Cầu thủ @Model.TeamB.Name ra sân:</label>
-                                                <button type="submit" class="btn btn-arena-outline btn-sm py-1 px-2">Lưu đội hình</button>
-                                            </div>
-                                            <div class="row g-2" style="max-height: 220px; overflow-y: auto;">
-                                                @foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
-                                                {
-                                                    bool isPlaying = Model.Lineups.Any(l => l.TeamId == Model.TeamBId && l.PlayerId == p.Id);
-                                                    <div class="col-12">
-                                                        <div class="form-check small p-1">
-                                                            <input class="form-check-input ms-0 me-2" type="checkbox" name="playerIds" value="@p.Id" id="lpB_@p.Id" @(isPlaying ? "checked" : "") style="width: 18px; height: 18px;" />
-                                                            <label class="form-check-label text-dark" for="lpB_@p.Id">
-                                                                #@(p.KitNumber?.ToString() ?? "-") @p.FullName
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            </div>
-                                        </form>
+                                        <span class="small text-muted ms-2">(Kiến tạo: <strong>@ge.Assist.FullName</strong>)</span>
                                     }
-                                    else
+                                    @if (ge.Minute.HasValue)
                                     {
-                                        <div class="fw-bold small text-dark mb-2">Đội hình @Model.TeamB.Name:</div>
-                                        <div class="small text-muted">
-                                            @{
-                                                var teamBPlayers = Model.Lineups.Where(l => l.TeamId == Model.TeamBId).Select(l => l.Player).ToList();
-                                            }
-                                            @if (teamBPlayers.Any())
-                                            {
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    @foreach (var p in teamBPlayers)
-                                                    {
-                                                        <span class="badge bg-secondary-subtle text-dark border">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</span>
-                                                    }
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <span class="fst-italic text-muted">Chưa cập nhật đội hình ra sân</span>
-                                            }
-                                        </div>
+                                        <span class="badge bg-light text-muted border ms-1">Phút @ge.Minute'</span>
                                     }
                                 </div>
+                                @if ((isManagerA && ge.TeamId == Model.TeamAId) || (isManagerB && ge.TeamId == Model.TeamBId))
+                                {
+                                    <form asp-action="DeleteGoalEvent" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa bàn thắng này? Điểm AB sẽ được thu hồi tự động.');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="goalId" value="@ge.Id" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">Xóa</button>
+                                    </form>
+                                }
                             </div>
                         }
                     </div>
                 }
 
-                <!-- Sự kiện bàn thắng của trận -->
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="fw-bold small text-dark">Danh sách bàn thắng đã ghi nhận:</span>
-                    </div>
+                <!-- Form thêm bàn thắng cho Đội A hoặc Đội B tùy quyền quản lý -->
+                @if (isManagerA)
+                {
+                    <div class="p-2 bg-white border rounded-2 mb-2">
+                        <span class="small fw-bold text-dark d-block mb-1">Ghi nhận bàn thắng cho @Model.TeamA.Name:</span>
+                        <form asp-action="AddGoalEvent" method="post" class="row g-2 align-items-end">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@Model.Id" />
+                            <input type="hidden" name="teamId" value="@Model.TeamAId" />
 
-                    @if (!Model.GoalEvents.Any())
-                    {
-                        <p class="small text-muted mb-2 fst-italic">Chưa có bàn thắng nào được ghi nhận.</p>
-                    }
-                    else
-                    {
-                        <div class="list-group list-group-flush mb-3">
-                            @foreach (var ge in Model.GoalEvents)
-                            {
-                                <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <span class="badge bg-primary me-1">⚽ @(ge.TeamId == Model.TeamAId ? Model.TeamA.Name : (Model.TeamB?.Name ?? "Khách"))</span>
-                                        <strong>@ge.Scorer.FullName</strong>
-                                        @if (ge.Assist != null)
-                                        {
-                                            <span class="small text-muted ms-2">(Kiến tạo: <strong>@ge.Assist.FullName</strong>)</span>
-                                        }
-                                        @if (ge.Minute.HasValue)
-                                        {
-                                            <span class="badge bg-light text-muted border ms-1">Phút @ge.Minute'</span>
-                                        }
-                                    </div>
-                                    @if ((isManagerA && ge.TeamId == Model.TeamAId) || (isManagerB && ge.TeamId == Model.TeamBId))
+                            <div class="col-12 col-md-5">
+                                <label class="small text-muted fw-semibold">Cầu thủ ghi bàn (+3 AB)</label>
+                                <select name="scorerPlayerId" class="form-select form-select-sm" required style="min-height: 40px;">
+                                    <option value="">-- Chọn cầu thủ ghi bàn --</option>
+                                    @foreach (var p in Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
                                     {
-                                        <form asp-action="DeleteGoalEvent" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa bàn thắng này? Điểm AB sẽ được thu hồi tự động.');">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="goalId" value="@ge.Id" />
-                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">Xóa</button>
-                                        </form>
+                                        <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
                                     }
-                                </div>
-                            }
-                        </div>
-                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="small text-muted fw-semibold">Kiến tạo (+1 AB)</label>
+                                <select name="assistPlayerId" class="form-select form-select-sm" style="min-height: 40px;">
+                                    <option value="">-- Không có kiến tạo --</option>
+                                    @foreach (var p in Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                    {
+                                        <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <button type="submit" class="btn btn-arena-primary btn-sm w-100 fw-bold" style="min-height: 40px;">+ Thêm Bàn (@Model.TeamA.Name)</button>
+                            </div>
+                        </form>
+                    </div>
+                }
 
-                    <!-- Form thêm bàn thắng cho Đội A hoặc Đội B tùy quyền quản lý -->
-                    @if (isManagerA)
-                    {
-                        <div class="p-2 bg-white border rounded-2 mb-2">
-                            <span class="small fw-bold text-dark d-block mb-1">Ghi nhận bàn thắng cho @Model.TeamA.Name:</span>
-                            <form asp-action="AddGoalEvent" method="post" class="row g-2 align-items-end">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="matchId" value="@Model.Id" />
-                                <input type="hidden" name="teamId" value="@Model.TeamAId" />
+                @if (isManagerB && Model.TeamB != null)
+                {
+                    <div class="p-2 bg-white border rounded-2 mb-2">
+                        <span class="small fw-bold text-dark d-block mb-1">Ghi nhận bàn thắng cho @Model.TeamB.Name:</span>
+                        <form asp-action="AddGoalEvent" method="post" class="row g-2 align-items-end">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@Model.Id" />
+                            <input type="hidden" name="teamId" value="@Model.TeamBId!.Value" />
 
-                                <div class="col-12 col-md-5">
-                                    <label class="small text-muted fw-semibold">Cầu thủ ghi bàn (+3 AB)</label>
-                                    <select name="scorerPlayerId" class="form-select form-select-sm" required style="min-height: 40px;">
-                                        <option value="">-- Chọn cầu thủ ghi bàn --</option>
-                                        @foreach (var p in Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
-                                        {
-                                            <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="small text-muted fw-semibold">Kiến tạo (+1 AB)</label>
-                                    <select name="assistPlayerId" class="form-select form-select-sm" style="min-height: 40px;">
-                                        <option value="">-- Không có kiến tạo --</option>
-                                        @foreach (var p in Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
-                                        {
-                                            <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <button type="submit" class="btn btn-arena-primary btn-sm w-100 fw-bold" style="min-height: 40px;">+ Thêm Bàn (@Model.TeamA.Name)</button>
-                                </div>
-                            </form>
-                        </div>
-                    }
-
-                    @if (isManagerB && Model.TeamB != null)
-                    {
-                        <div class="p-2 bg-white border rounded-2 mb-2">
-                            <span class="small fw-bold text-dark d-block mb-1">Ghi nhận bàn thắng cho @Model.TeamB.Name:</span>
-                            <form asp-action="AddGoalEvent" method="post" class="row g-2 align-items-end">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="matchId" value="@Model.Id" />
-                                <input type="hidden" name="teamId" value="@Model.TeamBId!.Value" />
-
-                                <div class="col-12 col-md-5">
-                                    <label class="small text-muted fw-semibold">Cầu thủ ghi bàn (+3 AB)</label>
-                                    <select name="scorerPlayerId" class="form-select form-select-sm" required style="min-height: 40px;">
-                                        <option value="">-- Chọn cầu thủ ghi bàn --</option>
-                                        @foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
-                                        {
-                                            <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="small text-muted fw-semibold">Kiến tạo (+1 AB)</label>
-                                    <select name="assistPlayerId" class="form-select form-select-sm" style="min-height: 40px;">
-                                        <option value="">-- Không có kiến tạo --</option>
-                                        @foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
-                                        {
-                                            <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-3">
-                                    <button type="submit" class="btn btn-arena-primary btn-sm w-100 fw-bold" style="min-height: 40px;">+ Thêm Bàn (@Model.TeamB.Name)</button>
-                                </div>
-                            </form>
-                        </div>
-                    }
-                </div>
+                            <div class="col-12 col-md-5">
+                                <label class="small text-muted fw-semibold">Cầu thủ ghi bàn (+3 AB)</label>
+                                <select name="scorerPlayerId" class="form-select form-select-sm" required style="min-height: 40px;">
+                                    <option value="">-- Chọn cầu thủ ghi bàn --</option>
+                                    @foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                    {
+                                        <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="small text-muted fw-semibold">Kiến tạo (+1 AB)</label>
+                                <select name="assistPlayerId" class="form-select form-select-sm" style="min-height: 40px;">
+                                    <option value="">-- Không có kiến tạo --</option>
+                                    @foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                    {
+                                        <option value="@p.Id">#@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <button type="submit" class="btn btn-arena-primary btn-sm w-100 fw-bold" style="min-height: 40px;">+ Thêm Bàn (@Model.TeamB.Name)</button>
+                            </div>
+                        </form>
+                    </div>
+                }
             </div>
-        }
+        </div>
 
-        <!-- Đánh giá đối thủ sau trận (Blacklist Engine) -->
+        <!-- SECTION 7: ĐÁNH GIÁ ĐỐI THỦ SAU TRẬN (BLACKLIST ENGINE) -->
         @if (canReview)
         {
             var myTeamId = isManagerA ? Model.TeamAId : Model.TeamBId!.Value;
@@ -373,7 +999,7 @@
             <div class="arena-card p-3 mb-3">
                 <h6 class="fw-bold text-dark mb-2"><i class="bi bi-star-half text-warning me-2"></i>Đánh giá đối thủ (@opponentName)</h6>
                 <p class="text-muted small mb-3">
-                    Đánh giá fair-play, văn minh sân cỏ sau trận. <strong>Lưu ý:</strong> Đánh giá 1 sao hợp lệ sẽ tự động đưa đối thủ vào danh sách hạn chế bắt đối.
+                    Đánh giá fair-play, văn minh sân cỏ sau trận. <strong>Lưu ý:</strong> Đánh giá 1 sao hợp lệ sẽ được chuyển đến Platform Admin để thẩm định vi phạm.
                 </p>
                 <form asp-action="SubmitReview" method="post">
                     @Html.AntiForgeryToken()
@@ -401,18 +1027,55 @@
             </div>
         }
 
+        <!-- SECTION 8: KHÁN GIẢ / THÀNH VIÊN XEM ĐỘI HÌNH & BÀN THẮNG -->
         @if (!isManagerA && !isManagerB)
         {
-            <section class="arena-card editor-panel mb-3"><h2 class="h5 fw-bold">Đội hình thi đấu</h2><div class="row g-3 mt-1">
-            @foreach(var side in new[]{"A","B"}) {
-                <div class="col-md-6"><strong>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên " + side : side == "A" ? Model.TeamA.Name : Model.TeamB?.Name ?? Model.TeamBExternalName)</strong>
-                <ul class="list-unstyled mt-3">@foreach(var lineup in Model.Lineups.Where(l => l.TeamSide == side)) { <li class="py-2 border-bottom">@(CanSee(lineup.Player) ? lineup.Player.FullName : "Cầu thủ ẩn danh") @if(CanSee(lineup.Player) && lineup.Player.PublicKitNumber) { <span class="text-muted">#@lineup.Player.KitNumber</span> }</li> }</ul></div>
-            }</div><h2 class="h5 fw-bold mt-3">Bàn thắng & kiến tạo</h2>
-            @if(!Model.GoalEvents.Any()) { <p class="text-muted mb-0">Chưa ghi nhận bàn thắng.</p> }
-            @foreach(var goal in Model.GoalEvents.OrderBy(g=>g.Minute)) { <div class="py-2 border-bottom"><strong>@(CanSee(goal.Scorer) ? goal.Scorer.FullName : "Cầu thủ ẩn danh")</strong>@if(goal.Minute.HasValue) { <span> · @goal.Minute′</span> }@if(goal.Assist != null) { <span class="text-muted"> · Kiến tạo: @(CanSee(goal.Assist) ? goal.Assist.FullName : "Cầu thủ ẩn danh")</span> }</div> }
+            <section class="arena-card editor-panel mb-3">
+                <h2 class="h5 fw-bold">Đội hình thi đấu</h2>
+                <div class="row g-3 mt-1">
+                    @foreach (var side in new[] { "A", "B" })
+                    {
+                        <div class="col-md-6">
+                            <strong>@(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Bên " + side : side == "A" ? Model.TeamA.Name : Model.TeamB?.Name ?? Model.TeamBExternalName)</strong>
+                            <ul class="list-unstyled mt-3">
+                                @foreach (var lineup in Model.Lineups.Where(l => l.TeamSide == side))
+                                {
+                                    <li class="py-2 border-bottom">
+                                        @(CanSee(lineup.Player) ? lineup.Player.FullName : "Cầu thủ ẩn danh")
+                                        @if (CanSee(lineup.Player) && lineup.Player.PublicKitNumber)
+                                        {
+                                            <span class="text-muted">#@lineup.Player.KitNumber</span>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </div>
+
+                <h2 class="h5 fw-bold mt-3">Bàn thắng & kiến tạo</h2>
+                @if (!Model.GoalEvents.Any())
+                {
+                    <p class="text-muted mb-0">Chưa ghi nhận bàn thắng.</p>
+                }
+                @foreach (var goal in Model.GoalEvents.OrderBy(g => g.Minute))
+                {
+                    <div class="py-2 border-bottom">
+                        <strong>@(CanSee(goal.Scorer) ? goal.Scorer.FullName : "Cầu thủ ẩn danh")</strong>
+                        @if (goal.Minute.HasValue)
+                        {
+                            <span> · Phút @goal.Minute′</span>
+                        }
+                        @if (goal.Assist != null)
+                        {
+                            <span class="text-muted"> · Kiến tạo: @(CanSee(goal.Assist) ? goal.Assist.FullName : "Cầu thủ ẩn danh")</span>
+                        }
+                    </div>
+                }
             </section>
         }
-        <!-- Danh sách đánh giá đã có -->
+
+        <!-- SECTION 9: DANH SÁCH ĐÁNH GIÁ ĐÃ CÓ -->
         @if (Model.Reviews.Any())
         {
             <div class="arena-card p-3 mb-3">

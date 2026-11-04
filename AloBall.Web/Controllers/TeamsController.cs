@@ -1,5 +1,6 @@
 using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
+using AloBall.Web.Models;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,13 +15,29 @@ public partial class TeamsController : Controller
     private readonly ApplicationDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITeamAuthorizationService _auth;
+    private readonly IWebHostEnvironment? _env;
+    private readonly ITeamMessagingService _messaging;
 
     public TeamsController(ApplicationDbContext db, UserManager<ApplicationUser> userManager, ITeamAuthorizationService auth)
+        : this(db, userManager, auth, null, null)
+    {
+    }
+
+    public TeamsController(ApplicationDbContext db, UserManager<ApplicationUser> userManager, ITeamAuthorizationService auth, IWebHostEnvironment? env)
+        : this(db, userManager, auth, env, null)
+    {
+    }
+
+    [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
+    public TeamsController(ApplicationDbContext db, UserManager<ApplicationUser> userManager, ITeamAuthorizationService auth, IWebHostEnvironment? env, ITeamMessagingService? messaging)
     {
         _db = db;
         _userManager = userManager;
         _auth = auth;
+        _env = env;
+        _messaging = messaging ?? new TeamMessagingService(db, auth);
     }
+
 
     // 1. Hồ sơ công khai của đội bóng (ai cũng xem được)
     [HttpGet]
@@ -52,13 +69,17 @@ public partial class TeamsController : Controller
             .Take(10)
             .ToListAsync();
 
-        // Kiểm tra xem User hiện tại có quyền quản lý đội này không (Owner / Manager)
-        var user = await _userManager.GetUserAsync(User);
+        // Kiểm tra xem User hiện tại có quyền quản lý đội này không (Owner / Manager) hoặc là Thành viên
+        var user = User != null ? await _userManager.GetUserAsync(User) : null;
         bool isManager = false;
+        bool isMember = false;
+        string? currentUserId = null;
         List<Team> userManagedTeams = new();
         if (user != null)
         {
+            currentUserId = user.Id;
             isManager = await _auth.HasManagerAccessAsync(team.Id, user.Id);
+            isMember = await _auth.HasMemberAccessAsync(team.Id, user.Id);
 
             var managedTeamIds = await _db.TeamMembers
                 .Where(m => m.UserId == user.Id && (m.Role == TeamRole.Manager || m.Role == TeamRole.Owner))
@@ -70,12 +91,134 @@ public partial class TeamsController : Controller
                 .ToListAsync();
         }
 
+        // Lấy danh sách các trận đấu chính thức đã hoàn tất và được xác nhận đối soát
+        var officialMatches = await _db.Matches
+            .Include(m => m.TeamA)
+            .Include(m => m.TeamB)
+            .Where(m => (m.TeamAId == team.Id || m.TeamBId == team.Id)
+                && m.Status == MatchStatus.Completed
+                && m.ConfirmedByTeamA
+                && (m.ConfirmedByTeamB || !m.TeamBId.HasValue)
+                && m.ScoreA.HasValue && m.ScoreB.HasValue)
+            .OrderByDescending(m => m.MatchDateTime)
+            .ToListAsync();
+
+        int wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
+        foreach (var m in officialMatches)
+        {
+            int myScore = m.TeamAId == team.Id ? (m.ScoreA ?? 0) : (m.ScoreB ?? 0);
+            int oppScore = m.TeamAId == team.Id ? (m.ScoreB ?? 0) : (m.ScoreA ?? 0);
+            gf += myScore;
+            ga += oppScore;
+            if (myScore > oppScore) wins++;
+            else if (myScore == oppScore) draws++;
+            else losses++;
+        }
+        int totalOfficialMatches = wins + draws + losses;
+        double winPercentage = totalOfficialMatches > 0 ? Math.Round((double)wins / totalOfficialMatches * 100, 1) : 0;
+
+        // Tỉ lệ phản hồi và nhận lời mời giao lưu (trong vòng 12 tháng gần nhất)
+        var twelveMonthsAgo = DateTime.UtcNow.AddMonths(-12);
+        var now = DateTime.UtcNow;
+
+        var directChallenges = await _db.MatchmakingPosts
+            .Include(p => p.Proposals)
+            .Where(p => p.PostType == MatchmakingPostType.DirectChallenge 
+                && p.TargetTeamId == team.Id 
+                && p.CreatedAt >= twelveMonthsAgo)
+            .ToListAsync();
+
+        var publicPosts = await _db.MatchmakingPosts
+            .Include(p => p.Proposals)
+            .Where(p => p.PostType == MatchmakingPostType.Public 
+                && p.TeamId == team.Id 
+                && p.CreatedAt >= twelveMonthsAgo)
+            .ToListAsync();
+
+        int eligibleInvites = 0;
+        int respondedInvites = 0;
+        int acceptedInvites = 0;
+
+        void EvaluateInvite(MatchmakingPost post, MatchmakingProposal proposal)
+        {
+            if (proposal.Status == ProposalStatus.Cancelled) return; // Loại bỏ lời mời bị rút/hủy trước khi phản hồi
+
+            var matchTime = post.MatchDate.Date.Add(post.StartTime);
+            bool isExpired = matchTime <= now;
+
+            if (proposal.Status == ProposalStatus.Accepted)
+            {
+                eligibleInvites++;
+                respondedInvites++;
+                acceptedInvites++;
+            }
+            else if (proposal.Status == ProposalStatus.Rejected)
+            {
+                eligibleInvites++;
+                respondedInvites++;
+            }
+            else if (proposal.Status == ProposalStatus.Pending && isExpired)
+            {
+                eligibleInvites++; // Hết hạn mà chưa phản hồi
+            }
+        }
+
+        foreach (var p in directChallenges)
+        {
+            foreach (var prop in p.Proposals)
+            {
+                EvaluateInvite(p, prop);
+            }
+        }
+
+        foreach (var p in publicPosts)
+        {
+            foreach (var prop in p.Proposals.Where(pr => pr.ChallengingTeamId != team.Id))
+            {
+                EvaluateInvite(p, prop);
+            }
+        }
+
+        double responseRate = eligibleInvites > 0 ? Math.Round((double)respondedInvites / eligibleInvites * 100, 1) : 100.0;
+        double acceptanceRate = respondedInvites > 0 ? Math.Round((double)acceptedInvites / respondedInvites * 100, 1) : 0.0;
+
+        var reputationStats = new TeamReputationStats
+        {
+            TotalOfficialMatches = totalOfficialMatches,
+            Wins = wins,
+            Draws = draws,
+            Losses = losses,
+            WinPercentage = winPercentage,
+            GoalsScored = gf,
+            GoalsConceded = ga,
+            TotalEligibleInvitations = eligibleInvites,
+            RespondedInvitations = respondedInvites,
+            AcceptedInvitations = acceptedInvites,
+            ResponseRatePercentage = responseRate,
+            AcceptanceRatePercentage = acceptanceRate
+        };
+
+        // Lịch sử đánh giá sau trận (chỉ lấy review hợp lệ)
+        var verifiedReviews = await _db.TeamMatchReviews
+            .Include(r => r.ReviewerTeam)
+            .Include(r => r.Match)
+            .Where(r => r.TargetTeamId == team.Id && r.IsValid)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(20)
+            .ToListAsync();
+
+        ViewBag.ReputationStats = reputationStats;
+        ViewBag.OfficialMatches = officialMatches.Take(10).ToList();
+        ViewBag.VerifiedReviews = verifiedReviews;
+
         ViewBag.UpcomingMatches = upcomingMatches;
         ViewBag.CompletedMatches = completedMatches;
         ViewBag.TournamentMatches = await _db.Matches.Include(m => m.TeamA).Include(m => m.TeamB)
             .Where(m => (m.TeamAId == team.Id || m.TeamBId == team.Id) && m.IsPublic && m.TeamA.IsPublic && !m.TeamA.IsDraft && (m.TeamB == null || (m.TeamB.IsPublic && !m.TeamB.IsDraft)) && m.Category == MatchCategory.Tournament)
             .OrderByDescending(m => m.MatchDateTime).ToListAsync();
         ViewBag.IsManager = isManager;
+        ViewBag.IsMember = isMember;
+        ViewBag.CurrentUserId = currentUserId;
         ViewBag.UserManagedTeams = userManagedTeams;
         return View(team);
     }
@@ -119,6 +262,7 @@ public partial class TeamsController : Controller
         ViewBag.UserRole = role;
         ViewBag.IsManager = await _auth.HasManagerAccessAsync(id, user.Id);
         ViewBag.IsOwner = await _auth.IsOwnerAsync(id, user.Id);
+        ViewBag.UnreadMessagesCount = await _messaging.GetUnreadCountAsync(id, user.Id);
 
         // Thống kê nhanh
         ViewBag.TotalPlayers = team.Players.Count(p => p.IsActive);
