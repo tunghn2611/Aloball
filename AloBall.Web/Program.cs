@@ -1,3 +1,4 @@
+﻿using Microsoft.AspNetCore.DataProtection;
 using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
@@ -6,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Cấu hình Database Provider:
-// Nếu có connection string PostgreSQL -> dùng Npgsql, ngược lại dùng SQLite local
+// Cáº¥u hÃ¬nh Database Provider:
+// Náº¿u cÃ³ connection string PostgreSQL -> dÃ¹ng Npgsql, ngÆ°á»£c láº¡i dÃ¹ng SQLite local
 var pgConnection = builder.Configuration.GetConnectionString("PostgreSqlConnection");
 var sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=AloBall.db";
 
@@ -23,7 +24,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 
-// Cấu hình ASP.NET Core Identity
+// Cáº¥u hÃ¬nh ASP.NET Core Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = false;
@@ -36,15 +37,28 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
+// Dang ky DataProtection voi khoa co dinh de tranh loi 400 Bad Request tren Vercel
+var keysDirectory = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys"));
+if (!keysDirectory.Exists)
+{
+    keysDirectory.Create();
+}
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(keysDirectory)
+    .SetApplicationName("AloBall");
+
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
+    options.Cookie.Name = ".AloBall.Identity";
     options.Cookie.HttpOnly = true;
     options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
-// Đăng ký các Business Services
+// Dang ky cac Business Services
 builder.Services.AddScoped<ITeamAuthorizationService, TeamAuthorizationService>();
 builder.Services.AddScoped<IAttendanceCalculationEngine, AttendanceCalculationEngine>();
 builder.Services.AddScoped<IMatchmakingService, MatchmakingService>();
@@ -56,23 +70,28 @@ builder.Services.AddScoped<IPitchBookingService, PitchBookingService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<AloBall.Web.Services.TeamDivision.ITeamDivisionEngine, AloBall.Web.Services.TeamDivision.TeamDivisionEngine>();
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<AloBall.Web.Services.AntiforgeryValidationFailedFilter>();
+});
 builder.Services.AddScoped<DomainMutationFilter>();
 
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "RequestVerificationToken";
+    options.Cookie.Name = ".AloBall.Antiforgery";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
-// Đăng ký ForwardedHeaders để chạy ổn định sau reverse proxy (Vercel, Cloudflare, v.v.)
+// Dang ky ForwardedHeaders de chay on dinh sau reverse proxy (Vercel, Cloudflare, v.v.)
 builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.All;
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
-
-// Hỗ trợ biến môi trường PORT (Vercel / Cloud Container cung cấp)
+// Há»— trá»£ biáº¿n mÃ´i trÆ°á»ng PORT (Vercel / Cloud Container cung cáº¥p)
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
 {
@@ -88,7 +107,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// Tự động Migrate/Seed demo data khi chạy ứng dụng (bỏ qua khi chạy Unit/Integration Test)
+// Tá»± Ä‘á»™ng Migrate/Seed demo data khi cháº¡y á»©ng dá»¥ng (bá» qua khi cháº¡y Unit/Integration Test)
 if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
@@ -113,13 +132,13 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Route công khai cho hồ sơ đội bóng: /doi/{slug} hoặc /teams/profile/{slug} hoặc slug không trùng controller action
+// Route cÃ´ng khai cho há»“ sÆ¡ Ä‘á»™i bÃ³ng: /doi/{slug} hoáº·c /teams/profile/{slug} hoáº·c slug khÃ´ng trÃ¹ng controller action
 app.MapControllerRoute(
     name: "team_public",
     pattern: "doi/{slug}",
     defaults: new { controller = "Teams", action = "PublicProfile" });
 
-// Route công khai cho hồ sơ cầu thủ: /cau-thu/{id}
+// Route cÃ´ng khai cho há»“ sÆ¡ cáº§u thá»§: /cau-thu/{id}
 app.MapControllerRoute(
     name: "player_public",
     pattern: "cau-thu/{id}",
