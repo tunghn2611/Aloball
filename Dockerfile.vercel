@@ -24,8 +24,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Default container port
+# Default container ports (Vercel routes to Port 80 by default or $PORT)
+EXPOSE 80
 EXPOSE 8080
-ENV ASPNETCORE_HTTP_PORTS=8080
+ENV ASPNETCORE_HTTP_PORTS=80;8080
 
 ENTRYPOINT ["dotnet", "AloBall.Web.dll"]

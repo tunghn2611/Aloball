@@ -92,10 +92,15 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>
     options.KnownProxies.Clear();
 });
 // Há»— trá»£ biáº¿n mÃ´i trÆ°á»ng PORT (Vercel / Cloud Container cung cáº¥p)
+// Ho tro bien moi truong PORT (Vercel / Cloud Container cung cap mac dinh Port 80 hoac $PORT)
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+    builder.WebHost.UseUrls("http://0.0.0.0:" + port);
+}
+else
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:80", "http://0.0.0.0:8080");
 }
 
 if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
