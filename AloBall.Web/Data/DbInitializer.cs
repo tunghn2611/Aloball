@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services.TeamDivision;
 using Microsoft.AspNetCore.Identity;
@@ -16,10 +16,10 @@ public static class DbInitializer
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        // Đảm bảo Database đã được tạo
+        // Äáº£m báº£o Database Ä‘Ã£ Ä‘Æ°á»£c táº¡o
         await db.Database.EnsureCreatedAsync();
 
-        // 1. Tự động kiểm tra và thêm các cột mới vào SQLite DB cũ nếu chưa tồn tại
+        // 1. Tá»± Ä‘á»™ng kiá»ƒm tra vÃ  thÃªm cÃ¡c cá»™t má»›i vÃ o SQLite DB cÅ© náº¿u chÆ°a tá»“n táº¡i
         if (db.Database.IsRelational())
         {
             await EnsureDatabaseSchemaAsync(db);
@@ -27,25 +27,25 @@ public static class DbInitializer
 
         try
         {
-            // 2. Tạo hoặc cập nhật tài khoản quản lý / đội trưởng
+            // 2. Táº¡o hoáº·c cáº­p nháº­t tÃ i khoáº£n quáº£n lÃ½ / Ä‘á»™i trÆ°á»Ÿng
             var users = await EnsureUsersAsync(userManager);
 
-            // 3. Tạo hoặc mở rộng các Đội bóng & Đầy đủ danh sách Cầu thủ
+            // 3. Táº¡o hoáº·c má»Ÿ rá»™ng cÃ¡c Äá»™i bÃ³ng & Äáº§y Ä‘á»§ danh sÃ¡ch Cáº§u thá»§
             var teams = await EnsureTeamsAndRostersAsync(db, users);
 
-            // 4. Tạo hoặc bổ sung Quy chế hoạt động mẫu
+            // 4. Táº¡o hoáº·c bá»• sung Quy cháº¿ hoáº¡t Ä‘á»™ng máº«u
             await EnsureRegulationsAsync(db, teams);
 
-            // 5. Tạo hoặc bổ sung Buổi thi đấu & Điểm danh mẫu để sẵn sàng test chia đội tự động & dự bị
+            // 5. Táº¡o hoáº·c bá»• sung Buá»•i thi Ä‘áº¥u & Äiá»ƒm danh máº«u Ä‘á»ƒ sáºµn sÃ ng test chia Ä‘á»™i tá»± Ä‘á»™ng & dá»± bá»‹
             await EnsureSessionsAndAttendanceAsync(db, teams);
 
-            // 6. Tạo hoặc bổ sung Kèo giao lưu Matchmaking & Trận đấu thực tế
+            // 6. Táº¡o hoáº·c bá»• sung KÃ¨o giao lÆ°u Matchmaking & Tráº­n Ä‘áº¥u thá»±c táº¿
             await EnsureMatchmakingAndMatchesAsync(db, teams);
 
-            // 7. Tạo danh bạ Trọng tài mẫu phục vụ điều phối
+            // 7. Táº¡o danh báº¡ Trá»ng tÃ i máº«u phá»¥c vá»¥ Ä‘iá»u phá»‘i
             await EnsureRefereesAsync(db);
 
-            // 8. Tạo danh bạ Sân bóng mẫu (Pitch Venues) phục vụ khám phá & đặt sân
+            // 8. Táº¡o danh báº¡ SÃ¢n bÃ³ng máº«u (Pitch Venues) phá»¥c vá»¥ khÃ¡m phÃ¡ & Ä‘áº·t sÃ¢n
             await EnsurePitchVenuesAsync(db);
         }
         catch (Exception ex)
@@ -57,7 +57,7 @@ public static class DbInitializer
     private static async Task EnsureDatabaseSchemaAsync(ApplicationDbContext db)
     {
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AttendanceSessions ADD COLUMN PitchName TEXT DEFAULT '';"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AttendanceSessions ADD COLUMN PitchType TEXT DEFAULT '7 người';"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AttendanceSessions ADD COLUMN PitchType TEXT DEFAULT '7 ngÆ°á»i';"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE MatchPlayerLineups ADD COLUMN TeamSide TEXT DEFAULT 'A';"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE MatchPlayerLineups ADD COLUMN AssignedSlotCode TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE MatchPlayerLineups ADD COLUMN HasActuallyPlayed INTEGER NOT NULL DEFAULT 0;"); } catch { }
@@ -401,17 +401,19 @@ public static class DbInitializer
 
     private static async Task<SeededUsers> EnsureUsersAsync(UserManager<ApplicationUser> userManager)
     {
-        async Task<ApplicationUser> GetOrCreateUserAsync(string email, string fullName, string password)
+        async Task<ApplicationUser> GetOrCreateUserAsync(string email, string fullName, string password, string fixedId, string fixedStamp)
         {
             var user = await userManager.FindByEmailAsync(email);
             if (user == null)
             {
                 user = new ApplicationUser
                 {
+                    Id = fixedId,
                     UserName = email,
                     Email = email,
                     FullName = fullName,
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
+                    SecurityStamp = fixedStamp
                 };
                 var res = await userManager.CreateAsync(user, password);
                 if (!res.Succeeded)
@@ -424,14 +426,14 @@ public static class DbInitializer
 
         return new SeededUsers
         {
-            Admin = await GetOrCreateUserAsync("admin@aloball.vn", "Platform Administrator", "Admin@123456"),
-            KlbOwner = await GetOrCreateUserAsync("owner@klbfc.vn", "Nguyễn Văn Chủ Tịch", "Owner@123456"),
-            KlbCaptain = await GetOrCreateUserAsync("captain@klbfc.vn", "Trần Đội Trưởng", "Captain@123456"),
-            KlbMember = await GetOrCreateUserAsync("member@klbfc.vn", "Lê Cầu Thủ", "Member@123456"),
-            SaoVangCaptain = await GetOrCreateUserAsync("captain@saovangfc.vn", "Hoàng Sao Vàng", "SaoVang@123456"),
-            PhoenixCaptain = await GetOrCreateUserAsync("captain@phoenixfc.vn", "Vũ Phượng Hoàng", "Phoenix@123456"),
-            TrangAnCaptain = await GetOrCreateUserAsync("captain@tranganfc.vn", "Đinh Tràng An", "TrangAn@123456"),
-            BachKhoaCaptain = await GetOrCreateUserAsync("captain@bachkhoafc.vn", "Tạ Bách Khoa", "BachKhoa@123456")
+            Admin = await GetOrCreateUserAsync("admin@aloball.vn", "Platform Administrator", "Admin@123456", "usr-admin-001", "STAMP-ADMIN-001"),
+            KlbOwner = await GetOrCreateUserAsync("owner@klbfc.vn", "Nguyễn Văn Chủ Tịch", "Owner@123456", "usr-owner-klb-002", "STAMP-OWNER-KLB-002"),
+            KlbCaptain = await GetOrCreateUserAsync("captain@klbfc.vn", "Trần Đội Trưởng", "Captain@123456", "usr-captain-klb-003", "STAMP-CAPTAIN-KLB-003"),
+            KlbMember = await GetOrCreateUserAsync("member@klbfc.vn", "Lê Cầu Thủ", "Member@123456", "usr-member-klb-004", "STAMP-MEMBER-KLB-004"),
+            SaoVangCaptain = await GetOrCreateUserAsync("captain@saovangfc.vn", "Hoàng Sao Vàng", "SaoVang@123456", "usr-captain-sv-005", "STAMP-CAPTAIN-SV-005"),
+            PhoenixCaptain = await GetOrCreateUserAsync("captain@phoenixfc.vn", "Vũ Phượng Hoàng", "Phoenix@123456", "usr-captain-ph-006", "STAMP-CAPTAIN-PH-006"),
+            TrangAnCaptain = await GetOrCreateUserAsync("captain@tranganfc.vn", "Đinh Tràng An", "TrangAn@123456", "usr-captain-ta-007", "STAMP-CAPTAIN-TA-007"),
+            BachKhoaCaptain = await GetOrCreateUserAsync("captain@bachkhoafc.vn", "Tạ Bách Khoa", "BachKhoa@123456", "usr-captain-bk-008", "STAMP-CAPTAIN-BK-008")
         };
     }
 
@@ -454,9 +456,9 @@ public static class DbInitializer
             {
                 Name = "KLB FC",
                 Slug = "klb-fc",
-                Description = "Câu lạc bộ bóng đá phong trào KLB - Giao lưu hữu nghị, rèn luyện sức khỏe, văn minh sân cỏ.",
-                ActivityArea = "Cầu Giấy, Hà Nội",
-                HomePitch = "Sân bóng PVV - 72 Trần Thái Tông",
+                Description = "CÃ¢u láº¡c bá»™ bÃ³ng Ä‘Ã¡ phong trÃ o KLB - Giao lÆ°u há»¯u nghá»‹, rÃ¨n luyá»‡n sá»©c khá»e, vÄƒn minh sÃ¢n cá».",
+                ActivityArea = "Cáº§u Giáº¥y, HÃ  Ná»™i",
+                HomePitch = "SÃ¢n bÃ³ng PVV - 72 Tráº§n ThÃ¡i TÃ´ng",
                 EstablishedDate = new DateTime(2020, 10, 10),
                 IsPublic = true,
                 AverageRating = 5.0,
@@ -466,17 +468,17 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
-        // 2. Sao Vàng FC
+        // 2. Sao VÃ ng FC
         var saoVang = await db.Teams.FirstOrDefaultAsync(t => t.Slug == "sao-vang-fc");
         if (saoVang == null)
         {
             saoVang = new Team
             {
-                Name = "Sao Vàng FC",
+                Name = "Sao VÃ ng FC",
                 Slug = "sao-vang-fc",
-                Description = "Sao Vàng FC - Tinh thần fair-play, nhiệt huyết, giao lưu tối thứ 4 & chủ nhật.",
-                ActivityArea = "Nam Từ Liêm, Hà Nội",
-                HomePitch = "Sân Mễ Trì Thượng",
+                Description = "Sao VÃ ng FC - Tinh tháº§n fair-play, nhiá»‡t huyáº¿t, giao lÆ°u tá»‘i thá»© 4 & chá»§ nháº­t.",
+                ActivityArea = "Nam Tá»« LiÃªm, HÃ  Ná»™i",
+                HomePitch = "SÃ¢n Má»… TrÃ¬ ThÆ°á»£ng",
                 EstablishedDate = new DateTime(2021, 5, 1),
                 IsPublic = true,
                 AverageRating = 4.8,
@@ -494,9 +496,9 @@ public static class DbInitializer
             {
                 Name = "Phoenix FC",
                 Slug = "phoenix-fc",
-                Description = "Phoenix FC (Phượng Hoàng Lửa) - Lối đá tấn công cống hiến, tốc độ và kỹ thuật.",
-                ActivityArea = "Thanh Xuân, Hà Nội",
-                HomePitch = "Sân bóng Bộ Công An - Nguyễn Xiển",
+                Description = "Phoenix FC (PhÆ°á»£ng HoÃ ng Lá»­a) - Lá»‘i Ä‘Ã¡ táº¥n cÃ´ng cá»‘ng hiáº¿n, tá»‘c Ä‘á»™ vÃ  ká»¹ thuáº­t.",
+                ActivityArea = "Thanh XuÃ¢n, HÃ  Ná»™i",
+                HomePitch = "SÃ¢n bÃ³ng Bá»™ CÃ´ng An - Nguyá»…n Xiá»ƒn",
                 EstablishedDate = new DateTime(2022, 3, 15),
                 IsPublic = true,
                 AverageRating = 4.9,
@@ -506,17 +508,17 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
-        // 4. Tràng An FC
+        // 4. TrÃ ng An FC
         var trangAn = await db.Teams.FirstOrDefaultAsync(t => t.Slug == "trang-an-fc");
         if (trangAn == null)
         {
             trangAn = new Team
             {
-                Name = "Tràng An FC",
+                Name = "TrÃ ng An FC",
                 Slug = "trang-an-fc",
-                Description = "Tràng An FC - Gắn kết anh em đồng hương, kỷ luật chiến thuật, giao lưu cởi mở.",
-                ActivityArea = "Đống Đa, Hà Nội",
-                HomePitch = "Sân bóng Thủy Lợi",
+                Description = "TrÃ ng An FC - Gáº¯n káº¿t anh em Ä‘á»“ng hÆ°Æ¡ng, ká»· luáº­t chiáº¿n thuáº­t, giao lÆ°u cá»Ÿi má»Ÿ.",
+                ActivityArea = "Äá»‘ng Äa, HÃ  Ná»™i",
+                HomePitch = "SÃ¢n bÃ³ng Thá»§y Lá»£i",
                 EstablishedDate = new DateTime(2021, 11, 20),
                 IsPublic = true,
                 AverageRating = 4.7,
@@ -526,17 +528,17 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
-        // 5. FC Bách Khoa 2012
+        // 5. FC BÃ¡ch Khoa 2012
         var bachKhoa = await db.Teams.FirstOrDefaultAsync(t => t.Slug == "bach-khoa-fc");
         if (bachKhoa == null)
         {
             bachKhoa = new Team
             {
-                Name = "FC Bách Khoa 2012",
+                Name = "FC BÃ¡ch Khoa 2012",
                 Slug = "bach-khoa-fc",
-                Description = "Hội cựu sinh viên Bách Khoa K57 - Đam mê bóng đá, thể lực bền bỉ, chiến thuật chặt chẽ.",
-                ActivityArea = "Hai Bà Trưng, Hà Nội",
-                HomePitch = "Sân vận động Bách Khoa",
+                Description = "Há»™i cá»±u sinh viÃªn BÃ¡ch Khoa K57 - Äam mÃª bÃ³ng Ä‘Ã¡, thá»ƒ lá»±c bá»n bá»‰, chiáº¿n thuáº­t cháº·t cháº½.",
+                ActivityArea = "Hai BÃ  TrÆ°ng, HÃ  Ná»™i",
+                HomePitch = "SÃ¢n váº­n Ä‘á»™ng BÃ¡ch Khoa",
                 EstablishedDate = new DateTime(2019, 8, 15),
                 IsPublic = true,
                 AverageRating = 4.9,
@@ -546,7 +548,7 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
-        // Gán ban cán sự / Thành viên nếu chưa có
+        // GÃ¡n ban cÃ¡n sá»± / ThÃ nh viÃªn náº¿u chÆ°a cÃ³
         await EnsureMembershipAsync(db, klb.Id, users.KlbOwner.Id, TeamRole.Owner, true);
         await EnsureMembershipAsync(db, klb.Id, users.KlbCaptain.Id, TeamRole.Manager, true);
         await EnsureMembershipAsync(db, klb.Id, users.KlbMember.Id, TeamRole.Member, false);
@@ -555,7 +557,7 @@ public static class DbInitializer
         await EnsureMembershipAsync(db, trangAn.Id, users.TrangAnCaptain.Id, TeamRole.Owner, true);
         await EnsureMembershipAsync(db, bachKhoa.Id, users.BachKhoaCaptain.Id, TeamRole.Owner, true);
 
-        // Bổ sung đầy đủ cầu thủ cho từng đội
+        // Bá»• sung Ä‘áº§y Ä‘á»§ cáº§u thá»§ cho tá»«ng Ä‘á»™i
         await SeedSquadKlbAsync(db, klb.Id, users);
         await SeedSquadSaoVangAsync(db, saoVang.Id, users);
         await SeedSquadPhoenixAsync(db, phoenix.Id, users);
@@ -641,115 +643,115 @@ public static class DbInitializer
 
     private static async Task SeedSquadKlbAsync(ApplicationDbContext db, Guid teamId, SeededUsers users)
     {
-        // 16 cầu thủ - Đầy đủ 2 GK, 5 DF, 5 MF, 4 FW (Lý tưởng kiểm tra 14 đá chính + 2 dự bị cho sơ đồ 7_231 hoặc 7_321)
-        await AddOrUpdatePlayerAsync(db, teamId, "Phạm Trung Kiên", 1, "Thủ môn", PositionCodes.GK, new[] { PositionCodes.CB }, null, "KIEN GK", 182, 76);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Minh Hoàng", 25, "Thủ môn", PositionCodes.GK, new string[] { }, null, "HOANG GK", 180, 74);
+        // 16 cáº§u thá»§ - Äáº§y Ä‘á»§ 2 GK, 5 DF, 5 MF, 4 FW (LÃ½ tÆ°á»Ÿng kiá»ƒm tra 14 Ä‘Ã¡ chÃ­nh + 2 dá»± bá»‹ cho sÆ¡ Ä‘á»“ 7_231 hoáº·c 7_321)
+        await AddOrUpdatePlayerAsync(db, teamId, "Pháº¡m Trung KiÃªn", 1, "Thá»§ mÃ´n", PositionCodes.GK, new[] { PositionCodes.CB }, null, "KIEN GK", 182, 76);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Minh HoÃ ng", 25, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, null, "HOANG GK", 180, 74);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Vũ Đình Trọng", 5, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.DF_L, PositionCodes.CDM }, null, "TRONG CB", 178, 73);
-        await AddOrUpdatePlayerAsync(db, teamId, "Bùi Tiến Dũng", 4, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.DF_R }, null, "TIEN DUNG", 179, 75);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Cầu Thủ", 8, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.CB, PositionCodes.LM }, users.KlbMember.Id, "LE THU", 175, 69);
-        await AddOrUpdatePlayerAsync(db, teamId, "Trần Văn Hậu", 2, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.LM }, null, "VAN HAU", 174, 68);
-        await AddOrUpdatePlayerAsync(db, teamId, "Đỗ Thanh Bình", 3, "Hậu vệ cánh phải", PositionCodes.RB, new[] { PositionCodes.RM, PositionCodes.CB }, null, "THANH BINH", 176, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "VÅ© ÄÃ¬nh Trá»ng", 5, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.DF_L, PositionCodes.CDM }, null, "TRONG CB", 178, 73);
+        await AddOrUpdatePlayerAsync(db, teamId, "BÃ¹i Tiáº¿n DÅ©ng", 4, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.DF_R }, null, "TIEN DUNG", 179, 75);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª Cáº§u Thá»§", 8, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.CB, PositionCodes.LM }, users.KlbMember.Id, "LE THU", 175, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "Tráº§n VÄƒn Háº­u", 2, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.LM }, null, "VAN HAU", 174, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "Äá»— Thanh BÃ¬nh", 3, "Háº­u vá»‡ cÃ¡nh pháº£i", PositionCodes.RB, new[] { PositionCodes.RM, PositionCodes.CB }, null, "THANH BINH", 176, 70);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Văn Chủ Tịch", 10, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.CAM, PositionCodes.ST }, users.KlbOwner.Id, "VAN CHU TICH", 172, 68);
-        await AddOrUpdatePlayerAsync(db, teamId, "Đỗ Hùng Dũng", 16, "Tiền vệ phòng ngự", PositionCodes.CDM, new[] { PositionCodes.CM, PositionCodes.CB }, null, "HUNG DUNG", 174, 69);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Quang Hải", 19, "Tiền vệ tấn công", PositionCodes.CAM, new[] { PositionCodes.CM, PositionCodes.RW }, null, "QUANG HAI", 168, 65);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lương Xuân Trường", 6, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.CAM, PositionCodes.CDM }, null, "XUAN TRUONG", 177, 71);
-        await AddOrUpdatePlayerAsync(db, teamId, "Phan Văn Đức", 20, "Tiền vệ cánh trái", PositionCodes.LM, new[] { PositionCodes.LW, PositionCodes.LB }, null, "VAN DUC", 173, 67);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n VÄƒn Chá»§ Tá»‹ch", 10, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.CAM, PositionCodes.ST }, users.KlbOwner.Id, "VAN CHU TICH", 172, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "Äá»— HÃ¹ng DÅ©ng", 16, "Tiá»n vá»‡ phÃ²ng ngá»±", PositionCodes.CDM, new[] { PositionCodes.CM, PositionCodes.CB }, null, "HUNG DUNG", 174, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Quang Háº£i", 19, "Tiá»n vá»‡ táº¥n cÃ´ng", PositionCodes.CAM, new[] { PositionCodes.CM, PositionCodes.RW }, null, "QUANG HAI", 168, 65);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÆ°Æ¡ng XuÃ¢n TrÆ°á»ng", 6, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.CAM, PositionCodes.CDM }, null, "XUAN TRUONG", 177, 71);
+        await AddOrUpdatePlayerAsync(db, teamId, "Phan VÄƒn Äá»©c", 20, "Tiá»n vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LM, new[] { PositionCodes.LW, PositionCodes.LB }, null, "VAN DUC", 173, 67);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Trần Đội Trưởng", 7, "Tiền đạo cánh phải", PositionCodes.RW, new[] { PositionCodes.RM, PositionCodes.ST }, users.KlbCaptain.Id, "DOI TRUONG", 175, 70);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Công Phượng", 11, "Tiền đạo cánh trái", PositionCodes.LW, new[] { PositionCodes.ST, PositionCodes.CAM }, null, "CONG PHUONG", 170, 66);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Tiến Linh", 22, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.CF }, null, "TIEN LINH", 183, 77);
-        await AddOrUpdatePlayerAsync(db, teamId, "Hà Đức Chinh", 9, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.LW, PositionCodes.RW }, null, "DUC CHINH", 177, 74);
+        await AddOrUpdatePlayerAsync(db, teamId, "Tráº§n Äá»™i TrÆ°á»Ÿng", 7, "Tiá»n Ä‘áº¡o cÃ¡nh pháº£i", PositionCodes.RW, new[] { PositionCodes.RM, PositionCodes.ST }, users.KlbCaptain.Id, "DOI TRUONG", 175, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n CÃ´ng PhÆ°á»£ng", 11, "Tiá»n Ä‘áº¡o cÃ¡nh trÃ¡i", PositionCodes.LW, new[] { PositionCodes.ST, PositionCodes.CAM }, null, "CONG PHUONG", 170, 66);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Tiáº¿n Linh", 22, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.CF }, null, "TIEN LINH", 183, 77);
+        await AddOrUpdatePlayerAsync(db, teamId, "HÃ  Äá»©c Chinh", 9, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.LW, PositionCodes.RW }, null, "DUC CHINH", 177, 74);
     }
 
     private static async Task SeedSquadSaoVangAsync(ApplicationDbContext db, Guid teamId, SeededUsers users)
     {
-        // 15 cầu thủ Sao Vàng FC
-        await AddOrUpdatePlayerAsync(db, teamId, "Đặng Văn Lâm", 1, "Thủ môn", PositionCodes.GK, new string[] { }, null, "VAN LAM", 188, 85);
-        await AddOrUpdatePlayerAsync(db, teamId, "Trần Đình Trọng", 21, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "DINH TRONG", 175, 70);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Thành Chung", 16, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.ST }, null, "THANH CHUNG", 182, 76);
-        await AddOrUpdatePlayerAsync(db, teamId, "Hồ Tấn Tài", 13, "Hậu vệ cánh phải", PositionCodes.RB, new[] { PositionCodes.RM, PositionCodes.CB }, null, "TAN TAI", 180, 74);
-        await AddOrUpdatePlayerAsync(db, teamId, "Vũ Văn Thanh", 17, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.RB, PositionCodes.LM, PositionCodes.RM }, null, "VAN THANH", 171, 69);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Phong Hồng Duy", 7, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.LM, PositionCodes.LW }, null, "HONG DUY", 168, 65);
+        // 15 cáº§u thá»§ Sao VÃ ng FC
+        await AddOrUpdatePlayerAsync(db, teamId, "Äáº·ng VÄƒn LÃ¢m", 1, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, null, "VAN LAM", 188, 85);
+        await AddOrUpdatePlayerAsync(db, teamId, "Tráº§n ÄÃ¬nh Trá»ng", 21, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "DINH TRONG", 175, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n ThÃ nh Chung", 16, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.ST }, null, "THANH CHUNG", 182, 76);
+        await AddOrUpdatePlayerAsync(db, teamId, "Há»“ Táº¥n TÃ i", 13, "Háº­u vá»‡ cÃ¡nh pháº£i", PositionCodes.RB, new[] { PositionCodes.RM, PositionCodes.CB }, null, "TAN TAI", 180, 74);
+        await AddOrUpdatePlayerAsync(db, teamId, "VÅ© VÄƒn Thanh", 17, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.RB, PositionCodes.LM, PositionCodes.RM }, null, "VAN THANH", 171, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Phong Há»“ng Duy", 7, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.LM, PositionCodes.LW }, null, "HONG DUY", 168, 65);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Tuấn Anh", 8, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.CDM, PositionCodes.CAM }, null, "TUAN ANH", 174, 67);
-        await AddOrUpdatePlayerAsync(db, teamId, "Phạm Đức Huy", 15, "Tiền vệ phòng ngự", PositionCodes.CDM, new[] { PositionCodes.CM, PositionCodes.RB }, null, "DUC HUY", 173, 72);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Hoàng Đức", 14, "Tiền vệ tấn công", PositionCodes.CAM, new[] { PositionCodes.CM, PositionCodes.ST }, null, "HOANG DUC", 184, 75);
-        await AddOrUpdatePlayerAsync(db, teamId, "Triệu Việt Hưng", 97, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.LM }, null, "VIET HUNG", 172, 66);
-        await AddOrUpdatePlayerAsync(db, teamId, "Châu Ngọc Quang", 18, "Tiền vệ cánh phải", PositionCodes.RM, new[] { PositionCodes.CM, PositionCodes.RW }, null, "NGOC QUANG", 173, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Tuáº¥n Anh", 8, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.CDM, PositionCodes.CAM }, null, "TUAN ANH", 174, 67);
+        await AddOrUpdatePlayerAsync(db, teamId, "Pháº¡m Äá»©c Huy", 15, "Tiá»n vá»‡ phÃ²ng ngá»±", PositionCodes.CDM, new[] { PositionCodes.CM, PositionCodes.RB }, null, "DUC HUY", 173, 72);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n HoÃ ng Äá»©c", 14, "Tiá»n vá»‡ táº¥n cÃ´ng", PositionCodes.CAM, new[] { PositionCodes.CM, PositionCodes.ST }, null, "HOANG DUC", 184, 75);
+        await AddOrUpdatePlayerAsync(db, teamId, "Triá»‡u Viá»‡t HÆ°ng", 97, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.LM }, null, "VIET HUNG", 172, 66);
+        await AddOrUpdatePlayerAsync(db, teamId, "ChÃ¢u Ngá»c Quang", 18, "Tiá»n vá»‡ cÃ¡nh pháº£i", PositionCodes.RM, new[] { PositionCodes.CM, PositionCodes.RW }, null, "NGOC QUANG", 173, 68);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Hoàng Sao Vàng", 9, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.LW, PositionCodes.RW }, users.SaoVangCaptain.Id, "HOANG 9", 178, 73);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Văn Toàn", 99, "Tiền đạo cánh phải", PositionCodes.RW, new[] { PositionCodes.RM, PositionCodes.ST }, null, "VAN TOAN", 170, 63);
-        await AddOrUpdatePlayerAsync(db, teamId, "Phạm Tuấn Hải", 10, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.LW, PositionCodes.CAM }, null, "TUAN HAI", 172, 68);
-        await AddOrUpdatePlayerAsync(db, teamId, "Bùi Vĩ Hào", 11, "Tiền đạo cánh trái", PositionCodes.LW, new[] { PositionCodes.ST }, null, "VI HAO", 177, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "HoÃ ng Sao VÃ ng", 9, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.LW, PositionCodes.RW }, users.SaoVangCaptain.Id, "HOANG 9", 178, 73);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n VÄƒn ToÃ n", 99, "Tiá»n Ä‘áº¡o cÃ¡nh pháº£i", PositionCodes.RW, new[] { PositionCodes.RM, PositionCodes.ST }, null, "VAN TOAN", 170, 63);
+        await AddOrUpdatePlayerAsync(db, teamId, "Pháº¡m Tuáº¥n Háº£i", 10, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.LW, PositionCodes.CAM }, null, "TUAN HAI", 172, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "BÃ¹i VÄ© HÃ o", 11, "Tiá»n Ä‘áº¡o cÃ¡nh trÃ¡i", PositionCodes.LW, new[] { PositionCodes.ST }, null, "VI HAO", 177, 70);
     }
 
     private static async Task SeedSquadPhoenixAsync(ApplicationDbContext db, Guid teamId, SeededUsers users)
     {
-        // 15 cầu thủ Phoenix FC
-        await AddOrUpdatePlayerAsync(db, teamId, "Vũ Phượng Hoàng", 1, "Thủ môn", PositionCodes.GK, new string[] { }, users.PhoenixCaptain.Id, "PHUONG HOANG", 184, 78);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Bá Nam", 23, "Thủ môn", PositionCodes.GK, new string[] { }, null, "BA NAM", 181, 75);
+        // 15 cáº§u thá»§ Phoenix FC
+        await AddOrUpdatePlayerAsync(db, teamId, "VÅ© PhÆ°á»£ng HoÃ ng", 1, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, users.PhoenixCaptain.Id, "PHUONG HOANG", 184, 78);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª BÃ¡ Nam", 23, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, null, "BA NAM", 181, 75);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Trần Kim Hùng", 3, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.DF_L }, null, "KIM HUNG", 180, 77);
-        await AddOrUpdatePlayerAsync(db, teamId, "Đặng Thế Tài", 4, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "THE TAI", 179, 74);
-        await AddOrUpdatePlayerAsync(db, teamId, "Ngô Văn Long", 12, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.LM }, null, "VAN LONG", 172, 66);
-        await AddOrUpdatePlayerAsync(db, teamId, "Tạ Đình Phong", 2, "Hậu vệ cánh phải", PositionCodes.RB, new[] { PositionCodes.RM }, null, "DINH PHONG", 174, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "Tráº§n Kim HÃ¹ng", 3, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.DF_L }, null, "KIM HUNG", 180, 77);
+        await AddOrUpdatePlayerAsync(db, teamId, "Äáº·ng Tháº¿ TÃ i", 4, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "THE TAI", 179, 74);
+        await AddOrUpdatePlayerAsync(db, teamId, "NgÃ´ VÄƒn Long", 12, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.LM }, null, "VAN LONG", 172, 66);
+        await AddOrUpdatePlayerAsync(db, teamId, "Táº¡ ÄÃ¬nh Phong", 2, "Háº­u vá»‡ cÃ¡nh pháº£i", PositionCodes.RB, new[] { PositionCodes.RM }, null, "DINH PHONG", 174, 69);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Phan Anh Vũ", 6, "Tiền vệ phòng ngự", PositionCodes.CDM, new[] { PositionCodes.CM }, null, "ANH VU", 176, 71);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lý Gia Huy", 8, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.CAM }, null, "GIA HUY", 173, 67);
-        await AddOrUpdatePlayerAsync(db, teamId, "Mai Xuân Quyết", 10, "Tiền vệ tấn công", PositionCodes.CAM, new[] { PositionCodes.ST, PositionCodes.LW }, null, "XUAN QUYET", 175, 68);
-        await AddOrUpdatePlayerAsync(db, teamId, "Dương Quốc Bảo", 17, "Tiền vệ cánh trái", PositionCodes.LM, new[] { PositionCodes.LW }, null, "QUOC BAO", 171, 65);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Tuấn Kiệt", 19, "Tiền vệ cánh phải", PositionCodes.RM, new[] { PositionCodes.RW }, null, "TUAN KIET", 173, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "Phan Anh VÅ©", 6, "Tiá»n vá»‡ phÃ²ng ngá»±", PositionCodes.CDM, new[] { PositionCodes.CM }, null, "ANH VU", 176, 71);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃ½ Gia Huy", 8, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.CAM }, null, "GIA HUY", 173, 67);
+        await AddOrUpdatePlayerAsync(db, teamId, "Mai XuÃ¢n Quyáº¿t", 10, "Tiá»n vá»‡ táº¥n cÃ´ng", PositionCodes.CAM, new[] { PositionCodes.ST, PositionCodes.LW }, null, "XUAN QUYET", 175, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "DÆ°Æ¡ng Quá»‘c Báº£o", 17, "Tiá»n vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LM, new[] { PositionCodes.LW }, null, "QUOC BAO", 171, 65);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª Tuáº¥n Kiá»‡t", 19, "Tiá»n vá»‡ cÃ¡nh pháº£i", PositionCodes.RM, new[] { PositionCodes.RW }, null, "TUAN KIET", 173, 68);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Hoàng Nhật Minh", 7, "Tiền đạo cánh phải", PositionCodes.RW, new[] { PositionCodes.ST }, null, "NHAT MINH", 176, 70);
-        await AddOrUpdatePlayerAsync(db, teamId, "Trương Hữu Thắng", 11, "Tiền đạo cánh trái", PositionCodes.LW, new[] { PositionCodes.LM }, null, "HUU THANG", 174, 67);
-        await AddOrUpdatePlayerAsync(db, teamId, "Đào Mạnh Cường", 9, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.CF }, null, "MANH CUONG", 182, 78);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Hùng Sơn", 20, "Tiền đạo cắm", PositionCodes.ST, new string[] { }, null, "HUNG SON", 178, 72);
+        await AddOrUpdatePlayerAsync(db, teamId, "HoÃ ng Nháº­t Minh", 7, "Tiá»n Ä‘áº¡o cÃ¡nh pháº£i", PositionCodes.RW, new[] { PositionCodes.ST }, null, "NHAT MINH", 176, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "TrÆ°Æ¡ng Há»¯u Tháº¯ng", 11, "Tiá»n Ä‘áº¡o cÃ¡nh trÃ¡i", PositionCodes.LW, new[] { PositionCodes.LM }, null, "HUU THANG", 174, 67);
+        await AddOrUpdatePlayerAsync(db, teamId, "ÄÃ o Máº¡nh CÆ°á»ng", 9, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.CF }, null, "MANH CUONG", 182, 78);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n HÃ¹ng SÆ¡n", 20, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new string[] { }, null, "HUNG SON", 178, 72);
     }
 
     private static async Task SeedSquadTrangAnAsync(ApplicationDbContext db, Guid teamId, SeededUsers users)
     {
-        // 14 cầu thủ Tràng An FC
-        await AddOrUpdatePlayerAsync(db, teamId, "Đinh Tràng An", 1, "Thủ môn", PositionCodes.GK, new string[] { }, users.TrangAnCaptain.Id, "TRANG AN", 182, 76);
-        await AddOrUpdatePlayerAsync(db, teamId, "Phạm Xuân Hưng", 12, "Thủ môn", PositionCodes.GK, new string[] { }, null, "XUAN HUNG", 180, 73);
+        // 14 cáº§u thá»§ TrÃ ng An FC
+        await AddOrUpdatePlayerAsync(db, teamId, "Äinh TrÃ ng An", 1, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, users.TrangAnCaptain.Id, "TRANG AN", 182, 76);
+        await AddOrUpdatePlayerAsync(db, teamId, "Pháº¡m XuÃ¢n HÆ°ng", 12, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, null, "XUAN HUNG", 180, 73);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Vũ Văn Lương", 4, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "VAN LUONG", 180, 75);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Hồng Quân", 5, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.RB }, null, "HONG QUAN", 178, 74);
-        await AddOrUpdatePlayerAsync(db, teamId, "Ngô Trọng Tấn", 3, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.LM }, null, "TRONG TAN", 171, 66);
-        await AddOrUpdatePlayerAsync(db, teamId, "Đỗ Đức Thịnh", 2, "Hậu vệ cánh phải", PositionCodes.RB, new[] { PositionCodes.RM }, null, "DUC THINH", 173, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "VÅ© VÄƒn LÆ°Æ¡ng", 4, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "VAN LUONG", 180, 75);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª Há»“ng QuÃ¢n", 5, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.RB }, null, "HONG QUAN", 178, 74);
+        await AddOrUpdatePlayerAsync(db, teamId, "NgÃ´ Trá»ng Táº¥n", 3, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.LM }, null, "TRONG TAN", 171, 66);
+        await AddOrUpdatePlayerAsync(db, teamId, "Äá»— Äá»©c Thá»‹nh", 2, "Háº­u vá»‡ cÃ¡nh pháº£i", PositionCodes.RB, new[] { PositionCodes.RM }, null, "DUC THINH", 173, 68);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Thái Sơn", 6, "Tiền vệ phòng ngự", PositionCodes.CDM, new[] { PositionCodes.CM }, null, "THAI SON", 174, 70);
-        await AddOrUpdatePlayerAsync(db, teamId, "Trần Văn Cường", 8, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.CAM }, null, "VAN CUONG", 172, 67);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Hữu Đạt", 10, "Tiền vệ tấn công", PositionCodes.CAM, new[] { PositionCodes.ST }, null, "HUU DAT", 175, 69);
-        await AddOrUpdatePlayerAsync(db, teamId, "Hoàng Khắc Khiêm", 14, "Tiền vệ cánh trái", PositionCodes.LM, new[] { PositionCodes.LW }, null, "KHAC KHIEM", 170, 65);
-        await AddOrUpdatePlayerAsync(db, teamId, "Võ Phi Hổ", 16, "Tiền vệ cánh phải", PositionCodes.RM, new[] { PositionCodes.RW }, null, "PHI HO", 174, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n ThÃ¡i SÆ¡n", 6, "Tiá»n vá»‡ phÃ²ng ngá»±", PositionCodes.CDM, new[] { PositionCodes.CM }, null, "THAI SON", 174, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "Tráº§n VÄƒn CÆ°á»ng", 8, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.CAM }, null, "VAN CUONG", 172, 67);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª Há»¯u Äáº¡t", 10, "Tiá»n vá»‡ táº¥n cÃ´ng", PositionCodes.CAM, new[] { PositionCodes.ST }, null, "HUU DAT", 175, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "HoÃ ng Kháº¯c KhiÃªm", 14, "Tiá»n vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LM, new[] { PositionCodes.LW }, null, "KHAC KHIEM", 170, 65);
+        await AddOrUpdatePlayerAsync(db, teamId, "VÃµ Phi Há»•", 16, "Tiá»n vá»‡ cÃ¡nh pháº£i", PositionCodes.RM, new[] { PositionCodes.RW }, null, "PHI HO", 174, 69);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Đặng Quốc Hưng", 7, "Tiền đạo cánh phải", PositionCodes.RW, new[] { PositionCodes.ST }, null, "QUOC HUNG", 175, 71);
-        await AddOrUpdatePlayerAsync(db, teamId, "Tạ Đình Hậu", 11, "Tiền đạo cánh trái", PositionCodes.LW, new[] { PositionCodes.LM }, null, "DINH HAU", 173, 68);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Sỹ Chiến", 9, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.CF }, null, "SY CHIEN", 181, 77);
+        await AddOrUpdatePlayerAsync(db, teamId, "Äáº·ng Quá»‘c HÆ°ng", 7, "Tiá»n Ä‘áº¡o cÃ¡nh pháº£i", PositionCodes.RW, new[] { PositionCodes.ST }, null, "QUOC HUNG", 175, 71);
+        await AddOrUpdatePlayerAsync(db, teamId, "Táº¡ ÄÃ¬nh Háº­u", 11, "Tiá»n Ä‘áº¡o cÃ¡nh trÃ¡i", PositionCodes.LW, new[] { PositionCodes.LM }, null, "DINH HAU", 173, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Sá»¹ Chiáº¿n", 9, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.CF }, null, "SY CHIEN", 181, 77);
     }
 
     private static async Task SeedSquadBachKhoaAsync(ApplicationDbContext db, Guid teamId, SeededUsers users)
     {
-        // 14 cầu thủ FC Bách Khoa 2012
-        await AddOrUpdatePlayerAsync(db, teamId, "Tạ Bách Khoa", 1, "Thủ môn", PositionCodes.GK, new string[] { }, users.BachKhoaCaptain.Id, "BACH KHOA", 183, 77);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Đình Triệu", 25, "Thủ môn", PositionCodes.GK, new string[] { }, null, "DINH TRIEU", 181, 75);
+        // 14 cáº§u thá»§ FC BÃ¡ch Khoa 2012
+        await AddOrUpdatePlayerAsync(db, teamId, "Táº¡ BÃ¡ch Khoa", 1, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, users.BachKhoaCaptain.Id, "BACH KHOA", 183, 77);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n ÄÃ¬nh Triá»‡u", 25, "Thá»§ mÃ´n", PositionCodes.GK, new string[] { }, null, "DINH TRIEU", 181, 75);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Văn Sơn", 4, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.RB }, null, "VAN SON", 176, 72);
-        await AddOrUpdatePlayerAsync(db, teamId, "Trần Hữu Khôi", 5, "Trung vệ", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "HUU KHOI", 179, 75);
-        await AddOrUpdatePlayerAsync(db, teamId, "Hoàng Văn Khánh", 3, "Hậu vệ cánh trái", PositionCodes.LB, new[] { PositionCodes.LM }, null, "VAN KHANH", 172, 67);
-        await AddOrUpdatePlayerAsync(db, teamId, "Bùi Hoàng Việt Anh", 20, "Hậu vệ cánh phải", PositionCodes.RB, new[] { PositionCodes.CB }, null, "VIET ANH", 184, 78);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª VÄƒn SÆ¡n", 4, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.RB }, null, "VAN SON", 176, 72);
+        await AddOrUpdatePlayerAsync(db, teamId, "Tráº§n Há»¯u KhÃ´i", 5, "Trung vá»‡", PositionCodes.CB, new[] { PositionCodes.CDM }, null, "HUU KHOI", 179, 75);
+        await AddOrUpdatePlayerAsync(db, teamId, "HoÃ ng VÄƒn KhÃ¡nh", 3, "Háº­u vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LB, new[] { PositionCodes.LM }, null, "VAN KHANH", 172, 67);
+        await AddOrUpdatePlayerAsync(db, teamId, "BÃ¹i HoÃ ng Viá»‡t Anh", 20, "Háº­u vá»‡ cÃ¡nh pháº£i", PositionCodes.RB, new[] { PositionCodes.CB }, null, "VIET ANH", 184, 78);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Trịnh Văn Lợi", 6, "Tiền vệ phòng ngự", PositionCodes.CDM, new[] { PositionCodes.CB }, null, "VAN LOI", 175, 70);
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Trọng Hoàng", 8, "Tiền vệ trung tâm", PositionCodes.CM, new[] { PositionCodes.RM, PositionCodes.RB }, null, "TRONG HOANG", 170, 68);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lê Huỳnh Đức", 10, "Tiền vệ tấn công", PositionCodes.CAM, new[] { PositionCodes.ST }, null, "HUYNH DUC", 178, 73);
-        await AddOrUpdatePlayerAsync(db, teamId, "Đặng Anh Tuấn", 18, "Tiền vệ cánh trái", PositionCodes.LM, new[] { PositionCodes.LW }, null, "ANH TUAN", 172, 66);
-        await AddOrUpdatePlayerAsync(db, teamId, "Phạm Xuân Mạnh", 7, "Tiền vệ cánh phải", PositionCodes.RM, new[] { PositionCodes.RB }, null, "XUAN MANH", 175, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "Trá»‹nh VÄƒn Lá»£i", 6, "Tiá»n vá»‡ phÃ²ng ngá»±", PositionCodes.CDM, new[] { PositionCodes.CB }, null, "VAN LOI", 175, 70);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Trá»ng HoÃ ng", 8, "Tiá»n vá»‡ trung tÃ¢m", PositionCodes.CM, new[] { PositionCodes.RM, PositionCodes.RB }, null, "TRONG HOANG", 170, 68);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃª Huá»³nh Äá»©c", 10, "Tiá»n vá»‡ táº¥n cÃ´ng", PositionCodes.CAM, new[] { PositionCodes.ST }, null, "HUYNH DUC", 178, 73);
+        await AddOrUpdatePlayerAsync(db, teamId, "Äáº·ng Anh Tuáº¥n", 18, "Tiá»n vá»‡ cÃ¡nh trÃ¡i", PositionCodes.LM, new[] { PositionCodes.LW }, null, "ANH TUAN", 172, 66);
+        await AddOrUpdatePlayerAsync(db, teamId, "Pháº¡m XuÃ¢n Máº¡nh", 7, "Tiá»n vá»‡ cÃ¡nh pháº£i", PositionCodes.RM, new[] { PositionCodes.RB }, null, "XUAN MANH", 175, 70);
 
-        await AddOrUpdatePlayerAsync(db, teamId, "Nguyễn Việt Phong", 17, "Tiền đạo cánh phải", PositionCodes.RW, new[] { PositionCodes.ST }, null, "VIET PHONG", 174, 69);
-        await AddOrUpdatePlayerAsync(db, teamId, "Lâm Ti Phông", 19, "Tiền đạo cánh trái", PositionCodes.LW, new[] { PositionCodes.LM }, null, "TI PHONG", 169, 64);
-        await AddOrUpdatePlayerAsync(db, teamId, "Hà Minh Tuấn", 9, "Tiền đạo cắm", PositionCodes.ST, new[] { PositionCodes.CF }, null, "MINH TUAN", 182, 76);
+        await AddOrUpdatePlayerAsync(db, teamId, "Nguyá»…n Viá»‡t Phong", 17, "Tiá»n Ä‘áº¡o cÃ¡nh pháº£i", PositionCodes.RW, new[] { PositionCodes.ST }, null, "VIET PHONG", 174, 69);
+        await AddOrUpdatePlayerAsync(db, teamId, "LÃ¢m Ti PhÃ´ng", 19, "Tiá»n Ä‘áº¡o cÃ¡nh trÃ¡i", PositionCodes.LW, new[] { PositionCodes.LM }, null, "TI PHONG", 169, 64);
+        await AddOrUpdatePlayerAsync(db, teamId, "HÃ  Minh Tuáº¥n", 9, "Tiá»n Ä‘áº¡o cáº¯m", PositionCodes.ST, new[] { PositionCodes.CF }, null, "MINH TUAN", 182, 76);
     }
 
     private static async Task EnsureRegulationsAsync(ApplicationDbContext db, SeededTeams teams)
@@ -760,7 +762,7 @@ public static class DbInitializer
             {
                 TeamId = teams.Klb.Id,
                 Version = 1,
-                Title = "Quy chế chuyên cần KLB FC (Mẫu thực tế)",
+                Title = "Quy cháº¿ chuyÃªn cáº§n KLB FC (Máº«u thá»±c táº¿)",
                 FineNoResponse = 30000m,
                 FineAttendingButAbsent = 50000m,
                 MinMatchesPerMonth = 2,
@@ -775,27 +777,27 @@ public static class DbInitializer
 
     private static async Task EnsureSessionsAndAttendanceAsync(ApplicationDbContext db, SeededTeams teams)
     {
-        // Kiểm tra xem đã có buổi thi đấu cho KLB chưa
+        // Kiá»ƒm tra xem Ä‘Ã£ cÃ³ buá»•i thi Ä‘áº¥u cho KLB chÆ°a
         var existingSession = await db.AttendanceSessions.FirstOrDefaultAsync(s => s.TeamId == teams.Klb.Id);
         if (existingSession == null)
         {
             existingSession = new AttendanceSession
             {
                 TeamId = teams.Klb.Id,
-                Title = "Trận đấu hằng tuần - Thứ Tư (Sân 7)",
+                Title = "Tráº­n Ä‘áº¥u háº±ng tuáº§n - Thá»© TÆ° (SÃ¢n 7)",
                 SessionDateTime = DateTime.Today.AddHours(19).AddMinutes(30),
                 ResponseDeadline = DateTime.Today.AddHours(12),
                 StatisticalPeriod = DateTime.Today.ToString("yyyy-MM"),
                 Status = SessionStatus.Draft,
-                PitchName = "Sân bóng PVV - 72 Trần Thái Tông",
-                PitchType = "7 người",
-                Notes = "Mọi người phản hồi trước 12h trưa để chốt quân số và chia áo chia sân."
+                PitchName = "SÃ¢n bÃ³ng PVV - 72 Tráº§n ThÃ¡i TÃ´ng",
+                PitchType = "7 ngÆ°á»i",
+                Notes = "Má»i ngÆ°á»i pháº£n há»“i trÆ°á»›c 12h trÆ°a Ä‘á»ƒ chá»‘t quÃ¢n sá»‘ vÃ  chia Ã¡o chia sÃ¢n."
             };
             db.AttendanceSessions.Add(existingSession);
             await db.SaveChangesAsync();
         }
 
-        // Đảm bảo toàn bộ 16 cầu thủ của KLB đều có bản ghi điểm danh
+        // Äáº£m báº£o toÃ n bá»™ 16 cáº§u thá»§ cá»§a KLB Ä‘á»u cÃ³ báº£n ghi Ä‘iá»ƒm danh
         var klbPlayers = await db.Players.Where(p => p.TeamId == teams.Klb.Id).ToListAsync();
         var existingRecords = await db.AttendanceRecords.Where(r => r.SessionId == existingSession.Id).ToListAsync();
         var existingPlayerIds = existingRecords.Select(r => r.PlayerId).ToHashSet();
@@ -811,7 +813,7 @@ public static class DbInitializer
                     Response = ResponseStatus.Attending,
                     Actual = ActualStatus.Present,
                     FineAmount = 0m,
-                    PenaltyReason = "Có mặt đúng cam kết"
+                    PenaltyReason = "CÃ³ máº·t Ä‘Ãºng cam káº¿t"
                 });
             }
         }
@@ -820,7 +822,7 @@ public static class DbInitializer
 
     private static async Task EnsureMatchmakingAndMatchesAsync(ApplicationDbContext db, SeededTeams teams)
     {
-        // Bài đăng tìm đối của KLB
+        // BÃ i Ä‘Äƒng tÃ¬m Ä‘á»‘i cá»§a KLB
         if (!await db.MatchmakingPosts.AnyAsync(m => m.TeamId == teams.Klb.Id))
         {
             db.MatchmakingPosts.Add(new MatchmakingPost
@@ -829,19 +831,19 @@ public static class DbInitializer
                 MatchDate = DateTime.Today.AddDays(3),
                 StartTime = new TimeSpan(19, 30, 0),
                 EndTime = new TimeSpan(21, 0, 0),
-                Area = "Cầu Giấy, Hà Nội",
+                Area = "Cáº§u Giáº¥y, HÃ  Ná»™i",
                 PitchArrangement = PitchArrangement.HomePitch,
-                PitchName = "Sân bóng PVV - Trần Thái Tông",
+                PitchName = "SÃ¢n bÃ³ng PVV - Tráº§n ThÃ¡i TÃ´ng",
                 IsPitchBooked = true,
-                PitchType = "7 người",
-                DesiredLevel = "Trung bình - Khá",
-                CostSharing = "50-50 (Chia đôi tiền sân)",
-                Notes = "Cần tìm đối tác giao lưu văn minh, không chơi xấu, sau trận giao lưu bia cỏ.",
+                PitchType = "7 ngÆ°á»i",
+                DesiredLevel = "Trung bÃ¬nh - KhÃ¡",
+                CostSharing = "50-50 (Chia Ä‘Ã´i tiá»n sÃ¢n)",
+                Notes = "Cáº§n tÃ¬m Ä‘á»‘i tÃ¡c giao lÆ°u vÄƒn minh, khÃ´ng chÆ¡i xáº¥u, sau tráº­n giao lÆ°u bia cá».",
                 Status = MatchmakingStatus.Open
             });
         }
 
-        // Bài đăng tìm đối của Phoenix FC
+        // BÃ i Ä‘Äƒng tÃ¬m Ä‘á»‘i cá»§a Phoenix FC
         if (!await db.MatchmakingPosts.AnyAsync(m => m.TeamId == teams.Phoenix.Id))
         {
             db.MatchmakingPosts.Add(new MatchmakingPost
@@ -850,33 +852,33 @@ public static class DbInitializer
                 MatchDate = DateTime.Today.AddDays(5),
                 StartTime = new TimeSpan(20, 0, 0),
                 EndTime = new TimeSpan(21, 30, 0),
-                Area = "Thanh Xuân, Hà Nội",
+                Area = "Thanh XuÃ¢n, HÃ  Ná»™i",
                 PitchArrangement = PitchArrangement.HomePitch,
-                PitchName = "Sân bóng Bộ Công An - Nguyễn Xiển",
+                PitchName = "SÃ¢n bÃ³ng Bá»™ CÃ´ng An - Nguyá»…n Xiá»ƒn",
                 IsPitchBooked = true,
-                PitchType = "7 người",
-                DesiredLevel = "Khá",
+                PitchType = "7 ngÆ°á»i",
+                DesiredLevel = "KhÃ¡",
                 CostSharing = "50-50",
-                Notes = "Phoenix FC tìm đối giao lưu tối cuối tuần, ưu tiên đội hình trẻ khỏe, nhiệt huyết.",
+                Notes = "Phoenix FC tÃ¬m Ä‘á»‘i giao lÆ°u tá»‘i cuá»‘i tuáº§n, Æ°u tiÃªn Ä‘á»™i hÃ¬nh tráº» khá»e, nhiá»‡t huyáº¿t.",
                 Status = MatchmakingStatus.Open
             });
         }
 
-        // Thành tích
+        // ThÃ nh tÃ­ch
         if (!await db.CompetitionAchievements.AnyAsync(c => c.TeamId == teams.Klb.Id))
         {
             db.CompetitionAchievements.Add(new CompetitionAchievement
             {
                 TeamId = teams.Klb.Id,
-                TournamentName = "Cúp Doanh Nghiệp Mở Rộng 2025",
+                TournamentName = "CÃºp Doanh Nghiá»‡p Má»Ÿ Rá»™ng 2025",
                 SeasonOrYear = "2025",
-                TitleOrRank = "Vô Địch",
+                TitleOrRank = "VÃ´ Äá»‹ch",
                 IsFeatured = true,
                 IsVerifiedOnPlatform = true
             });
         }
 
-        // Trận đấu mẫu giữa các đội
+        // Tráº­n Ä‘áº¥u máº«u giá»¯a cÃ¡c Ä‘á»™i
         if (!await db.Matches.AnyAsync(m => m.TeamAId == teams.Klb.Id && m.TeamBId == teams.SaoVang.Id))
         {
             var upcomingMatch = new MatchGame
@@ -884,12 +886,12 @@ public static class DbInitializer
                 TeamAId = teams.Klb.Id,
                 TeamBId = teams.SaoVang.Id,
                 MatchDateTime = DateTime.Today.AddDays(2).AddHours(19).AddMinutes(30),
-                PitchName = "Sân bóng PVV - 72 Trần Thái Tông",
-                PitchType = "7 người",
+                PitchName = "SÃ¢n bÃ³ng PVV - 72 Tráº§n ThÃ¡i TÃ´ng",
+                PitchType = "7 ngÆ°á»i",
                 Category = MatchCategory.Friendly,
                 Status = MatchStatus.Scheduled,
                 IsPublic = true,
-                Notes = "Trận giao hữu lượt đi giữa KLB FC và Sao Vàng FC"
+                Notes = "Tráº­n giao há»¯u lÆ°á»£t Ä‘i giá»¯a KLB FC vÃ  Sao VÃ ng FC"
             };
             db.Matches.Add(upcomingMatch);
         }
@@ -901,8 +903,8 @@ public static class DbInitializer
                 TeamAId = teams.Klb.Id,
                 TeamBId = teams.Phoenix.Id,
                 MatchDateTime = DateTime.Today.AddDays(-5).AddHours(19).AddMinutes(30),
-                PitchName = "Sân bóng PVV - 72 Trần Thái Tông",
-                PitchType = "7 người",
+                PitchName = "SÃ¢n bÃ³ng PVV - 72 Tráº§n ThÃ¡i TÃ´ng",
+                PitchType = "7 ngÆ°á»i",
                 Category = MatchCategory.Friendly,
                 Status = MatchStatus.Completed,
                 ScoreA = 3,
@@ -911,7 +913,7 @@ public static class DbInitializer
                 ConfirmedByTeamB = true,
                 ConfirmedAt = DateTime.Today.AddDays(-5).AddHours(22),
                 IsPublic = true,
-                Notes = "Trận thư hùng kịch tính giữa KLB FC và Phoenix FC"
+                Notes = "Tráº­n thÆ° hÃ¹ng ká»‹ch tÃ­nh giá»¯a KLB FC vÃ  Phoenix FC"
             };
             db.Matches.Add(completedMatch);
         }
@@ -923,8 +925,8 @@ public static class DbInitializer
                 TeamAId = teams.TrangAn.Id,
                 TeamBId = teams.BachKhoa.Id,
                 MatchDateTime = DateTime.Today.AddDays(-3).AddHours(20),
-                PitchName = "Sân Thủy Lợi",
-                PitchType = "7 người",
+                PitchName = "SÃ¢n Thá»§y Lá»£i",
+                PitchType = "7 ngÆ°á»i",
                 Category = MatchCategory.Friendly,
                 Status = MatchStatus.Completed,
                 ScoreA = 2,
@@ -933,7 +935,7 @@ public static class DbInitializer
                 ConfirmedByTeamB = true,
                 ConfirmedAt = DateTime.Today.AddDays(-3).AddHours(22),
                 IsPublic = true,
-                Notes = "Trận derby giao lưu giữa Tràng An FC và FC Bách Khoa 2012"
+                Notes = "Tráº­n derby giao lÆ°u giá»¯a TrÃ ng An FC vÃ  FC BÃ¡ch Khoa 2012"
             };
             db.Matches.Add(derbyMatch);
         }
@@ -949,41 +951,41 @@ public static class DbInitializer
         {
             new Referee
             {
-                Name = "Nguyễn Văn Tuấn",
+                Name = "Nguyá»…n VÄƒn Tuáº¥n",
                 ContactInfo = "0912.345.678 - tuan.ref@aloball.vn",
-                ExperienceSummary = "Trọng tài cấp Quốc gia C2, 5 năm bắt giải phong trào Hà Nội, điều hành hơn 200 trận.",
-                SupportedFormats = "7 người, 11 người",
-                ServiceNotes = "Bắt nhiệt tình, nghiêm khắc, kiểm soát tốt các tình huống tranh chấp.",
+                ExperienceSummary = "Trá»ng tÃ i cáº¥p Quá»‘c gia C2, 5 nÄƒm báº¯t giáº£i phong trÃ o HÃ  Ná»™i, Ä‘iá»u hÃ nh hÆ¡n 200 tráº­n.",
+                SupportedFormats = "7 ngÆ°á»i, 11 ngÆ°á»i",
+                ServiceNotes = "Báº¯t nhiá»‡t tÃ¬nh, nghiÃªm kháº¯c, kiá»ƒm soÃ¡t tá»‘t cÃ¡c tÃ¬nh huá»‘ng tranh cháº¥p.",
                 DefaultPriceVND = 350000,
                 IsActive = true
             },
             new Referee
             {
-                Name = "Trần Đình Trọng",
+                Name = "Tráº§n ÄÃ¬nh Trá»ng",
                 ContactInfo = "0987.654.321 - trong.ref@aloball.vn",
-                ExperienceSummary = "Trọng tài Futsal & sân 7 VFF, kinh nghiệm điều hành giải các doanh nghiệp.",
-                SupportedFormats = "5 người, 7 người",
-                ServiceNotes = "Di chuyển linh hoạt, xử lý chính xác luật bóng đá mini 7 người.",
+                ExperienceSummary = "Trá»ng tÃ i Futsal & sÃ¢n 7 VFF, kinh nghiá»‡m Ä‘iá»u hÃ nh giáº£i cÃ¡c doanh nghiá»‡p.",
+                SupportedFormats = "5 ngÆ°á»i, 7 ngÆ°á»i",
+                ServiceNotes = "Di chuyá»ƒn linh hoáº¡t, xá»­ lÃ½ chÃ­nh xÃ¡c luáº­t bÃ³ng Ä‘Ã¡ mini 7 ngÆ°á»i.",
                 DefaultPriceVND = 300000,
                 IsActive = true
             },
             new Referee
             {
-                Name = "Lê Minh Đức",
+                Name = "LÃª Minh Äá»©c",
                 ContactInfo = "0903.112.233 - duc.ref@aloball.vn",
-                ExperienceSummary = "Cựu cầu thủ sinh viên ĐHQG, chứng chỉ trọng tài sơ cấp, chuyên sân 7.",
-                SupportedFormats = "7 người",
-                ServiceNotes = "Thân thiện, giải thích luật rõ ràng, hỗ trợ ghi biên bản trận đấu.",
+                ExperienceSummary = "Cá»±u cáº§u thá»§ sinh viÃªn ÄHQG, chá»©ng chá»‰ trá»ng tÃ i sÆ¡ cáº¥p, chuyÃªn sÃ¢n 7.",
+                SupportedFormats = "7 ngÆ°á»i",
+                ServiceNotes = "ThÃ¢n thiá»‡n, giáº£i thÃ­ch luáº­t rÃµ rÃ ng, há»— trá»£ ghi biÃªn báº£n tráº­n Ä‘áº¥u.",
                 DefaultPriceVND = 250000,
                 IsActive = true
             },
             new Referee
             {
-                Name = "Hoàng Quốc Việt",
+                Name = "HoÃ ng Quá»‘c Viá»‡t",
                 ContactInfo = "0944.888.999 - viet.ref@aloball.vn",
-                ExperienceSummary = "Trọng tài sân 11 & sân 7, 7 năm kinh nghiệm các giải phủi miền Bắc.",
-                SupportedFormats = "7 người, 11 người",
-                ServiceNotes = "Chuyên bắt các trận cầu căng thẳng, tính chất cạnh tranh cao.",
+                ExperienceSummary = "Trá»ng tÃ i sÃ¢n 11 & sÃ¢n 7, 7 nÄƒm kinh nghiá»‡m cÃ¡c giáº£i phá»§i miá»n Báº¯c.",
+                SupportedFormats = "7 ngÆ°á»i, 11 ngÆ°á»i",
+                ServiceNotes = "ChuyÃªn báº¯t cÃ¡c tráº­n cáº§u cÄƒng tháº³ng, tÃ­nh cháº¥t cáº¡nh tranh cao.",
                 DefaultPriceVND = 400000,
                 IsActive = true
             }
@@ -1001,77 +1003,77 @@ public static class DbInitializer
         {
             new PitchVenue
             {
-                Name = "Sân bóng Thành Phát",
-                Description = "Cụm sân cỏ nhân tạo hiện đại bậc nhất khu vực Cầu Giấy, hệ thống chiếu sáng chuẩn và thoát nước cực tốt.",
-                City = "Hà Nội",
-                District = "Cầu Giấy",
-                FullAddress = "Số 2 Hoàng Minh Giám, Trung Hòa, Cầu Giấy, Hà Nội",
+                Name = "SÃ¢n bÃ³ng ThÃ nh PhÃ¡t",
+                Description = "Cá»¥m sÃ¢n cá» nhÃ¢n táº¡o hiá»‡n Ä‘áº¡i báº­c nháº¥t khu vá»±c Cáº§u Giáº¥y, há»‡ thá»‘ng chiáº¿u sÃ¡ng chuáº©n vÃ  thoÃ¡t nÆ°á»›c cá»±c tá»‘t.",
+                City = "HÃ  Ná»™i",
+                District = "Cáº§u Giáº¥y",
+                FullAddress = "Sá»‘ 2 HoÃ ng Minh GiÃ¡m, Trung HÃ²a, Cáº§u Giáº¥y, HÃ  Ná»™i",
                 ContactPhone = "0912.345.888",
-                SupportedFormats = "5 người, 7 người",
-                SurfaceType = "Cỏ nhân tạo tiêu chuẩn FIFA",
-                Facilities = "Đèn LED cao cấp, Bãi đỗ xe ô tô rộng, Nước uống miễn phí, Phòng thay đồ",
+                SupportedFormats = "5 ngÆ°á»i, 7 ngÆ°á»i",
+                SurfaceType = "Cá» nhÃ¢n táº¡o tiÃªu chuáº©n FIFA",
+                Facilities = "ÄÃ¨n LED cao cáº¥p, BÃ£i Ä‘á»— xe Ã´ tÃ´ rá»™ng, NÆ°á»›c uá»‘ng miá»…n phÃ­, PhÃ²ng thay Ä‘á»“",
                 OpeningHours = "06:00 - 23:30",
                 IndicativePricePerHour = 450000,
-                PriceNotes = "Khung giờ vàng (17:30 - 20:30): 650.000đ/90p; Ngày thường: 450.000đ/90p",
+                PriceNotes = "Khung giá» vÃ ng (17:30 - 20:30): 650.000Ä‘/90p; NgÃ y thÆ°á»ng: 450.000Ä‘/90p",
                 ImageUrl = "https://images.unsplash.com/photo-1529900241477-94a53e3ba439?auto=format&fit=crop&w=800&q=80",
-                MapLink = "https://maps.google.com/?q=Số+2+Hoàng+Minh+Giám+Cầu+Giấy+Hà+Nội",
+                MapLink = "https://maps.google.com/?q=Sá»‘+2+HoÃ ng+Minh+GiÃ¡m+Cáº§u+Giáº¥y+HÃ +Ná»™i",
                 TotalPitches = 4,
                 IsActive = true
             },
             new PitchVenue
             {
-                Name = "Sân bóng Thủy Lợi",
-                Description = "Cụm sân trong khuôn viên Đại học Thủy Lợi, mặt cỏ mềm, khán đài mini có mái che, vị trí trung tâm.",
-                City = "Hà Nội",
-                District = "Đống Đa",
-                FullAddress = "Ngõ 95 Chùa Bộc, Trung Liệt, Đống Đa, Hà Nội",
+                Name = "SÃ¢n bÃ³ng Thá»§y Lá»£i",
+                Description = "Cá»¥m sÃ¢n trong khuÃ´n viÃªn Äáº¡i há»c Thá»§y Lá»£i, máº·t cá» má»m, khÃ¡n Ä‘Ã i mini cÃ³ mÃ¡i che, vá»‹ trÃ­ trung tÃ¢m.",
+                City = "HÃ  Ná»™i",
+                District = "Äá»‘ng Äa",
+                FullAddress = "NgÃµ 95 ChÃ¹a Bá»™c, Trung Liá»‡t, Äá»‘ng Äa, HÃ  Ná»™i",
                 ContactPhone = "0988.777.666",
-                SupportedFormats = "7 người, 11 người",
-                SurfaceType = "Cỏ nhân tạo sợi đay cao cấp",
-                Facilities = "Khán đài mini, Căn tin nước giải khát, Tắm nóng lạnh, Gửi xe trường học",
+                SupportedFormats = "7 ngÆ°á»i, 11 ngÆ°á»i",
+                SurfaceType = "Cá» nhÃ¢n táº¡o sá»£i Ä‘ay cao cáº¥p",
+                Facilities = "KhÃ¡n Ä‘Ã i mini, CÄƒn tin nÆ°á»›c giáº£i khÃ¡t, Táº¯m nÃ³ng láº¡nh, Gá»­i xe trÆ°á»ng há»c",
                 OpeningHours = "06:00 - 23:00",
                 IndicativePricePerHour = 400000,
-                PriceNotes = "Khung giờ tối: 600.000đ/trận 90p; Cuối tuần phụ thu 50.000đ",
+                PriceNotes = "Khung giá» tá»‘i: 600.000Ä‘/tráº­n 90p; Cuá»‘i tuáº§n phá»¥ thu 50.000Ä‘",
                 ImageUrl = "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80",
-                MapLink = "https://maps.google.com/?q=Ngõ+95+Chùa+Bộc+Đống+Đa+Hà+Nội",
+                MapLink = "https://maps.google.com/?q=NgÃµ+95+ChÃ¹a+Bá»™c+Äá»‘ng+Äa+HÃ +Ná»™i",
                 TotalPitches = 6,
                 IsActive = true
             },
             new PitchVenue
             {
-                Name = "Sân bóng PVV - Vinaconex 39",
-                Description = "Sân bóng quen thuộc của giới phủi Hà thành, không gian thoáng đãng, mặt sân được bảo dưỡng định kỳ.",
-                City = "Hà Nội",
-                District = "Cầu Giấy",
-                FullAddress = "Số 72 Trần Thái Tông, Dịch Vọng Hậu, Cầu Giấy, Hà Nội",
+                Name = "SÃ¢n bÃ³ng PVV - Vinaconex 39",
+                Description = "SÃ¢n bÃ³ng quen thuá»™c cá»§a giá»›i phá»§i HÃ  thÃ nh, khÃ´ng gian thoÃ¡ng Ä‘Ã£ng, máº·t sÃ¢n Ä‘Æ°á»£c báº£o dÆ°á»¡ng Ä‘á»‹nh ká»³.",
+                City = "HÃ  Ná»™i",
+                District = "Cáº§u Giáº¥y",
+                FullAddress = "Sá»‘ 72 Tráº§n ThÃ¡i TÃ´ng, Dá»‹ch Vá»ng Háº­u, Cáº§u Giáº¥y, HÃ  Ná»™i",
                 ContactPhone = "0904.123.456",
-                SupportedFormats = "7 người",
-                SurfaceType = "Cỏ nhân tạo monofilament",
-                Facilities = "Bãi đỗ ô tô xe máy, Đèn chiếu sáng chống chói, Cho thuê giày & áo tập",
+                SupportedFormats = "7 ngÆ°á»i",
+                SurfaceType = "Cá» nhÃ¢n táº¡o monofilament",
+                Facilities = "BÃ£i Ä‘á»— Ã´ tÃ´ xe mÃ¡y, ÄÃ¨n chiáº¿u sÃ¡ng chá»‘ng chÃ³i, Cho thuÃª giÃ y & Ã¡o táº­p",
                 OpeningHours = "06:00 - 22:30",
                 IndicativePricePerHour = 500000,
-                PriceNotes = "Giá cố định 700.000đ/trận 90p giờ cao điểm",
+                PriceNotes = "GiÃ¡ cá»‘ Ä‘á»‹nh 700.000Ä‘/tráº­n 90p giá» cao Ä‘iá»ƒm",
                 ImageUrl = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80",
-                MapLink = "https://maps.google.com/?q=72+Trần+Thái+Tông+Cầu+Giấy+Hà+Nội",
+                MapLink = "https://maps.google.com/?q=72+Tráº§n+ThÃ¡i+TÃ´ng+Cáº§u+Giáº¥y+HÃ +Ná»™i",
                 TotalPitches = 3,
                 IsActive = true
             },
             new PitchVenue
             {
-                Name = "Sân vận động Bách Khoa",
-                Description = "Sân vận động kích thước tiêu chuẩn thi đấu 11 người hoặc chia thành 8 sân 7 người, khán đài A-B sức chứa lớn.",
-                City = "Hà Nội",
-                District = "Hai Bà Trưng",
-                FullAddress = "Số 1 Đại Cồ Việt, Bách Khoa, Hai Bà Trưng, Hà Nội",
+                Name = "SÃ¢n váº­n Ä‘á»™ng BÃ¡ch Khoa",
+                Description = "SÃ¢n váº­n Ä‘á»™ng kÃ­ch thÆ°á»›c tiÃªu chuáº©n thi Ä‘áº¥u 11 ngÆ°á»i hoáº·c chia thÃ nh 8 sÃ¢n 7 ngÆ°á»i, khÃ¡n Ä‘Ã i A-B sá»©c chá»©a lá»›n.",
+                City = "HÃ  Ná»™i",
+                District = "Hai BÃ  TrÆ°ng",
+                FullAddress = "Sá»‘ 1 Äáº¡i Cá»“ Viá»‡t, BÃ¡ch Khoa, Hai BÃ  TrÆ°ng, HÃ  Ná»™i",
                 ContactPhone = "0936.888.999",
-                SupportedFormats = "7 người, 11 người",
-                SurfaceType = "Cỏ tự nhiên & Cỏ nhân tạo",
-                Facilities = "Khán đài có mái che, Phòng thay đồ VIP, Hệ thống âm thanh & bảng điện tử",
+                SupportedFormats = "7 ngÆ°á»i, 11 ngÆ°á»i",
+                SurfaceType = "Cá» tá»± nhiÃªn & Cá» nhÃ¢n táº¡o",
+                Facilities = "KhÃ¡n Ä‘Ã i cÃ³ mÃ¡i che, PhÃ²ng thay Ä‘á»“ VIP, Há»‡ thá»‘ng Ã¢m thanh & báº£ng Ä‘iá»‡n tá»­",
                 OpeningHours = "06:00 - 22:00",
                 IndicativePricePerHour = 600000,
-                PriceNotes = "Sân 7: 650.000đ/90p; Sân 11 người: 1.800.000đ/120p",
+                PriceNotes = "SÃ¢n 7: 650.000Ä‘/90p; SÃ¢n 11 ngÆ°á»i: 1.800.000Ä‘/120p",
                 ImageUrl = "https://images.unsplash.com/photo-1489944445301-4475b3d14996?auto=format&fit=crop&w=800&q=80",
-                MapLink = "https://maps.google.com/?q=Sân+vận+động+Bách+Khoa+Hà+Nội",
+                MapLink = "https://maps.google.com/?q=SÃ¢n+váº­n+Ä‘á»™ng+BÃ¡ch+Khoa+HÃ +Ná»™i",
                 TotalPitches = 8,
                 IsActive = true
             }

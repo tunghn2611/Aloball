@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -42,7 +42,7 @@ public class AccountController : Controller
         ViewData["ReturnUrl"] = returnUrl;
         if (!ModelState.IsValid) return View(model);
 
-        var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+        var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, isPersistent: true, lockoutOnFailure: false);
         if (result.Succeeded)
         {
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))

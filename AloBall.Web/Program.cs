@@ -9,7 +9,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Cáº¥u hÃ¬nh Database Provider:
 // Náº¿u cÃ³ connection string PostgreSQL -> dÃ¹ng Npgsql, ngÆ°á»£c láº¡i dÃ¹ng SQLite local
-var pgConnection = builder.Configuration.GetConnectionString("PostgreSqlConnection");
+var rawPg = builder.Configuration.GetConnectionString("PostgreSqlConnection")
+    ?? Environment.GetEnvironmentVariable("POSTGRES_CONNECTION")
+    ?? Environment.GetEnvironmentVariable("POSTGRES_URL")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+var pgConnection = ConvertPostgresUriToConnectionString(rawPg);
 var sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=AloBall.db";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -100,7 +104,7 @@ if (!string.IsNullOrEmpty(port))
 }
 else
 {
-    builder.WebHost.UseUrls("http://0.0.0.0:80", "http://0.0.0.0:8080");
+    builder.WebHost.UseUrls("http://0.0.0.0:8080");
 }
 
 if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
@@ -137,18 +141,51 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Route cÃ´ng khai cho há»“ sÆ¡ Ä‘á»™i bÃ³ng: /doi/{slug} hoáº·c /teams/profile/{slug} hoáº·c slug khÃ´ng trÃ¹ng controller action
 app.MapControllerRoute(
     name: "team_public",
     pattern: "doi/{slug}",
     defaults: new { controller = "Teams", action = "PublicProfile" });
 
-// Route cÃ´ng khai cho há»“ sÆ¡ cáº§u thá»§: /cau-thu/{id}
 app.MapControllerRoute(
     name: "player_public",
     pattern: "cau-thu/{id}",
     defaults: new { controller = "Teams", action = "PlayerPublicProfile" });
 
 app.Run();
+
+static string? ConvertPostgresUriToConnectionString(string? uriOrConnStr)
+{
+    if (string.IsNullOrWhiteSpace(uriOrConnStr)) return uriOrConnStr;
+    if (!uriOrConnStr.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
+        !uriOrConnStr.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        return uriOrConnStr;
+    }
+
+    try
+    {
+        var uri = new Uri(uriOrConnStr);
+        var userInfo = uri.UserInfo.Split(':');
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var database = uri.AbsolutePath.TrimStart('/');
+        var port = uri.Port > 0 ? uri.Port : 5432;
+
+        var connBuilder = new Npgsql.NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = port,
+            Database = database,
+            Username = username,
+            Password = password,
+            SslMode = Npgsql.SslMode.Require
+        };
+        return connBuilder.ConnectionString;
+    }
+    catch
+    {
+        return uriOrConnStr;
+    }
+}
 
 public partial class Program { }
