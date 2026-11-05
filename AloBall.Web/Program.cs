@@ -64,6 +64,21 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "RequestVerificationToken";
 });
 
+// Đăng ký ForwardedHeaders để chạy ổn định sau reverse proxy (Vercel, Cloudflare, v.v.)
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// Hỗ trợ biến môi trường PORT (Vercel / Cloud Container cung cấp)
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
 {
     builder.Environment.WebRootPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot");
@@ -71,8 +86,10 @@ if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
 
 var app = builder.Build();
 
-// Tự động Migrate/Seed demo data trong môi trường Development
-if (app.Environment.IsDevelopment())
+app.UseForwardedHeaders();
+
+// Tự động Migrate/Seed demo data khi chạy ứng dụng (bỏ qua khi chạy Unit/Integration Test)
+if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
     await DbInitializer.SeedDemoDataAsync(scope.ServiceProvider);

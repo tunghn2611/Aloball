@@ -1,0 +1,31 @@
+# ==============================================================================
+# AloBall ASP.NET Core 8 Multi-stage Dockerfile
+# ==============================================================================
+
+# Stage 1: Build & Publish
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /source
+
+# Copy solution and project files first for fast caching
+COPY AloBall.sln .
+COPY AloBall.Web/AloBall.Web.csproj AloBall.Web/
+COPY AloBall.Tests/AloBall.Tests.csproj AloBall.Tests/
+RUN dotnet restore AloBall.sln
+
+# Copy remaining source code
+COPY . .
+
+# Publish Release
+WORKDIR /source/AloBall.Web
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+# Stage 2: Runtime Environment
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+
+# Default container port
+EXPOSE 8080
+ENV ASPNETCORE_HTTP_PORTS=8080
+
+ENTRYPOINT ["dotnet", "AloBall.Web.dll"]
