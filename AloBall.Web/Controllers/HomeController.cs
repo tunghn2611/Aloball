@@ -86,6 +86,14 @@ public class HomeController : Controller
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
+        var exceptionFeature = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>();
+        var ex = exceptionFeature?.Error;
+        if (ex != null)
+        {
+            _logger.LogError(ex, "Lỗi không xử lý tại đường dẫn {Path}: {Message}", exceptionFeature?.Path, ex.Message);
+            ViewData["ExceptionMessage"] = ex.Message;
+            ViewData["ExceptionType"] = ex.GetType().Name;
+        }
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 }

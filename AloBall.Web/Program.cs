@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection;
 using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
@@ -155,16 +155,48 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// Seeding demo data chỉ tự động chạy trong môi trường Development (không chạy trên Production hoặc Testing)
-if (app.Environment.IsDevelopment())
+// Khởi tạo Schema và Dữ liệu CSDL tự động & an toàn
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
-    await DbInitializer.SeedDemoDataAsync(scope.ServiceProvider);
-}
-else if (app.Environment.IsProduction())
-{
-    // Production: Khởi tạo an toàn (one-time bootstrap) cho tài khoản Super Admin nếu được cấu hình
-    await AdminBootstrap.ProvisionSuperAdminAsync(app.Services);
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("DatabaseInit");
+
+    try
+    {
+        if (db.Database.IsNpgsql())
+        {
+            logger?.LogInformation("PostgreSQL phát hiện. Đang kiểm tra và áp dụng migrations...");
+            var pending = await db.Database.GetPendingMigrationsAsync();
+            if (pending.Any())
+            {
+                await db.Database.MigrateAsync();
+                logger?.LogInformation("Đã áp dụng thành công {Count} migration(s).", pending.Count());
+            }
+        }
+        else if (db.Database.IsSqlite())
+        {
+            logger?.LogInformation("SQLite phát hiện. Đang kiểm tra schema...");
+            await db.Database.EnsureCreatedAsync();
+            await DbInitializer.EnsureDatabaseSchemaAsync(db);
+        }
+
+        // Tự động seed dữ liệu mẫu chỉ khi CSDL hoàn toàn mới (chưa có đội bóng nào) và không phải môi trường Testing
+        // Đảm bảo trang web luôn có đầy đủ dữ liệu tiếng Việt chuẩn UTF-8 và hoạt động ngay lập tức
+        if (!app.Environment.IsEnvironment("Testing") && !await db.Teams.AnyAsync())
+        {
+            logger?.LogInformation("CSDL chưa có dữ liệu đội bóng. Đang khởi tạo dữ liệu chuẩn AloBall...");
+            await DbInitializer.SeedDemoDataAsync(app.Services, db);
+        }
+        else if (app.Environment.IsProduction())
+        {
+            // Production: Khởi tạo an toàn (one-time bootstrap) cho tài khoản Super Admin nếu được cấu hình
+            await AdminBootstrap.ProvisionSuperAdminAsync(app.Services);
+        }
+    }
+    catch (Exception ex)
+    {
+        logger?.LogError(ex, "Lỗi xảy ra trong quá trình khởi tạo cơ sở dữ liệu khi khởi động ứng dụng.");
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -194,6 +226,33 @@ app.MapControllerRoute(
     name: "player_public",
     pattern: "cau-thu/{id}",
     defaults: new { controller = "Teams", action = "PlayerPublicProfile" });
+
+app.MapGet("/api/health", async (IServiceProvider sp) =>
+{
+    using var healthScope = sp.CreateScope();
+    var db = healthScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var env = healthScope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+
+    var info = new Dictionary<string, object?>();
+    info["status"] = "OK";
+    info["environment"] = env.EnvironmentName;
+    info["provider"] = db.Database.ProviderName;
+
+    try
+    {
+        info["canConnect"] = await db.Database.CanConnectAsync();
+        info["isNpgsql"] = db.Database.IsNpgsql();
+        info["isSqlite"] = db.Database.IsSqlite();
+        info["teamCount"] = await db.Teams.CountAsync();
+    }
+    catch (Exception ex)
+    {
+        info["dbError"] = ex.Message;
+        info["dbErrorType"] = ex.GetType().Name;
+    }
+
+    return Results.Ok(info);
+});
 
 app.Run();
 

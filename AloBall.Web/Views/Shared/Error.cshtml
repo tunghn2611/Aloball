@@ -1,3 +1,17 @@
 @model ErrorViewModel
 @{ ViewData["Title"] = "Có lỗi xảy ra"; }
-<section class="error-stage"><span class="eyebrow">TẠM DỪNG MỘT NHỊP</span><h1>Chưa thể hoàn tất thao tác.</h1><p>Vui lòng thử lại. Nếu lỗi vẫn tiếp diễn, hãy gửi mã bên dưới cho người quản trị.</p>@if (Model.ShowRequestId) { <p class="small text-muted">Mã hỗ trợ: <code>@Model.RequestId</code></p> }<a asp-controller="Home" asp-action="Index" class="btn btn-arena-primary">Về trang khám phá <i class="bi bi-arrow-right"></i></a></section>
+<section class="error-stage">
+    <span class="eyebrow">TẠM DỪNG MỘT NHỊP</span>
+    <h1>Chưa thể hoàn tất thao tác.</h1>
+    <p>Vui lòng thử lại. Nếu lỗi vẫn tiếp diễn, hãy gửi mã bên dưới cho người quản trị.</p>
+    @if (Model.ShowRequestId) { <p class="small text-muted">Mã hỗ trợ: <code>@Model.RequestId</code></p> }
+    @if (ViewData["ExceptionMessage"] != null) {
+        <details class="text-danger small mt-3 text-start bg-light p-3 rounded" style="max-width: 600px; margin: 0 auto;">
+            <summary><strong>Chi tiết kỹ thuật (@ViewData["ExceptionType"])</strong></summary>
+            <p class="mt-2 mb-0"><code>@ViewData["ExceptionMessage"]</code></p>
+        </details>
+    }
+    <div class="mt-4">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-arena-primary">Về trang khám phá <i class="bi bi-arrow-right"></i></a>
+    </div>
+</section>
