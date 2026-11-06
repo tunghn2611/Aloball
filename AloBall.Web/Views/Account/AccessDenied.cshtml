@@ -1,0 +1,46 @@
+@{
+    ViewData["Title"] = "Từ chối quyền truy cập";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="arena-card p-4 p-md-5 text-center shadow-sm">
+                <div class="mb-4">
+                    <span class="badge bg-danger-subtle text-danger px-3 py-2 fs-6 rounded-pill">
+                        <i class="bi bi-shield-lock-fill me-1"></i> HTTP 403 · KHÔNG CÓ QUYỀN TRUY CẬP
+                    </span>
+                </div>
+
+                <h1 class="h3 fw-bold mb-3">Khu vực giới hạn quyền</h1>
+                
+                <p class="text-secondary mb-4">
+                    Tài khoản của bạn đã đăng nhập nhưng không đủ quyền hạn để truy cập nội dung này.
+                    Trang này có thể chỉ dành riêng cho Ban quản lý (Owner / Manager) hoặc Quản trị hệ thống.
+                </p>
+
+                @if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    <div class="alert alert-light border small text-break mb-4 py-2 px-3 text-muted">
+                        <i class="bi bi-link-45deg me-1"></i> <strong>Đường dẫn yêu cầu:</strong> <code>@returnUrl</code>
+                    </div>
+                }
+
+                <div class="d-flex flex-column flex-sm-row justify-content-center gap-2 pt-2">
+                    <a asp-controller="Teams" asp-action="Index" class="btn btn-arena-primary">
+                        <i class="bi bi-shield-shaded me-1"></i> Về danh sách đội bóng
+                    </a>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="bi bi-house me-1"></i> Trang chủ
+                    </a>
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-link text-decoration-none text-muted">
+                            <i class="bi bi-box-arrow-right me-1"></i> Đăng nhập tài khoản khác
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -63,6 +63,26 @@ public class AccountController : Controller
     }
 
     [HttpGet]
+    [AllowAnonymous]
+    public IActionResult AccessDenied(string? returnUrl = null)
+    {
+        if (User?.Identity?.IsAuthenticated != true)
+        {
+            var safeReturn = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? returnUrl
+                : null;
+            return RedirectToAction(nameof(Login), new { returnUrl = safeReturn });
+        }
+
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        var safeUrl = !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : null;
+        ViewData["ReturnUrl"] = safeUrl;
+        return View();
+    }
+
+    [HttpGet]
     public IActionResult Register(string? returnUrl = null)
     {
         ViewData["ReturnUrl"] = returnUrl;

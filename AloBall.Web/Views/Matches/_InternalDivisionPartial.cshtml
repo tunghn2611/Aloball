@@ -1,5 +1,6 @@
-@model AloBall.Web.Data.Entities.MatchGame
+﻿@model AloBall.Web.Data.Entities.MatchGame
 @{
+    bool canEdit = ViewBag.IsManagerA ?? false;
     var teamAPlayers = Model.TeamA.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999).ToList();
     var allFormations = AloBall.Web.Services.TeamDivision.FormationRegistry.AllFormations;
     var currentFormation = AloBall.Web.Services.TeamDivision.FormationRegistry.GetByCode(Model.FormationCode, Model.PitchType);
@@ -250,6 +251,18 @@
     .fifa-sub-token:active {
         cursor: grabbing;
     }
+        /* Read-only mode styling for team members */
+    .fifa-pitch-readonly .fifa-player-token,
+    .fifa-pitch-readonly .fifa-sub-token,
+    .fifa-pitch-readonly .player-touch-card {
+        cursor: default !important;
+    }
+    .fifa-pitch-readonly .fifa-player-token:hover,
+    .fifa-pitch-readonly .fifa-sub-token:hover,
+    .fifa-pitch-readonly .player-touch-card:hover {
+        transform: none !important;
+    }
+    
     .fifa-sub-token.selected-swap {
         border-color: #38bdf8;
         background: #0284c7;
@@ -470,6 +483,8 @@
     </div>
 </div>
 
+@if (canEdit)
+{
 <!-- Modal Thiết lập quân số tham gia & Chỉ định dự bị -->
 <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -555,9 +570,11 @@
         </div>
     </div>
 </div>
+}
 
 <script>
     // State management
+    const canEditTactics = @(canEdit ? "true" : "false");
     const matchId = '@Model.Id';
     let currentRevision = @Model.LineupRevision;
     let currentFormationCode = '@currentFormation.Code';
@@ -686,12 +703,14 @@
     }
 
     function toggleSettingsModal() {
+        if (!canEditTactics) return;
         updateParticipantStats();
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('settingsModal'));
         modal.show();
     }
 
     function applyParticipantsAndDivide() {
+        if (!canEditTactics) return;
         if (!updateParticipantStats()) return;
         bootstrap.Modal.getOrCreateInstance(document.getElementById('settingsModal')).hide();
         runAutoDivision();
@@ -736,6 +755,7 @@
 
     // 1. Chạy chia đội tự động (AJAX Call to MatchesController.PreviewAutoDivision)
     async function runAutoDivision() {
+        if (!canEditTactics) return;
         showAlert(null);
         if (!updateParticipantStats()) {
             toggleSettingsModal();
@@ -822,6 +842,25 @@
         const activeTeamSlots = (currentPitchSide === 'A') ? stateSideA : stateSideB;
         const totalSlots = activeTeamSlots.length;
 
+        if (totalSlots === 0) {
+            pitchField.innerHTML = `
+                <div class="d-flex flex-column align-items-center justify-content-center text-center p-3" style="position: absolute; inset: 0; z-index: 10;">
+                    <div class="p-3 rounded-4 shadow-lg" style="background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); max-width: 360px; border: 1px solid rgba(255,255,255,0.15);">
+                        <i class="bi bi-diagram-3 text-warning fs-1 d-block mb-2"></i>
+                        <h6 class="text-white fw-bold mb-1">Chưa xếp đội hình trên sa bàn</h6>
+                        <p class="text-white-50 small mb-0">
+                            ${canEditTactics 
+                                ? 'Đội trưởng hãy bấm <strong>"Chia đội tự động"</strong> để xếp đội hình lên sa bàn.' 
+                                : 'Đội trưởng chưa chốt đội hình cho trận đấu này.'}
+                        </p>
+                    </div>
+                </div>
+            `;
+            benchCount.innerText = 0;
+            benchList.innerHTML = '<span class="small text-white-50 fst-italic">Không có cầu thủ dự bị.</span>';
+            return;
+        }
+
         // Render các slot trên sân
         pitchField.innerHTML = activeTeamSlots.map((s, idx) => {
             const coords = getCoordinatesForSlot(s.slotCode, currentFormationCode, idx, totalSlots);
@@ -830,16 +869,19 @@
             const compatClass = isPrimary ? 'primary' : 'secondary';
             const badgeClass = currentPitchSide === 'A' ? 'side-A' : 'side-B';
 
-            return `
-                <div class="fifa-player-token ${isSelected ? 'selected-swap' : ''}" 
-                     style="left: ${coords.x}%; top: ${coords.y}%;"
+            const dragAttrs = canEditTactics ? `
                      draggable="true"
                      ondragstart="handleDragStart(event, '${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
                      ondragend="handleDragEnd(event)"
                      ondragover="handleDragOver(event)"
                      ondragleave="handleDragLeave(event)"
                      ondrop="handleDrop(event, '${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
-                     onclick="handleTapPlayer('${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')">
+                     onclick="handleTapPlayer('${s.playerId}', '${currentPitchSide}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"` : 'draggable="false"';
+
+            return `
+                <div class="fifa-player-token ${isSelected ? 'selected-swap' : ''}" 
+                     style="left: ${coords.x}%; top: ${coords.y}%;"
+                     ${dragAttrs}>
                     <div class="fifa-card-badge ${badgeClass}">
                         <span>#${s.kitNumber ?? '-'}</span>
                         <span class="fifa-compat-dot ${compatClass}" title="${isPrimary ? 'Đúng sở trường' : 'Vị trí phụ'}"></span>
@@ -857,15 +899,18 @@
         } else {
             benchList.innerHTML = stateSubs.map(sub => {
                 const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === sub.playerId;
-                return `
-                    <div class="fifa-sub-token ${isSelected ? 'selected-swap' : ''}"
+                const subDragAttrs = canEditTactics ? `
                          draggable="true"
                          ondragstart="handleDragStart(event, '${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')"
                          ondragend="handleDragEnd(event)"
                          ondragover="handleDragOver(event)"
                          ondragleave="handleDragLeave(event)"
                          ondrop="handleDrop(event, '${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')"
-                         onclick="handleTapPlayer('${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')">
+                         onclick="handleTapPlayer('${sub.playerId}', 'SUB', '', '${escapeHtml(sub.playerName)}')"` : 'draggable="false"';
+
+                return `
+                    <div class="fifa-sub-token ${isSelected ? 'selected-swap' : ''}"
+                         ${subDragAttrs}>
                         <span class="badge bg-secondary rounded-circle">#${sub.kitNumber ?? '-'}</span>
                         <span>${escapeHtml(sub.playerName)}</span>
                     </div>
@@ -926,16 +971,20 @@
             ? '<span class="badge bg-success-subtle text-success border border-success-subtle">Đúng vị trí</span>' 
             : '<span class="badge bg-warning-subtle text-dark border border-warning-subtle">Vị trí phụ</span>';
 
-        return `
-            <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center cursor-pointer player-touch-card" 
-                 style="min-height: 48px; background-color: #fff;"
+        const dragAttrs = canEditTactics ? `
                  draggable="true"
                  ondragstart="handleDragStart(event, '${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
                  ondragend="handleDragEnd(event)"
                  ondragover="handleDragOver(event)"
                  ondragleave="handleDragLeave(event)"
                  ondrop="handleDrop(event, '${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"
-                 onclick="handleTapPlayer('${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')">
+                 onclick="handleTapPlayer('${s.playerId}', '${side}', '${s.slotCode}', '${escapeHtml(s.playerName)}')"` : 'draggable="false"';
+        const cursorClass = canEditTactics ? 'cursor-pointer' : '';
+
+        return `
+            <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center ${cursorClass} player-touch-card" 
+                 style="min-height: 48px; background-color: #fff;"
+                 ${dragAttrs}>
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge bg-dark rounded-circle px-2 py-1" style="min-width: 26px;">#${s.kitNumber ?? '-'}</span>
                     <div>
@@ -954,16 +1003,20 @@
         const isSelected = selectedPlayerForSwap && selectedPlayerForSwap.playerId === s.playerId;
         const borderClass = isSelected ? 'border-primary border-2 shadow-sm bg-primary-subtle' : 'border';
 
-        return `
-            <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center cursor-pointer player-touch-card"
-                 style="min-height: 48px; background-color: #f8f9fa;"
+        const dragAttrs = canEditTactics ? `
                  draggable="true"
                  ondragstart="handleDragStart(event, '${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')"
                  ondragend="handleDragEnd(event)"
                  ondragover="handleDragOver(event)"
                  ondragleave="handleDragLeave(event)"
                  ondrop="handleDrop(event, '${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')"
-                 onclick="handleTapPlayer('${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')">
+                 onclick="handleTapPlayer('${s.playerId}', 'SUB', '', '${escapeHtml(s.playerName)}')"` : 'draggable="false"';
+        const cursorClass = canEditTactics ? 'cursor-pointer' : '';
+
+        return `
+            <div class="p-2 mb-2 rounded ${borderClass} d-flex justify-content-between align-items-center ${cursorClass} player-touch-card"
+                 style="min-height: 48px; background-color: #f8f9fa;"
+                 ${dragAttrs}>
                 <div>
                     <strong class="text-dark d-block">#${s.kitNumber ?? '-'} ${escapeHtml(s.playerName)}</strong>
                     <span class="badge bg-secondary">Dự bị</span>
@@ -976,6 +1029,7 @@
     // 3. DRAG AND DROP HANDLERS (KÉO THẢ KIỂU FIFA)
     // ==========================================================
     function handleDragStart(e, playerId, side, slotCode, name) {
+        if (!canEditTactics) return;
         draggedItem = { playerId, side, slotCode, name };
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', JSON.stringify(draggedItem));
@@ -988,16 +1042,19 @@
     }
 
     function handleDragOver(e) {
+        if (!canEditTactics) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         e.currentTarget.classList.add('drag-hover');
     }
 
     function handleDragLeave(e) {
+        if (!canEditTactics) return;
         e.currentTarget.classList.remove('drag-hover');
     }
 
     function handleDrop(e, targetPlayerId, targetSide, targetSlotCode, targetName) {
+        if (!canEditTactics) return;
         e.preventDefault();
         e.currentTarget.classList.remove('drag-hover');
         if (!draggedItem) return;
@@ -1008,6 +1065,7 @@
     }
 
     function handleDropToBench(e) {
+        if (!canEditTactics) return;
         e.preventDefault();
         e.currentTarget.classList.remove('drag-hover');
         if (!draggedItem) return;
@@ -1026,6 +1084,7 @@
     // 4. TAP-TO-SWAP (CHẠM ĐỔI VỊ TRÍ TRÊN MOBILE / MÀN CẢM ỨNG)
     // ==========================================================
     function handleTapPlayer(playerId, side, slotCode, name) {
+        if (!canEditTactics) return;
         if (!selectedPlayerForSwap) {
             selectedPlayerForSwap = { playerId, side, slotCode, name };
             document.getElementById('swapSourceName').innerText = name;
@@ -1085,6 +1144,7 @@
     // 5. LƯU CHÍNH THỨC ĐỘI HÌNH (ConfirmInternalDivision)
     // ==========================================================
     async function saveConfirmedDivision() {
+        if (!canEditTactics) return;
         const btn = document.getElementById('btnConfirmDivision');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang lưu...';

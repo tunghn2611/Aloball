@@ -1,4 +1,4 @@
-@model AloBall.Web.Data.Entities.MatchGame
+﻿@model AloBall.Web.Data.Entities.MatchGame
 @{
     ViewData["Title"] = $"Matchday Center - {Model.PitchName}";
     bool isManagerA = ViewBag.IsManagerA ?? false;
@@ -723,37 +723,7 @@
 
             @if (isInternal)
             {
-                if (isManagerA)
-                {
-                    <partial name="_InternalDivisionPartial" model="Model" />
-                }
-                else
-                {
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-6">
-                            <div class="p-3 bg-light rounded-3 border">
-                                <div class="fw-bold text-primary mb-2"><i class="bi bi-shield-shaded me-1"></i> Bên A (Áo sáng)</div>
-                                <div class="d-flex flex-wrap gap-1">
-                                    @foreach (var l in Model.Lineups.Where(l => l.TeamSide == "A" && l.IsStarting))
-                                    {
-                                        <span class="badge bg-primary-subtle text-primary border">#@(l.Player?.KitNumber?.ToString() ?? "-") @l.Player?.FullName (@(l.AssignedSlotCode ?? l.AssignedPosition ?? "Cầu thủ"))</span>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <div class="p-3 bg-light rounded-3 border">
-                                <div class="fw-bold text-warning-emphasis mb-2"><i class="bi bi-shield-fill me-1"></i> Bên B (Áo tối)</div>
-                                <div class="d-flex flex-wrap gap-1">
-                                    @foreach (var l in Model.Lineups.Where(l => l.TeamSide == "B" && l.IsStarting))
-                                    {
-                                        <span class="badge bg-warning-subtle text-dark border">#@(l.Player?.KitNumber?.ToString() ?? "-") @l.Player?.FullName (@(l.AssignedSlotCode ?? l.AssignedPosition ?? "Cầu thủ"))</span>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
+                <partial name="_InternalDivisionPartial" model="Model" />
             }
             else
             {

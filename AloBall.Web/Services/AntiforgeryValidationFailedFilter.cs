@@ -1,12 +1,12 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Core.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace AloBall.Web.Services;
 
 /// <summary>
-/// Intercepts anti-forgery token validation failures (which normally cause raw HTTP 400 Bad Request)
-/// and smoothly redirects the user back to the login page with a friendly Vietnamese alert.
+/// Bắt các trường hợp lỗi Antiforgery token (thường gây HTTP 400 Bad Request)
+/// để xóa cookie token lỗi và chuyển hướng an toàn về trang Đăng nhập.
 /// </summary>
 public class AntiforgeryValidationFailedFilter : IAlwaysRunResultFilter
 {
@@ -14,8 +14,18 @@ public class AntiforgeryValidationFailedFilter : IAlwaysRunResultFilter
     {
         if (context.Result is IAntiforgeryValidationFailedResult)
         {
-            var returnUrl = context.HttpContext.Request.Path + context.HttpContext.Request.QueryString;
-            context.Result = new RedirectToActionResult("Login", "Account", new { returnUrl, err = "expired" });
+            // Xóa cookie antiforgery cũ bị lỗi/không khớp để trình duyệt không tiếp tục gửi payload lỗi
+            context.HttpContext.Response.Cookies.Delete(".AloBall.Antiforgery");
+
+            var path = context.HttpContext.Request.Path.Value ?? "";
+            string? safeReturn = null;
+            if (!path.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase) &&
+                !path.Contains("/Account/Logout", StringComparison.OrdinalIgnoreCase))
+            {
+                safeReturn = path + context.HttpContext.Request.QueryString.Value;
+            }
+
+            context.Result = new RedirectToActionResult("Login", "Account", new { returnUrl = safeReturn, err = "expired" });
         }
     }
 
