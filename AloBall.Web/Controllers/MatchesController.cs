@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -430,6 +430,7 @@ public partial class MatchesController : Controller
         public List<Guid>? ExplicitSubstitutePlayerIds { get; set; }
         public Dictionary<Guid, string>? LockedTeamSides { get; set; } // PlayerId -> "A"|"B"
         public Dictionary<Guid, string>? LockedSlotCodes { get; set; } // PlayerId -> "GK"|"CB_L"...
+        public bool AutoSelectSubstitutes { get; set; } = false;
     }
 
     public class ConfirmDivisionRequestDto
@@ -466,11 +467,108 @@ public partial class MatchesController : Controller
         var match = await _db.Matches.FindAsync(req.MatchId);
         if (match == null) return NotFound(new { success = false, message = "Trận đấu không tồn tại." });
 
-        if (!await _auth.HasManagerAccessAsync(match.TeamAId, user.Id))
-            return Forbid();
-        if (match.Category != MatchCategory.Internal || match.Status != MatchStatus.Scheduled) return BadRequest();
+        bool isManagerA = await _auth.HasManagerAccessAsync(match.TeamAId, user.Id);
+        bool isManagerB = match.TeamBId.HasValue && await _auth.HasManagerAccessAsync(match.TeamBId.Value, user.Id);
+        if (!isManagerA && !isManagerB) return Forbid();
+        if (match.Status != MatchStatus.Scheduled) return BadRequest();
 
         var formation = AloBall.Web.Services.TeamDivision.FormationRegistry.GetByCode(req.FormationCode, match.PitchType);
+
+        if (match.Category != MatchCategory.Internal)
+        {
+            var resultNonInternal = new AloBall.Web.Services.TeamDivision.TeamDivisionResult
+            {
+                IsSuccess = true,
+                FormationCode = formation.Code,
+                FormationName = formation.Name,
+                PlayersPerSide = formation.PlayersPerSide
+            };
+
+            var pListA = await _db.Players.Where(p => p.TeamId == match.TeamAId && p.IsActive).OrderBy(p => p.KitNumber ?? 999).ToListAsync();
+            int slotIdxA = 0;
+            foreach (var p in pListA)
+            {
+                if (slotIdxA < formation.Slots.Count)
+                {
+                    var slot = formation.Slots[slotIdxA++];
+                    resultNonInternal.TeamASlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
+                    {
+                        SlotCode = slot.SlotCode,
+                        SlotName = slot.SlotName,
+                        Category = slot.Category,
+                        XPercent = slot.XPercent,
+                        YPercent = slot.YPercent,
+                        PlayerId = p.Id,
+                        PlayerName = p.FullName,
+                        KitNumber = p.KitNumber,
+                        PhotoUrl = p.PhotoUrl,
+                        PreferredFoot = p.PreferredFoot,
+                        Experience = p.Experience,
+                        IsPrimaryPosition = true,
+                        AssignmentReason = "Xếp tự động theo sơ đồ"
+                    });
+                }
+                else
+                {
+                    resultNonInternal.Substitutes.Add(new AloBall.Web.Services.TeamDivision.SubstitutePlayerDto
+                    {
+                        PlayerId = p.Id,
+                        PlayerName = p.FullName,
+                        KitNumber = p.KitNumber,
+                        PhotoUrl = p.PhotoUrl,
+                        PreferredFoot = p.PreferredFoot,
+                        Experience = p.Experience,
+                        DesignatedSide = "A",
+                        SubstituteReason = "Dự bị chiến thuật"
+                    });
+                }
+            }
+
+            if (match.TeamBId.HasValue)
+            {
+                var pListB = await _db.Players.Where(p => p.TeamId == match.TeamBId.Value && p.IsActive).OrderBy(p => p.KitNumber ?? 999).ToListAsync();
+                int slotIdxB = 0;
+                foreach (var p in pListB)
+                {
+                    if (slotIdxB < formation.Slots.Count)
+                    {
+                        var slot = formation.Slots[slotIdxB++];
+                        resultNonInternal.TeamBSlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
+                        {
+                            SlotCode = slot.SlotCode,
+                            SlotName = slot.SlotName,
+                            Category = slot.Category,
+                            XPercent = slot.XPercent,
+                            YPercent = slot.YPercent,
+                            PlayerId = p.Id,
+                            PlayerName = p.FullName,
+                            KitNumber = p.KitNumber,
+                            PhotoUrl = p.PhotoUrl,
+                            PreferredFoot = p.PreferredFoot,
+                            Experience = p.Experience,
+                            IsPrimaryPosition = true,
+                            AssignmentReason = "Xếp tự động theo sơ đồ"
+                        });
+                    }
+                    else
+                    {
+                        resultNonInternal.Substitutes.Add(new AloBall.Web.Services.TeamDivision.SubstitutePlayerDto
+                        {
+                            PlayerId = p.Id,
+                            PlayerName = p.FullName,
+                            KitNumber = p.KitNumber,
+                            PhotoUrl = p.PhotoUrl,
+                            PreferredFoot = p.PreferredFoot,
+                            Experience = p.Experience,
+                            DesignatedSide = "B",
+                            SubstituteReason = "Dự bị chiến thuật"
+                        });
+                    }
+                }
+            }
+
+            return Json(new { success = true, data = resultNonInternal });
+        }
 
         // Lấy danh sách cầu thủ tham gia
         List<Guid> participantIds = req.ParticipantPlayerIds?.Distinct().ToList() ?? new List<Guid>();
@@ -516,11 +614,17 @@ public partial class MatchesController : Controller
                 IsExplicitSubstitute = explicitSubSet.Contains(p.Id),
                 LockedTeamSide = lockedSides.TryGetValue(p.Id, out var s) ? s : null,
                 LockedSlotCode = lockedSlots.TryGetValue(p.Id, out var slot) ? slot : null,
-                GrantedExceptionSlots = pExceptions
+                GrantedExceptionSlots = pExceptions,
+                PhotoUrl = p.PhotoUrl,
+                PreferredFoot = p.PreferredFoot,
+                Experience = p.Experience,
+                SkillScore = null
             };
         }).ToList();
 
-        var result = _divisionEngine.DivideTeams(divisionInputs, formation, req.Seed);
+        var result = req.AutoSelectSubstitutes
+            ? _divisionEngine.SmartDivideTeams(divisionInputs, formation, req.Seed, autoSelectSubstitutes: true)
+            : _divisionEngine.DivideTeams(divisionInputs, formation, req.Seed);
         return Json(new { success = result.IsSuccess, data = result });
     }
 
@@ -542,9 +646,11 @@ public partial class MatchesController : Controller
 
             if (match == null) return NotFound(new { success = false, message = "Trận đấu không tồn tại." });
 
-            if (!await _auth.HasManagerAccessAsync(match.TeamAId, user.Id))
+            bool isManagerA = await _auth.HasManagerAccessAsync(match.TeamAId, user.Id);
+            bool isManagerB = match.TeamBId.HasValue && await _auth.HasManagerAccessAsync(match.TeamBId.Value, user.Id);
+
+            if (!isManagerA && !isManagerB)
                 return Forbid();
-            if (match.Category != MatchCategory.Internal) return BadRequest();
             if (await CompetitionRules.IsMatchClosedAsync(_db, match)) return Conflict(new { message = "Kỳ đã chốt." });
 
             // Chặn sửa trực tiếp nếu trận đã hoàn tất hoặc bị hủy
@@ -560,109 +666,228 @@ public partial class MatchesController : Controller
             }
 
             var formation = AloBall.Web.Services.TeamDivision.FormationRegistry.GetByCode(req.FormationCode, match.PitchType);
-            int neededPerSide = formation.PlayersPerSide;
 
-            var sideA = req.Assignments.Where(a => a.TeamSide == "A").ToList();
-            var sideB = req.Assignments.Where(a => a.TeamSide == "B").ToList();
-
-            // Kiểm tra số lượng đá chính
-            if (sideA.Count != neededPerSide || sideB.Count != neededPerSide)
+            if (match.Category == MatchCategory.Internal)
             {
-                return BadRequest(new { success = false, message = $"Số lượng đá chính mỗi bên phải đúng {neededPerSide} người theo sơ đồ {formation.Name}." });
-            }
+                if (!isManagerA) return Forbid();
+                int neededPerSide = formation.PlayersPerSide;
 
-            // Kiểm tra không có người trùng lặp giữa các bên và dự bị
-            var allAssignedIds = req.Assignments.Select(a => a.PlayerId)
-                .Concat(req.Substitutes.Select(s => s.PlayerId))
-                .ToList();
+                var sideA = req.Assignments.Where(a => a.TeamSide == "A").ToList();
+                var sideB = req.Assignments.Where(a => a.TeamSide == "B").ToList();
 
-            if (allAssignedIds.Count != allAssignedIds.Distinct().Count())
-            {
-                return BadRequest(new { success = false, message = "Có cầu thủ bị xuất hiện trùng lặp trong đội hình hoặc dự bị." });
-            }
+                // Kiểm tra số lượng đá chính
+                if (sideA.Count != neededPerSide || sideB.Count != neededPerSide)
+                {
+                    return BadRequest(new { success = false, message = $"Số lượng đá chính mỗi bên phải đúng {neededPerSide} người theo sơ đồ {formation.Name}." });
+                }
 
-            // Kiểm tra tenancy của toàn bộ cầu thủ
-            var validPlayers = await _db.Players
-                .Where(p => p.TeamId == match.TeamAId && allAssignedIds.Contains(p.Id) && p.IsActive)
-                .ToDictionaryAsync(p => p.Id);
-
-            if (validPlayers.Count != allAssignedIds.Count)
-            {
-                return BadRequest(new { success = false, message = "Một số cầu thủ không hợp lệ hoặc không thuộc đội bóng." });
-            }
-
-            // Kiểm tra tính tương thích vị trí từng người theo PositionCompatibilityMatrix
-            foreach (var a in req.Assignments)
-            {
-                var p = validPlayers[a.PlayerId];
-                var pExceptions = match.PositionExceptions
-                    .Where(e => e.PlayerId == p.Id)
-                    .Select(e => e.AllowedSlotCode)
+                // Kiểm tra không có người trùng lặp giữa các bên và dự bị
+                var allAssignedIds = req.Assignments.Select(a => a.PlayerId)
+                    .Concat(req.Substitutes.Select(s => s.PlayerId))
                     .ToList();
 
-                List<string> secondaries = new();
-                if (!string.IsNullOrEmpty(p.AllowedSecondaryPositionsJson))
+                if (allAssignedIds.Count != allAssignedIds.Distinct().Count())
                 {
-                    try { secondaries = System.Text.Json.JsonSerializer.Deserialize<List<string>>(p.AllowedSecondaryPositionsJson) ?? new(); }
-                    catch { }
+                    return BadRequest(new { success = false, message = "Có cầu thủ bị xuất hiện trùng lặp trong đội hình hoặc dự bị." });
                 }
 
-                string stdPrimary = p.StandardPrimaryPosition ?? AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(p.Position);
-                bool canPlay = AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.CanPlaySlot(
-                    stdPrimary,
-                    secondaries,
-                    a.SlotCode,
-                    pExceptions);
+                // Kiểm tra tenancy của toàn bộ cầu thủ
+                var validPlayers = await _db.Players
+                    .Where(p => p.TeamId == match.TeamAId && allAssignedIds.Contains(p.Id) && p.IsActive)
+                    .ToDictionaryAsync(p => p.Id);
 
-                if (!canPlay)
+                if (validPlayers.Count != allAssignedIds.Count)
                 {
-                    return BadRequest(new { success = false, message = $"Cầu thủ {p.FullName} không tương thích với vị trí {a.SlotCode} và chưa được cấp ngoại lệ vị trí trận." });
+                    return BadRequest(new { success = false, message = "Một số cầu thủ không hợp lệ hoặc không thuộc đội bóng." });
                 }
-            }
 
-            // Xóa lineups cũ
-            var oldLineups = await _db.MatchPlayerLineups.Where(l => l.MatchId == match.Id).ToListAsync();
-            _db.MatchPlayerLineups.RemoveRange(oldLineups);
-
-            // Thêm đá chính Bên A và Bên B
-            foreach (var a in req.Assignments)
-            {
-                var p = validPlayers[a.PlayerId];
-                _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                // Kiểm tra tính tương thích vị trí từng người theo PositionCompatibilityMatrix
+                foreach (var a in req.Assignments)
                 {
-                    MatchId = match.Id,
-                    TeamId = match.TeamAId,
-                    PlayerId = a.PlayerId,
-                    TeamSide = a.TeamSide,
-                    IsStarting = true,
-                    AssignedSlotCode = a.SlotCode,
-                    AssignedPosition = a.SlotCode,
-                    AssignedKitNumber = p.KitNumber,
-                    HasActuallyPlayed = false
-                });
-            }
+                    var p = validPlayers[a.PlayerId];
+                    var pExceptions = match.PositionExceptions
+                        .Where(e => e.PlayerId == p.Id)
+                        .Select(e => e.AllowedSlotCode)
+                        .ToList();
 
-            // Thêm dự bị đã xác nhận
-            foreach (var s in req.Substitutes)
-            {
-                var p = validPlayers[s.PlayerId];
-                _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                    List<string> secondaries = new();
+                    if (!string.IsNullOrEmpty(p.AllowedSecondaryPositionsJson))
+                    {
+                        try { secondaries = System.Text.Json.JsonSerializer.Deserialize<List<string>>(p.AllowedSecondaryPositionsJson) ?? new(); }
+                        catch { }
+                    }
+
+                    string stdPrimary = p.StandardPrimaryPosition ?? AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(p.Position);
+                    bool canPlay = AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.CanPlaySlot(
+                        stdPrimary,
+                        secondaries,
+                        a.SlotCode,
+                        pExceptions);
+
+                    if (!canPlay)
+                    {
+                        return BadRequest(new { success = false, message = $"Cầu thủ {p.FullName} không tương thích với vị trí {a.SlotCode} và chưa được cấp ngoại lệ vị trí trận." });
+                    }
+                }
+
+                // Xóa lineups cũ
+                var oldLineups = await _db.MatchPlayerLineups.Where(l => l.MatchId == match.Id).ToListAsync();
+                _db.MatchPlayerLineups.RemoveRange(oldLineups);
+
+                // Thêm đá chính Bên A và Bên B
+                foreach (var a in req.Assignments)
                 {
-                    MatchId = match.Id,
-                    TeamId = match.TeamAId,
-                    PlayerId = s.PlayerId,
-                    TeamSide = s.DesignatedSide, // "A", "B", hoặc null (dự bị chung)
-                    IsStarting = false,
-                    AssignedSlotCode = null,
-                    AssignedPosition = "Dự bị",
-                    AssignedKitNumber = p.KitNumber,
-                    HasActuallyPlayed = false
-                });
-            }
+                    var p = validPlayers[a.PlayerId];
+                    _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                    {
+                        MatchId = match.Id,
+                        TeamId = match.TeamAId,
+                        PlayerId = a.PlayerId,
+                        TeamSide = a.TeamSide,
+                        IsStarting = true,
+                        AssignedSlotCode = a.SlotCode,
+                        AssignedPosition = a.SlotCode,
+                        AssignedKitNumber = p.KitNumber,
+                        HasActuallyPlayed = false
+                    });
+                }
 
-            // Cập nhật thông tin sơ đồ và tăng Revision
-            match.FormationCode = formation.Code;
-            match.LineupRevision += 1;
+                // Thêm dự bị đã xác nhận
+                foreach (var s in req.Substitutes)
+                {
+                    var p = validPlayers[s.PlayerId];
+                    _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                    {
+                        MatchId = match.Id,
+                        TeamId = match.TeamAId,
+                        PlayerId = s.PlayerId,
+                        TeamSide = s.DesignatedSide, // "A", "B", hoặc null (dự bị chung)
+                        IsStarting = false,
+                        AssignedSlotCode = null,
+                        AssignedPosition = "Dự bị",
+                        AssignedKitNumber = p.KitNumber,
+                        HasActuallyPlayed = false
+                    });
+                }
+
+                // Cập nhật thông tin sơ đồ và tăng Revision
+                match.FormationCode = formation.Code;
+                match.LineupRevision += 1;
+            }
+            else
+            {
+                // Trận Giao hữu hoặc Giải đấu
+                if (isManagerA)
+                {
+                    var sideA = req.Assignments.Where(a => a.TeamSide == "A" || a.TeamSide == null).ToList();
+                    var subsA = req.Substitutes.Where(s => s.DesignatedSide == "A" || s.DesignatedSide == null).ToList();
+                    var allIdsA = sideA.Select(a => a.PlayerId).Concat(subsA.Select(s => s.PlayerId)).Distinct().ToList();
+
+                    var validTeamAPlayers = await _db.Players
+                        .Where(p => p.TeamId == match.TeamAId && allIdsA.Contains(p.Id) && p.IsActive)
+                        .ToDictionaryAsync(p => p.Id);
+
+                    var oldLineupsA = await _db.MatchPlayerLineups
+                        .Where(l => l.MatchId == match.Id && l.TeamId == match.TeamAId)
+                        .ToListAsync();
+                    _db.MatchPlayerLineups.RemoveRange(oldLineupsA);
+
+                    foreach (var a in sideA)
+                    {
+                        if (validTeamAPlayers.TryGetValue(a.PlayerId, out var p))
+                        {
+                            _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                            {
+                                MatchId = match.Id,
+                                TeamId = match.TeamAId,
+                                PlayerId = a.PlayerId,
+                                TeamSide = "A",
+                                IsStarting = true,
+                                AssignedSlotCode = a.SlotCode,
+                                AssignedPosition = a.SlotCode,
+                                AssignedKitNumber = p.KitNumber,
+                                HasActuallyPlayed = false
+                            });
+                        }
+                    }
+
+                    foreach (var s in subsA)
+                    {
+                        if (validTeamAPlayers.TryGetValue(s.PlayerId, out var p))
+                        {
+                            _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                            {
+                                MatchId = match.Id,
+                                TeamId = match.TeamAId,
+                                PlayerId = s.PlayerId,
+                                TeamSide = "A",
+                                IsStarting = false,
+                                AssignedSlotCode = null,
+                                AssignedPosition = "Dự bị",
+                                AssignedKitNumber = p.KitNumber,
+                                HasActuallyPlayed = false
+                            });
+                        }
+                    }
+                }
+
+                if (isManagerB && match.TeamBId.HasValue)
+                {
+                    var sideB = req.Assignments.Where(a => a.TeamSide == "B").ToList();
+                    var subsB = req.Substitutes.Where(s => s.DesignatedSide == "B").ToList();
+                    var allIdsB = sideB.Select(b => b.PlayerId).Concat(subsB.Select(s => s.PlayerId)).Distinct().ToList();
+
+                    var validTeamBPlayers = await _db.Players
+                        .Where(p => p.TeamId == match.TeamBId.Value && allIdsB.Contains(p.Id) && p.IsActive)
+                        .ToDictionaryAsync(p => p.Id);
+
+                    var oldLineupsB = await _db.MatchPlayerLineups
+                        .Where(l => l.MatchId == match.Id && l.TeamId == match.TeamBId.Value)
+                        .ToListAsync();
+                    _db.MatchPlayerLineups.RemoveRange(oldLineupsB);
+
+                    foreach (var b in sideB)
+                    {
+                        if (validTeamBPlayers.TryGetValue(b.PlayerId, out var p))
+                        {
+                            _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                            {
+                                MatchId = match.Id,
+                                TeamId = match.TeamBId.Value,
+                                PlayerId = b.PlayerId,
+                                TeamSide = "B",
+                                IsStarting = true,
+                                AssignedSlotCode = b.SlotCode,
+                                AssignedPosition = b.SlotCode,
+                                AssignedKitNumber = p.KitNumber,
+                                HasActuallyPlayed = false
+                            });
+                        }
+                    }
+
+                    foreach (var s in subsB)
+                    {
+                        if (validTeamBPlayers.TryGetValue(s.PlayerId, out var p))
+                        {
+                            _db.MatchPlayerLineups.Add(new MatchPlayerLineup
+                            {
+                                MatchId = match.Id,
+                                TeamId = match.TeamBId.Value,
+                                PlayerId = s.PlayerId,
+                                TeamSide = "B",
+                                IsStarting = false,
+                                AssignedSlotCode = null,
+                                AssignedPosition = "Dự bị",
+                                AssignedKitNumber = p.KitNumber,
+                                HasActuallyPlayed = false
+                            });
+                        }
+                    }
+                }
+
+                match.FormationCode = req.FormationCode;
+                match.LineupRevision += 1;
+            }
 
             await _db.SaveChangesAsync();
             if (tx != null) await tx.CommitAsync();

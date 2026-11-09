@@ -171,6 +171,16 @@ public class TeamDivisionEngine : ITeamDivisionEngine
             bool isException = p.GrantedExceptionSlots.Contains(a.Slot.SlotCode) && !isPrimary;
             bool isSecondary = !isPrimary && !isException;
 
+            string reason = isPrimary
+                ? $"Sở trường {slotInfo.Category} ({p.RawPosition})"
+                : isSecondary
+                    ? $"Vị trí phụ khả dụng ({p.RawPosition})"
+                    : isException
+                        ? "Ngoại lệ vị trí được cấp"
+                        : "Được xếp vào vị trí";
+            if (!string.IsNullOrEmpty(p.LockedSlotCode))
+                reason = $"Đội trưởng chỉ định {p.LockedSlotCode}";
+
             var assignmentDto = new SlotAssignment
             {
                 SlotCode = a.Slot.SlotCode,
@@ -183,7 +193,14 @@ public class TeamDivisionEngine : ITeamDivisionEngine
                 IsSecondaryPosition = isSecondary,
                 IsPositionException = isException,
                 IsLockedSide = !string.IsNullOrEmpty(p.LockedTeamSide),
-                IsLockedSlot = !string.IsNullOrEmpty(p.LockedSlotCode)
+                IsLockedSlot = !string.IsNullOrEmpty(p.LockedSlotCode),
+                PhotoUrl = p.PhotoUrl,
+                PreferredFoot = p.PreferredFoot,
+                Experience = p.Experience,
+                SkillScore = p.SkillScore,
+                AssignmentReason = reason,
+                XPercent = slotInfo.XPercent,
+                YPercent = slotInfo.YPercent
             };
 
             if (a.Slot.TeamSide == "A")
@@ -218,11 +235,96 @@ public class TeamDivisionEngine : ITeamDivisionEngine
                 DesignatedSide = sub.LockedTeamSide,
                 StandardPrimaryPosition = sub.StandardPrimaryPosition,
                 RawPosition = sub.RawPosition,
-                IsConfirmedByManager = true
+                IsConfirmedByManager = true,
+                PhotoUrl = sub.PhotoUrl,
+                PreferredFoot = sub.PreferredFoot,
+                Experience = sub.Experience,
+                SkillScore = sub.SkillScore,
+                SubstituteReason = "Dự bị chiến thuật - sẵn sàng thay người"
             });
         }
 
         return result;
+    }
+
+    public TeamDivisionResult SmartDivideTeams(
+        List<PlayerDivisionInput> players,
+        FormationDefinition formation,
+        int? seed = null,
+        bool autoSelectSubstitutes = true,
+        int timeoutMs = 500)
+    {
+        int neededStarters = formation.PlayersPerSide * 2;
+        var explicitSubs = players.Where(p => p.IsExplicitSubstitute).ToList();
+        var mainPool = players.Where(p => !p.IsExplicitSubstitute).ToList();
+
+        if (autoSelectSubstitutes && mainPool.Count > neededStarters)
+        {
+            // Tự động phân bổ dự bị dựa trên vị trí sở trường, mức độ ưu tiên và cân bằng
+            var lockedPlayers = mainPool.Where(p => !string.IsNullOrEmpty(p.LockedSlotCode) || !string.IsNullOrEmpty(p.LockedTeamSide)).ToList();
+            var unlockedPlayers = mainPool.Where(p => string.IsNullOrEmpty(p.LockedSlotCode) && string.IsNullOrEmpty(p.LockedTeamSide)).ToList();
+
+            var gks = unlockedPlayers.Where(p => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, "GK")).ToList();
+            var dfs = unlockedPlayers.Where(p => formation.Slots.Where(s => s.Category == "DF").Any(s => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, s.SlotCode))).Except(gks).ToList();
+            var mfs = unlockedPlayers.Where(p => formation.Slots.Where(s => s.Category == "MF").Any(s => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, s.SlotCode))).Except(gks).Except(dfs).ToList();
+            var fws = unlockedPlayers.Where(p => formation.Slots.Where(s => s.Category == "FW").Any(s => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, s.SlotCode))).Except(gks).Except(dfs).Except(mfs).ToList();
+
+            int GetExpRank(string? exp) => exp switch
+            {
+                "Trên 5 năm" => 4,
+                "3 - 5 năm" => 3,
+                "1 - 3 năm" => 2,
+                "Dưới 1 năm" => 1,
+                _ => 0
+            };
+
+            gks = gks.OrderByDescending(p => p.SkillScore ?? 0).ThenByDescending(p => GetExpRank(p.Experience)).ThenBy(p => p.KitNumber ?? 999).ToList();
+            dfs = dfs.OrderByDescending(p => p.SkillScore ?? 0).ThenByDescending(p => GetExpRank(p.Experience)).ThenBy(p => p.KitNumber ?? 999).ToList();
+            mfs = mfs.OrderByDescending(p => p.SkillScore ?? 0).ThenByDescending(p => GetExpRank(p.Experience)).ThenBy(p => p.KitNumber ?? 999).ToList();
+            fws = fws.OrderByDescending(p => p.SkillScore ?? 0).ThenByDescending(p => GetExpRank(p.Experience)).ThenBy(p => p.KitNumber ?? 999).ToList();
+
+            var selectedStarters = new List<PlayerDivisionInput>(lockedPlayers);
+            int neededGk = Math.Max(0, (formation.Slots.Count(s => s.Category == "GK") * 2) - selectedStarters.Count(p => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, "GK")));
+            int neededDf = Math.Max(0, (formation.Slots.Count(s => s.Category == "DF") * 2) - selectedStarters.Count(p => formation.Slots.Where(s => s.Category == "DF").Any(s => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, s.SlotCode))));
+            int neededMf = Math.Max(0, (formation.Slots.Count(s => s.Category == "MF") * 2) - selectedStarters.Count(p => formation.Slots.Where(s => s.Category == "MF").Any(s => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, s.SlotCode))));
+            int neededFw = Math.Max(0, (formation.Slots.Count(s => s.Category == "FW") * 2) - selectedStarters.Count(p => formation.Slots.Where(s => s.Category == "FW").Any(s => PositionCompatibilityMatrix.IsSlotCompatible(p.StandardPrimaryPosition, s.SlotCode))));
+
+            selectedStarters.AddRange(gks.Take(neededGk));
+            selectedStarters.AddRange(dfs.Take(neededDf));
+            selectedStarters.AddRange(mfs.Take(neededMf));
+            selectedStarters.AddRange(fws.Take(neededFw));
+
+            var remainingUnlocked = unlockedPlayers.Except(selectedStarters).OrderByDescending(p => GetExpRank(p.Experience)).ToList();
+            while (selectedStarters.Count < neededStarters && remainingUnlocked.Any())
+            {
+                var next = remainingUnlocked.First();
+                selectedStarters.Add(next);
+                remainingUnlocked.RemoveAt(0);
+            }
+
+            var extraSubs = mainPool.Except(selectedStarters).Select(p => new PlayerDivisionInput
+            {
+                PlayerId = p.PlayerId,
+                PlayerName = p.PlayerName,
+                KitNumber = p.KitNumber,
+                RawPosition = p.RawPosition,
+                StandardPrimaryPosition = p.StandardPrimaryPosition,
+                SecondaryPositions = p.SecondaryPositions,
+                IsExplicitSubstitute = true,
+                LockedTeamSide = p.LockedTeamSide,
+                LockedSlotCode = p.LockedSlotCode,
+                GrantedExceptionSlots = p.GrantedExceptionSlots,
+                PhotoUrl = p.PhotoUrl,
+                PreferredFoot = p.PreferredFoot,
+                Experience = p.Experience,
+                SkillScore = p.SkillScore
+            }).ToList();
+
+            var combinedList = selectedStarters.Concat(explicitSubs).Concat(extraSubs).ToList();
+            return DivideTeams(combinedList, formation, seed, timeoutMs);
+        }
+
+        return DivideTeams(players, formation, seed, timeoutMs);
     }
 
     #region Helper Classes for Solver
@@ -238,6 +340,10 @@ public class TeamDivisionEngine : ITeamDivisionEngine
         public string? LockedTeamSide { get; }
         public string? LockedSlotCode { get; }
         public List<string> GrantedExceptionSlots { get; }
+        public string? PhotoUrl { get; }
+        public string? PreferredFoot { get; }
+        public string? Experience { get; }
+        public double? SkillScore { get; }
 
         public NormalizedPlayer(PlayerDivisionInput p)
         {
@@ -245,6 +351,10 @@ public class TeamDivisionEngine : ITeamDivisionEngine
             PlayerName = p.PlayerName;
             KitNumber = p.KitNumber;
             RawPosition = p.RawPosition;
+            PhotoUrl = p.PhotoUrl;
+            PreferredFoot = p.PreferredFoot;
+            Experience = p.Experience;
+            SkillScore = p.SkillScore;
             StandardPrimaryPosition = string.IsNullOrEmpty(p.StandardPrimaryPosition) || p.StandardPrimaryPosition == PositionCodes.UNASSIGNED
                 ? PositionCompatibilityMatrix.NormalizePositionString(p.RawPosition)
                 : p.StandardPrimaryPosition;
