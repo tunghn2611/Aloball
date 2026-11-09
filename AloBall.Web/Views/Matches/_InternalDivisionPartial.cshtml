@@ -626,6 +626,7 @@
     const isInternalMatch = @(isInternal ? "true" : "false");
     const isManagerA = @(isManagerA ? "true" : "false");
     const isManagerB = @(isManagerB ? "true" : "false");
+    const canManage = @(canEdit ? "true" : "false");
     const myTeamSide = '@myTeamSide';
     const myTeamName = '@Html.Raw(myTeamName)';
     const teamAName = '@Html.Raw(teamAName)';
@@ -635,11 +636,11 @@
     let selectedPitchFormat = '@activePitchFormat';
     let activeFormationCode = '@currentFormation.Code';
     let currentViewingSide = isInternalMatch ? 'A' : myTeamSide; // Luôn cố định bên đội mình nếu là giao hữu
-    let isManagerRole = isInternalMatch ? isManagerA : (currentViewingSide === 'A' ? isManagerA : isManagerB);
+    let isManagerRole = canManage;
     let selectedSwapSource = null; // { playerId, side, slotCode, name }
     let draggedTokenData = null; // { playerId, side, slotCode, source }
 
-    // Roster Seeds (Đảm bảo chỉ load quân số của đội đang quản lý đối với giao hữu)
+    // Roster Seeds
     const myTeamPlayerSeeds = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(myTeamPlayers.Select(p => new {
         playerId = p.Id.ToString(),
         playerName = p.FullName,
@@ -683,7 +684,6 @@
         // Chọn sơ đồ đầu tiên của thể thức này và kích hoạt chia tự động tức thì
         const selectEl = document.getElementById('tacticalFormationSelect');
         if (selectEl && selectEl.options.length > 0) {
-            selectEl.selectedIndex = 0;
             activeFormationCode = selectEl.value;
             triggerAutoDivision();
         }
@@ -694,16 +694,20 @@
         if (!selectEl) return;
         selectEl.innerHTML = '';
 
-        const matching = formationTemplates.filter(f => f.pitchType === format);
+        const matching = formationTemplates.filter(f => (f.pitchType || f.PitchType) === format);
         matching.forEach(f => {
+            const code = f.code || f.Code;
+            const name = f.name || f.Name;
+            const players = f.playersPerSide || f.PlayersPerSide;
+
             const opt = document.createElement('option');
-            opt.value = f.code;
-            opt.text = `${f.name} (${f.playersPerSide} người/bên)`;
-            if (f.code === activeFormationCode) opt.selected = true;
+            opt.value = code;
+            opt.text = `${name} (${players} người/bên)`;
+            if (code === activeFormationCode) opt.selected = true;
             selectEl.appendChild(opt);
         });
 
-        if (selectEl.options.length > 0 && !matching.some(f => f.code === activeFormationCode)) {
+        if (selectEl.options.length > 0 && !matching.some(f => (f.code || f.Code) === activeFormationCode)) {
             selectEl.selectedIndex = 0;
             activeFormationCode = selectEl.value;
         }
@@ -732,7 +736,7 @@
     }
 
     function updateRoleAndPermissions() {
-        isManagerRole = isInternalMatch ? isManagerA : (currentViewingSide === 'A' ? isManagerA : isManagerB);
+        isManagerRole = canManage;
 
         const badgeEl = document.getElementById('badgeRoleIndicator');
         if (badgeEl) {
@@ -836,35 +840,57 @@
     // =========================================================================
     function getPlayerSkillScore(p) {
         let score = 70;
-        const exp = (p.experience || '').toLowerCase();
+        const exp = (p.experience || p.Experience || '').toLowerCase();
         if (exp.includes('chuyên nghiệp') || exp.includes('bán chuyên') || exp.includes('ăn tập')) score = 95;
         else if (exp.includes('5+') || exp.includes('> 5') || exp.includes('trên 5')) score = 88;
         else if (exp.includes('3-5') || exp.includes('4')) score = 82;
         else if (exp.includes('1-2') || exp.includes('2-3') || exp.includes('1-3')) score = 76;
         else if (exp.includes('< 1') || exp.includes('mới')) score = 70;
 
-        if (p.kitNumber && p.kitNumber < 20) score += 2;
+        const kit = p.kitNumber ?? p.KitNumber;
+        if (kit && kit < 20) score += 2;
         return score;
     }
 
     function runSmartClientSideDivision(candidatePool, side) {
-        const activeFormation = formationTemplates.find(f => f.code === activeFormationCode) || formationTemplates[0];
+        const activeFormation = formationTemplates.find(f => (f.code || f.Code) === activeFormationCode) || formationTemplates[0];
+        if (!activeFormation) return;
+
+        const rawSlots = activeFormation.slots || activeFormation.Slots || [];
+        const formationSlots = rawSlots.map(s => ({
+            slotCode: s.slotCode || s.SlotCode,
+            slotName: s.slotName || s.SlotName,
+            category: s.category || s.Category,
+            xPercent: s.xPercent ?? s.XPercent ?? 50,
+            yPercent: s.yPercent ?? s.YPercent ?? 50
+        }));
+
         const targetList = side === 'A' ? sideASlots : sideBSlots;
         targetList.length = 0;
 
+        // Chuẩn hóa toàn bộ danh sách ứng viên
+        const normalizedPool = (candidatePool || []).map(p => ({
+            playerId: p.playerId || p.PlayerId,
+            playerName: p.playerName || p.PlayerName,
+            kitNumber: p.kitNumber ?? p.KitNumber,
+            photoUrl: p.photoUrl || p.PhotoUrl,
+            preferredFoot: p.preferredFoot || p.PreferredFoot,
+            experience: p.experience || p.Experience,
+            category: p.category || p.Category || 'MF'
+        }));
+
         // Lọc danh sách dự bị được chỉ định rõ trong modal (nếu có)
-        const explicitSubIds = getSelectedModalSubstituteIds();
-        const pool = candidatePool.filter(p => !explicitSubIds.includes(p.playerId));
-        const forcedSubs = candidatePool.filter(p => explicitSubIds.includes(p.playerId));
+        const explicitSubIds = getSelectedModalSubstituteIds() || [];
+        const pool = normalizedPool.filter(p => !explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
+        const forcedSubs = normalizedPool.filter(p => explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
 
         // Sắp xếp các ứng viên khả dụng theo điểm thực tế từ cao xuống thấp
         const sortedPool = [...pool].sort((a, b) => getPlayerSkillScore(b) - getPlayerSkillScore(a));
 
         const assignedPlayerIds = new Set();
-        const availableSlots = [...activeFormation.slots];
 
         // 1. ƯU TIÊN 1: Thủ môn (GK)
-        const gkSlot = availableSlots.find(s => s.category === 'GK');
+        const gkSlot = formationSlots.find(s => s.category === 'GK');
         if (gkSlot) {
             let bestGk = sortedPool.find(p => p.category === 'GK');
             if (!bestGk && sortedPool.length > 0) bestGk = sortedPool[0]; // Dự phòng
@@ -890,7 +916,7 @@
         }
 
         // 2. ƯU TIÊN 2: Các vị trí outfield (DF, MF, FW) khớp đúng sở trường của cầu thủ điểm cao
-        const outfieldSlots = availableSlots.filter(s => s.category !== 'GK');
+        const outfieldSlots = formationSlots.filter(s => s.category !== 'GK');
         outfieldSlots.forEach(slot => {
             const matchIdx = sortedPool.findIndex(p => !assignedPlayerIds.has(p.playerId) && p.category === slot.category);
             if (matchIdx !== -1) {
@@ -985,19 +1011,27 @@
         if (!fieldEl) return;
         fieldEl.innerHTML = '';
 
-        const activeFormation = formationTemplates.find(f => f.code === activeFormationCode) || formationTemplates[0];
+        const activeFormation = formationTemplates.find(f => (f.code || f.Code) === activeFormationCode) || formationTemplates[0];
+        if (!activeFormation) return;
+        const rawSlots = activeFormation.slots || activeFormation.Slots || [];
+
         const currentSlots = currentViewingSide === 'A' ? sideASlots : sideBSlots;
 
-        activeFormation.slots.forEach(slotTemplate => {
+        rawSlots.forEach(s => {
+            const slotCode = s.slotCode || s.SlotCode;
+            const slotCategory = s.category || s.Category;
+            const xPercent = s.xPercent ?? s.XPercent ?? 50;
+            const yPercent = s.yPercent ?? s.YPercent ?? 50;
+
             const anchorEl = document.createElement('div');
             anchorEl.className = 'tactical-slot-anchor';
-            anchorEl.style.left = `${slotTemplate.xPercent}%`;
-            anchorEl.style.top = `${slotTemplate.yPercent}%`;
-            anchorEl.dataset.slotCode = slotTemplate.slotCode;
-            anchorEl.dataset.slotCategory = slotTemplate.category;
+            anchorEl.style.left = `${xPercent}%`;
+            anchorEl.style.top = `${yPercent}%`;
+            anchorEl.dataset.slotCode = slotCode;
+            anchorEl.dataset.slotCategory = slotCategory;
 
             // Tìm cầu thủ đang giữ ô vị trí này
-            const assignment = currentSlots.find(s => s.slotCode === slotTemplate.slotCode);
+            const assignment = currentSlots.find(slot => slot.slotCode === slotCode);
 
             if (assignment) {
                 const cardEl = createPlayerCardElement(assignment, currentViewingSide, false);
@@ -1007,11 +1041,11 @@
                 const emptyEl = document.createElement('div');
                 emptyEl.className = 'ab-slot-empty';
                 emptyEl.innerHTML = `
-                    <span class="badge ab-pos-${slotTemplate.category} mb-1" style="font-size: 0.62rem;">${slotTemplate.slotCode}</span>
+                    <span class="badge ab-pos-${slotCategory} mb-1" style="font-size: 0.62rem;">${slotCode}</span>
                     <span style="font-size: 0.58rem;">Trống</span>
                 `;
                 if (isManagerRole) {
-                    emptyEl.onclick = () => onEmptySlotClicked(slotTemplate.slotCode, currentViewingSide);
+                    emptyEl.onclick = () => onEmptySlotClicked(slotCode, currentViewingSide);
                 }
                 anchorEl.appendChild(emptyEl);
             }
@@ -1020,7 +1054,7 @@
             if (isManagerRole) {
                 anchorEl.ondragover = (e) => onSlotDragOver(e, anchorEl);
                 anchorEl.ondragleave = () => anchorEl.classList.remove('drag-hover');
-                anchorEl.ondrop = (e) => onSlotDrop(e, slotTemplate.slotCode, currentViewingSide);
+                anchorEl.ondrop = (e) => onSlotDrop(e, slotCode, currentViewingSide);
             }
 
             fieldEl.appendChild(anchorEl);
@@ -1305,15 +1339,32 @@
     function triggerAutoDivision() {
         if (!isManagerRole) return;
 
+        const btnAuto = document.getElementById('btnAutoDivide');
+        if (btnAuto) {
+            btnAuto.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang xếp...`;
+        }
+
         // Lấy danh sách cầu thủ được chọn từ modal (nếu có tích chọn)
         const selectedIds = getSelectedModalParticipantIds();
         let candidatePool = myTeamPlayerSeeds;
         if (selectedIds && selectedIds.length > 0) {
-            candidatePool = myTeamPlayerSeeds.filter(p => selectedIds.includes(p.playerId));
+            candidatePool = myTeamPlayerSeeds.filter(p => {
+                const id = p.playerId || p.PlayerId;
+                return selectedIds.some(sel => sel.toLowerCase() === id.toLowerCase());
+            });
         }
 
         // Chạy chia thông minh tức thì trên Client-side (mượt mà, không lag)
         runSmartClientSideDivision(candidatePool, currentViewingSide);
+
+        if (btnAuto) {
+            setTimeout(() => {
+                btnAuto.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Đã xếp xong!`;
+                setTimeout(() => {
+                    btnAuto.innerHTML = `<i class="bi bi-magic me-1"></i> Tự động xếp sơ đồ`;
+                }, 1800);
+            }, 250);
+        }
     }
 
     // Save final lineup to server
