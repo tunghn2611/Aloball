@@ -484,87 +484,135 @@ public partial class MatchesController : Controller
                 PlayersPerSide = formation.PlayersPerSide
             };
 
-            var pListA = await _db.Players.Where(p => p.TeamId == match.TeamAId && p.IsActive).OrderBy(p => p.KitNumber ?? 999).ToListAsync();
-            int slotIdxA = 0;
-            foreach (var p in pListA)
+            // Bảo vệ chiến thuật đối thủ: Chỉ phân tích và trả về đội của người quản lý đang gọi
+            bool callerIsSideB = isManagerB && match.TeamBId.HasValue && !isManagerA;
+            Guid callerTeamId = callerIsSideB ? match.TeamBId!.Value : match.TeamAId;
+            string callerSide = callerIsSideB ? "B" : "A";
+
+            var poolQuery = _db.Players.Where(p => p.TeamId == callerTeamId && p.IsActive);
+            if (req.ParticipantPlayerIds != null && req.ParticipantPlayerIds.Any())
             {
-                if (slotIdxA < formation.Slots.Count)
+                poolQuery = poolQuery.Where(p => req.ParticipantPlayerIds.Contains(p.Id));
+            }
+            var pList = await poolQuery.ToListAsync();
+
+            int GetScore(Player p)
+            {
+                int score = 70;
+                string exp = (p.Experience ?? string.Empty).ToLower();
+                if (exp.Contains("chuyên nghiệp") || exp.Contains("bán chuyên") || exp.Contains("ăn tập")) score = 95;
+                else if (exp.Contains("5+") || exp.Contains("> 5")) score = 88;
+                else if (exp.Contains("3-5")) score = 82;
+                else if (exp.Contains("1-2") || exp.Contains("1-3")) score = 76;
+                return score;
+            }
+
+            var explicitSubs = req.ExplicitSubstitutePlayerIds?.ToHashSet() ?? new HashSet<Guid>();
+            var eligiblePool = pList.Where(p => !explicitSubs.Contains(p.Id))
+                                    .OrderByDescending(p => GetScore(p))
+                                    .ToList();
+
+            var assigned = new HashSet<Guid>();
+            var targetSlots = callerIsSideB ? resultNonInternal.TeamBSlots : resultNonInternal.TeamASlots;
+
+            // 1. Điền thủ môn GK
+            var gkSlot = formation.Slots.FirstOrDefault(s => s.Category == "GK");
+            if (gkSlot != null)
+            {
+                var gkPlayer = eligiblePool.FirstOrDefault(p => (p.StandardPrimaryPosition ?? p.Position ?? "").ToUpper().Contains("GK"))
+                               ?? eligiblePool.FirstOrDefault();
+                if (gkPlayer != null)
                 {
-                    var slot = formation.Slots[slotIdxA++];
-                    resultNonInternal.TeamASlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
+                    assigned.Add(gkPlayer.Id);
+                    targetSlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
+                    {
+                        SlotCode = gkSlot.SlotCode,
+                        SlotName = gkSlot.SlotName,
+                        Category = gkSlot.Category,
+                        XPercent = gkSlot.XPercent,
+                        YPercent = gkSlot.YPercent,
+                        PlayerId = gkPlayer.Id,
+                        PlayerName = gkPlayer.FullName,
+                        KitNumber = gkPlayer.KitNumber,
+                        PhotoUrl = gkPlayer.PhotoUrl,
+                        PreferredFoot = gkPlayer.PreferredFoot,
+                        Experience = gkPlayer.Experience,
+                        IsPrimaryPosition = true,
+                        AssignmentReason = "Thủ môn sở trường"
+                    });
+                }
+            }
+
+            // 2. Điền các vị trí theo đúng sở trường
+            foreach (var slot in formation.Slots.Where(s => s.Category != "GK"))
+            {
+                var player = eligiblePool.FirstOrDefault(p => !assigned.Contains(p.Id) &&
+                    AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(p.Position ?? "MF") == slot.Category);
+                if (player != null)
+                {
+                    assigned.Add(player.Id);
+                    targetSlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
                     {
                         SlotCode = slot.SlotCode,
                         SlotName = slot.SlotName,
                         Category = slot.Category,
                         XPercent = slot.XPercent,
                         YPercent = slot.YPercent,
-                        PlayerId = p.Id,
-                        PlayerName = p.FullName,
-                        KitNumber = p.KitNumber,
-                        PhotoUrl = p.PhotoUrl,
-                        PreferredFoot = p.PreferredFoot,
-                        Experience = p.Experience,
+                        PlayerId = player.Id,
+                        PlayerName = player.FullName,
+                        KitNumber = player.KitNumber,
+                        PhotoUrl = player.PhotoUrl,
+                        PreferredFoot = player.PreferredFoot,
+                        Experience = player.Experience,
                         IsPrimaryPosition = true,
-                        AssignmentReason = "Xếp tự động theo sơ đồ"
-                    });
-                }
-                else
-                {
-                    resultNonInternal.Substitutes.Add(new AloBall.Web.Services.TeamDivision.SubstitutePlayerDto
-                    {
-                        PlayerId = p.Id,
-                        PlayerName = p.FullName,
-                        KitNumber = p.KitNumber,
-                        PhotoUrl = p.PhotoUrl,
-                        PreferredFoot = p.PreferredFoot,
-                        Experience = p.Experience,
-                        DesignatedSide = "A",
-                        SubstituteReason = "Dự bị chiến thuật"
+                        AssignmentReason = "Đúng vị trí sở trường"
                     });
                 }
             }
 
-            if (match.TeamBId.HasValue)
+            // 3. Lấp các ô còn trống bằng cầu thủ điểm cao nhất chưa xếp
+            foreach (var slot in formation.Slots.Where(s => s.Category != "GK"))
             {
-                var pListB = await _db.Players.Where(p => p.TeamId == match.TeamBId.Value && p.IsActive).OrderBy(p => p.KitNumber ?? 999).ToListAsync();
-                int slotIdxB = 0;
-                foreach (var p in pListB)
+                if (!targetSlots.Any(ts => ts.SlotCode == slot.SlotCode))
                 {
-                    if (slotIdxB < formation.Slots.Count)
+                    var player = eligiblePool.FirstOrDefault(p => !assigned.Contains(p.Id));
+                    if (player != null)
                     {
-                        var slot = formation.Slots[slotIdxB++];
-                        resultNonInternal.TeamBSlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
+                        assigned.Add(player.Id);
+                        targetSlots.Add(new AloBall.Web.Services.TeamDivision.SlotAssignment
                         {
                             SlotCode = slot.SlotCode,
                             SlotName = slot.SlotName,
                             Category = slot.Category,
                             XPercent = slot.XPercent,
                             YPercent = slot.YPercent,
-                            PlayerId = p.Id,
-                            PlayerName = p.FullName,
-                            KitNumber = p.KitNumber,
-                            PhotoUrl = p.PhotoUrl,
-                            PreferredFoot = p.PreferredFoot,
-                            Experience = p.Experience,
-                            IsPrimaryPosition = true,
-                            AssignmentReason = "Xếp tự động theo sơ đồ"
-                        });
-                    }
-                    else
-                    {
-                        resultNonInternal.Substitutes.Add(new AloBall.Web.Services.TeamDivision.SubstitutePlayerDto
-                        {
-                            PlayerId = p.Id,
-                            PlayerName = p.FullName,
-                            KitNumber = p.KitNumber,
-                            PhotoUrl = p.PhotoUrl,
-                            PreferredFoot = p.PreferredFoot,
-                            Experience = p.Experience,
-                            DesignatedSide = "B",
-                            SubstituteReason = "Dự bị chiến thuật"
+                            PlayerId = player.Id,
+                            PlayerName = player.FullName,
+                            KitNumber = player.KitNumber,
+                            PhotoUrl = player.PhotoUrl,
+                            PreferredFoot = player.PreferredFoot,
+                            Experience = player.Experience,
+                            IsPrimaryPosition = false,
+                            AssignmentReason = "Phân bổ chiến thuật"
                         });
                     }
                 }
+            }
+
+            // 4. Toàn bộ cầu thủ còn lại hoặc điểm thấp hơn tự động vào dự bị
+            foreach (var p in pList.Where(p => !assigned.Contains(p.Id)))
+            {
+                resultNonInternal.Substitutes.Add(new AloBall.Web.Services.TeamDivision.SubstitutePlayerDto
+                {
+                    PlayerId = p.Id,
+                    PlayerName = p.FullName,
+                    KitNumber = p.KitNumber,
+                    PhotoUrl = p.PhotoUrl,
+                    PreferredFoot = p.PreferredFoot,
+                    Experience = p.Experience,
+                    DesignatedSide = callerSide,
+                    SubstituteReason = explicitSubs.Contains(p.Id) ? "Dự bị chỉ định" : "Dự bị chiến thuật"
+                });
             }
 
             return Json(new { success = true, data = resultNonInternal });
