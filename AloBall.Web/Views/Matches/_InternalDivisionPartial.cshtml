@@ -27,13 +27,13 @@
 
 <style>
     /* ==========================================================================
-       ALOBALL SMART TACTICAL BOARD & PREMIUM CARDS
+       ALOBALL SMART TACTICAL BOARD (SA BÀN FIFA ĐẤU NỘI BỘ & GIAO HỮU)
        ========================================================================== */
     .tactical-board-wrapper {
         background: linear-gradient(180deg, #071912 0%, #0a261c 100%);
-        border: 1px solid rgba(212, 175, 55, 0.25);
+        border: 1px solid rgba(212, 175, 55, 0.3);
         border-radius: 18px;
-        padding: 18px;
+        padding: 20px;
         box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
         margin-bottom: 24px;
         color: #f8fafc;
@@ -67,9 +67,9 @@
     .smart-pitch-container {
         position: relative;
         width: 100%;
-        max-width: 620px;
+        max-width: 580px;
         aspect-ratio: 3 / 4;
-        min-height: 520px;
+        min-height: 480px;
         margin: 0 auto;
         background: radial-gradient(circle at 50% 50%, #15803d 0%, #166534 65%, #0f3d20 100%),
                     repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0, rgba(255,255,255,0.035) 45px, transparent 45px, transparent 90px);
@@ -99,8 +99,8 @@
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 110px;
-        height: 110px;
+        width: 100px;
+        height: 100px;
         border: 2px solid rgba(255, 255, 255, 0.7);
         border-radius: 50%;
         transform: translate(-50%, -50%);
@@ -119,8 +119,8 @@
         position: absolute;
         top: 0;
         left: 50%;
-        width: 170px;
-        height: 65px;
+        width: 150px;
+        height: 60px;
         border: 2px solid rgba(255, 255, 255, 0.7);
         border-top: none;
         transform: translateX(-50%);
@@ -129,8 +129,8 @@
         position: absolute;
         bottom: 0;
         left: 50%;
-        width: 170px;
-        height: 65px;
+        width: 150px;
+        height: 60px;
         border: 2px solid rgba(255, 255, 255, 0.7);
         border-bottom: none;
         transform: translateX(-50%);
@@ -139,8 +139,8 @@
         position: absolute;
         bottom: 0;
         left: 50%;
-        width: 85px;
-        height: 26px;
+        width: 80px;
+        height: 24px;
         border: 2px solid rgba(255, 255, 255, 0.7);
         border-bottom: none;
         transform: translateX(-50%);
@@ -153,103 +153,101 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        z-index: 10;
+        z-index: 5;
         transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        touch-action: manipulation;
     }
     .tactical-slot-anchor.drag-hover {
-        transform: translate(-50%, -50%) scale(1.12);
-        z-index: 30;
-    }
-    .tactical-slot-anchor.drag-hover .ab-card-premium {
-        border-color: #facc15;
-        box-shadow: 0 0 20px rgba(250, 204, 21, 0.75);
+        transform: translate(-50%, -50%) scale(1.18);
+        filter: drop-shadow(0 0 12px #38bdf8);
     }
 
-    /* Empty Slot Placeholder */
     .ab-slot-empty {
-        width: 72px;
-        height: 88px;
+        width: 68px;
+        height: 72px;
+        border: 2px dashed rgba(255, 255, 255, 0.4);
         border-radius: 10px;
-        border: 2px dashed rgba(255, 255, 255, 0.5);
         background: rgba(0, 0, 0, 0.35);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(255, 255, 255, 0.75);
         cursor: pointer;
+        backdrop-filter: blur(2px);
         transition: all 0.2s ease;
     }
     .ab-slot-empty:hover {
         border-color: #38bdf8;
-        background: rgba(56, 189, 248, 0.2);
+        background: rgba(56, 189, 248, 0.15);
+        color: #fff;
     }
 
-    /* ==========================================================================
-       ALOBALL PREMIUM PLAYER CARD AESTHETICS (Original Annual Football Clubhouse)
-       ========================================================================== */
+    /* Premium Football Player Card */
     .ab-card-premium {
         position: relative;
-        width: 82px;
-        border-radius: 11px;
-        background: linear-gradient(165deg, #092317 0%, #03140d 60%, #072a1c 100%);
-        border: 1.5px solid #d4af37;
-        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        width: 78px;
+        background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
         padding: 4px;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        cursor: grab;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
-        cursor: grab;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
-    .ab-card-premium:active {
-        cursor: grabbing;
+    .ab-card-premium:hover:not(.readonly-card) {
+        transform: translateY(-4px) scale(1.05);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8), 0 0 14px rgba(56, 189, 248, 0.6);
+        border-color: #38bdf8;
+    }
+    .ab-card-premium.side-B-card {
+        border-color: #facc15;
+    }
+    .ab-card-premium.side-B-card:hover:not(.readonly-card) {
+        border-color: #f59e0b;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8), 0 0 14px rgba(245, 158, 11, 0.6);
     }
     .ab-card-premium.readonly-card {
         cursor: default;
     }
-    .ab-card-premium.side-B-card {
-        border-color: #f59e0b;
-        background: linear-gradient(165deg, #2b1d03 0%, #150e02 60%, #301f05 100%);
-    }
 
-    /* Card Top Bar (Position & Kit Number) */
+    /* Card Top Bar (Pos Badge + Kit No) */
     .ab-card-topbar {
         width: 100%;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1px 4px;
-        font-size: 0.68rem;
-        font-weight: 850;
-        line-height: 1;
+        padding: 0 2px 2px 2px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 2px;
     }
     .ab-pos-badge {
-        padding: 2px 4px;
+        font-size: 0.62rem;
+        font-weight: 800;
+        padding: 1px 4px;
         border-radius: 4px;
         color: #fff;
-        font-weight: 900;
-        font-size: 0.65rem;
-        letter-spacing: 0.5px;
+        line-height: 1.1;
     }
-    .ab-pos-GK { background: #d97706; }
-    .ab-pos-DF { background: #0284c7; }
-    .ab-pos-MF { background: #059669; }
+    .ab-pos-GK { background: #eab308; color: #000; }
+    .ab-pos-DF { background: #2563eb; }
+    .ab-pos-MF { background: #16a34a; }
     .ab-pos-FW { background: #dc2626; }
 
     .ab-kit-num {
         color: #facc15;
         font-weight: 900;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
     }
 
     /* Card Avatar */
     .ab-card-avatar {
         position: relative;
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
         border: 1.5px solid rgba(255, 255, 255, 0.7);
         overflow: hidden;
@@ -273,11 +271,11 @@
     /* Card Player Name */
     .ab-card-name {
         width: 100%;
-        font-size: 0.68rem;
+        font-size: 0.66rem;
         font-weight: 800;
         color: #ffffff;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.2px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -291,8 +289,8 @@
         width: 100%;
         display: flex;
         justify-content: center;
-        gap: 4px;
-        font-size: 0.58rem;
+        gap: 3px;
+        font-size: 0.56rem;
         color: #cbd5e1;
         font-weight: 600;
         background: rgba(0, 0, 0, 0.45);
@@ -303,14 +301,14 @@
     /* Card Reason Pill */
     .ab-card-reason-pill {
         margin-top: 2px;
-        font-size: 0.55rem;
-        padding: 1px 5px;
+        font-size: 0.53rem;
+        padding: 1px 4px;
         border-radius: 4px;
         background: rgba(16, 185, 129, 0.2);
         color: #6ee7b7;
         border: 1px solid rgba(16, 185, 129, 0.3);
         white-space: nowrap;
-        max-width: 80px;
+        max-width: 72px;
         overflow: hidden;
         text-overflow: ellipsis;
     }
@@ -326,19 +324,27 @@
         50% { transform: scale(1.14); }
     }
 
+    /* Pitch Box for Dual Pitch view */
+    .tactical-pitch-box {
+        transition: border-color 0.2s ease;
+    }
+    .tactical-pitch-box:hover {
+        border-color: rgba(255, 255, 255, 0.3) !important;
+    }
+
     /* Substitutes Bench */
     .smart-bench-wrapper {
         background: rgba(15, 23, 42, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 14px;
         padding: 14px;
-        margin-top: 18px;
+        margin-top: 20px;
     }
     .smart-bench-list {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        min-height: 80px;
+        min-height: 85px;
         align-items: center;
     }
     .smart-bench-item {
@@ -349,10 +355,10 @@
     }
 
     /* Mobile adjustments */
-    @@media (max-width: 576px) {
+    @@media (max-width: 768px) {
         .smart-pitch-container {
             max-width: 100%;
-            min-height: 480px;
+            min-height: 440px;
         }
         .ab-card-premium {
             width: 66px;
@@ -375,7 +381,7 @@
 </style>
 
 <div class="tactical-board-wrapper" id="smartTacticalBoard">
-    <!-- TOP CONTROL PANEL: Pitch Format, Formations & Actions -->
+    <!-- TOP CONTROL PANEL: Pitch Format, Quick Division Options & Actions -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 pb-3 border-bottom border-secondary border-opacity-25">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
@@ -387,17 +393,34 @@
                 </span>
             </div>
             <h5 class="fw-bold mb-0 text-white">
-                @(isInternal ? "Phân Đội Hình & Sơ Đồ Thi Đấu Nội Bộ" : $"Sơ Đồ Thi Đấu Chiến Thuật · {myTeamName}")
+                @(isInternal ? "Phân Đội Hình & 2 Sa Bàn Thi Đấu Nội Bộ" : $"Sơ Đồ Thi Đấu Chiến Thuật · {myTeamName}")
             </h5>
         </div>
 
+        <!-- MANAGER ACTION BUTTONS -->
         <div class="d-flex flex-wrap align-items-center gap-2" id="managerActionButtons">
             <button type="button" class="btn btn-sm btn-outline-info" id="btnParticipantSettings" onclick="openParticipantSettingsModal()">
                 <i class="bi bi-sliders me-1"></i> Cài đặt quân số
             </button>
-            <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow" id="btnAutoDivide" onclick="triggerAutoDivision()">
-                <i class="bi bi-magic me-1"></i> Tự động xếp sơ đồ
-            </button>
+
+            @if (isInternal)
+            {
+                <!-- 2 TÙY CHỌN XẾP NHANH ĐẤU NỘI BỘ -->
+                <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow" id="btnModeAVsB" onclick="triggerDivision('a_vs_b')" title="Đội A điểm cao nhất, Đội B kế tiếp, còn lại dự bị">
+                    <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Đội A vs Đội B
+                </button>
+                <button type="button" class="btn btn-sm btn-info text-dark fw-bold px-3 shadow" id="btnModeBalanced" onclick="triggerDivision('balanced')" title="Điểm số chia đều cân bằng cho 2 đội">
+                    <i class="bi bi-scales me-1"></i> Trận đấu cân bằng
+                </button>
+            }
+            else
+            {
+                <!-- NÚT TỰ ĐỘNG XẾP CHO GIAO HỮU -->
+                <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow" id="btnAutoDivide" onclick="triggerDivision('friendly')">
+                    <i class="bi bi-magic me-1"></i> Tự động xếp sơ đồ
+                </button>
+            }
+
             <button type="button" class="btn btn-sm btn-warning text-dark fw-bold px-3 shadow" id="btnSaveLineup" onclick="saveLineupToServer()">
                 <i class="bi bi-check-circle-fill me-1"></i> Lưu đội hình
             </button>
@@ -423,66 +446,120 @@
         </div>
 
         <!-- 2. Sơ đồ chiến thuật theo thể thức -->
-        <div class="col-12 @(isInternal ? "col-md-4" : "col-md-7")">
-            <div class="small text-white-50 mb-1 fw-semibold">2. Chọn sơ đồ chiến thuật:</div>
+        <div class="col-12 col-md-7">
+            <div class="small text-white-50 mb-1 fw-semibold">2. Chọn sơ đồ chiến thuật (áp dụng cho cả 2 bên):</div>
             <select id="tacticalFormationSelect" class="form-select form-select-sm bg-dark text-white border-secondary" @(canEdit ? "" : "disabled") onchange="onFormationSelectChanged()">
                 <!-- Options populated dynamically based on active pitch format -->
             </select>
         </div>
-
-        <!-- 3. Đổi bên xem Bên A / Bên B (CHỈ HIỂN THỊ KHI ĐÁ NỘI BỘ, BẢO VỆ TÍNH BẢO MẬT ĐỐI THỦ KHI ĐÁ GIAO HỮU) -->
-        @if (isInternal)
-        {
-            <div class="col-12 col-md-3 text-md-end">
-                <div class="small text-white-50 mb-1 fw-semibold">Góc nhìn sa bàn:</div>
-                <div class="btn-group btn-group-sm w-100" role="group">
-                    <button type="button" class="btn btn-primary active fw-semibold" id="btnSideA" onclick="switchSideView('A')">
-                        <i class="bi bi-shield-shaded me-1"></i> Bên A
-                    </button>
-                    <button type="button" class="btn btn-outline-warning text-light fw-semibold" id="btnSideB" onclick="switchSideView('B')">
-                        <i class="bi bi-shield-fill me-1"></i> Bên B
-                    </button>
-                </div>
-            </div>
-        }
     </div>
 
-    <!-- STATS BAR & EXPLANATION NOTE -->
+    <!-- EXPLANATION & STATS BAR -->
     <div class="p-2 mb-3 rounded bg-black bg-opacity-30 border border-secondary border-opacity-25 d-flex flex-wrap justify-content-between align-items-center gap-2 small">
         <div class="d-flex align-items-center gap-3">
-            <div><span class="text-white-50">Đá chính:</span> <strong class="text-info fs-6" id="statStartersCount">0</strong></div>
+            <div><span class="text-white-50">Tổng đá chính:</span> <strong class="text-info fs-6" id="statStartersCount">0</strong></div>
             <div class="border-start border-secondary border-opacity-50 ps-3"><span class="text-white-50">Dự bị:</span> <strong class="text-warning fs-6" id="statSubsCount">0</strong></div>
-            <div class="border-start border-secondary border-opacity-50 ps-3"><span class="text-white-50">Đúng sở trường:</span> <strong class="text-success fs-6" id="statPrimaryCount">0</strong></div>
+            <div class="border-start border-secondary border-opacity-50 ps-3"><span class="text-white-50">Đúng sở trường:</span> <strong class="text-success fs-6" id="statPrimaryCount">0%</strong></div>
         </div>
         <div class="text-white-50 small">
-            <i class="bi bi-info-circle text-info me-1"></i>
-            Thứ tự ưu tiên: Thủ môn &rarr; Vị trí sở trường &rarr; Điểm kinh nghiệm. Cầu thủ điểm thấp hơn tự động vào dự bị.
+            @if (isInternal)
+            {
+                <span><i class="bi bi-info-circle text-info me-1"></i> Tùy chọn <strong>"Đội A vs Đội B"</strong>: Đội A mạnh nhất, Đội B kế tiếp. Tùy chọn <strong>"Trận đấu cân bằng"</strong>: Chia đều sức mạnh 2 bên.</span>
+            }
+            else
+            {
+                <span><i class="bi bi-info-circle text-info me-1"></i> Ưu tiên Thủ môn &rarr; Vị trí sở trường &rarr; Điểm kinh nghiệm. Cầu thủ điểm thấp hơn tự động vào dự bị.</span>
+            }
         </div>
     </div>
 
     <!-- TAP-TO-SWAP NOTIFICATION BANNER -->
     <div id="swapAlertBanner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between shadow">
         <div class="small">
-            <i class="bi bi-arrow-left-right me-1"></i>
-            Đang chọn: <strong id="swapPlayerName">--</strong>.
-            <span>Chạm vào một thẻ khác trên sân hoặc băng ghế dự bị để hoán đổi vị trí!</span>
+            <i class="bi bi-arrow-left-right me-1 text-primary"></i>
+            Đang chọn: <strong id="swapPlayerName">--</strong> (<span id="swapPlayerSide">--</span>).
+            <span class="ms-1">Chạm vào một thẻ khác ở bất kỳ Sa bàn nào hoặc Băng ghế dự bị để hoán đổi vị trí!</span>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary text-dark py-0 px-2" onclick="cancelSwapSelection()">Hủy</button>
     </div>
 
-    <!-- THE SMART 2D TACTICAL PITCH -->
-    <div class="smart-pitch-container" id="smartPitch">
-        <div class="smart-pitch-markings"></div>
-        <div class="smart-penalty-top"></div>
-        <div class="smart-center-line"></div>
-        <div class="smart-center-circle"></div>
-        <div class="smart-center-spot"></div>
-        <div class="smart-penalty-bottom"></div>
-        <div class="smart-goal-bottom"></div>
+    <!-- THE PITCHES VIEW -->
+    @if (isInternal)
+    {
+        <!-- CHẾ ĐỘ NỘI BỘ: HIỂN THỊ ĐỒNG THỜI 2 SA BÀN (SA BÀN ĐỘI A VÀ SA BÀN ĐỘI B) -->
+        <div class="row g-3" id="dualPitchesWrapper">
+            <!-- CỘT SA BÀN ĐỘI A -->
+            <div class="col-12 col-xl-6">
+                <div class="tactical-pitch-box p-3 rounded-4" style="background: rgba(16, 185, 129, 0.06); border: 1.5px solid rgba(16, 185, 129, 0.4); box-shadow: 0 8px 24px rgba(0,0,0,0.35);">
+                    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success fs-6 px-2 py-1 shadow-sm"><i class="bi bi-shield-shaded me-1"></i> ĐỘI A</span>
+                            <span class="fw-bold text-white fs-6" id="labelTeamAName">@teamAName</span>
+                        </div>
+                        <div class="text-end small">
+                            <span class="text-white-50">Điểm TB:</span> <strong class="text-warning fs-6" id="avgScoreA">0</strong>
+                            <span class="mx-1 text-white-50">|</span>
+                            <span class="text-white-50">Đá chính:</span> <strong class="text-info fs-6" id="countA">0</strong>
+                        </div>
+                    </div>
+                    <div class="smart-pitch-container" id="pitchA">
+                        <div class="smart-pitch-markings"></div>
+                        <div class="smart-penalty-top"></div>
+                        <div class="smart-center-line"></div>
+                        <div class="smart-center-circle"></div>
+                        <div class="smart-center-spot"></div>
+                        <div class="smart-penalty-bottom"></div>
+                        <div class="smart-goal-bottom"></div>
+                        <!-- Dynamic Slots container for Team A -->
+                        <div id="pitchSlotsFieldA" style="position: absolute; inset: 0;"></div>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Dynamic Slots container (Rendered from Formation Template) -->
-        <div id="pitchSlotsField" style="position: absolute; inset: 0;"></div>
-    </div>
+            <!-- CỘT SA BÀN ĐỘI B -->
+            <div class="col-12 col-xl-6">
+                <div class="tactical-pitch-box p-3 rounded-4" style="background: rgba(234, 179, 8, 0.06); border: 1.5px solid rgba(234, 179, 8, 0.4); box-shadow: 0 8px 24px rgba(0,0,0,0.35);">
+                    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-warning text-dark fs-6 px-2 py-1 shadow-sm"><i class="bi bi-shield-fill me-1"></i> ĐỘI B</span>
+                            <span class="fw-bold text-white fs-6" id="labelTeamBName">@teamBName</span>
+                        </div>
+                        <div class="text-end small">
+                            <span class="text-white-50">Điểm TB:</span> <strong class="text-warning fs-6" id="avgScoreB">0</strong>
+                            <span class="mx-1 text-white-50">|</span>
+                            <span class="text-white-50">Đá chính:</span> <strong class="text-info fs-6" id="countB">0</strong>
+                        </div>
+                    </div>
+                    <div class="smart-pitch-container" id="pitchB">
+                        <div class="smart-pitch-markings"></div>
+                        <div class="smart-penalty-top"></div>
+                        <div class="smart-center-line"></div>
+                        <div class="smart-center-circle"></div>
+                        <div class="smart-center-spot"></div>
+                        <div class="smart-penalty-bottom"></div>
+                        <div class="smart-goal-bottom"></div>
+                        <!-- Dynamic Slots container for Team B -->
+                        <div id="pitchSlotsFieldB" style="position: absolute; inset: 0;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- CHẾ ĐỘ GIAO HỮU: CHỈ HIỂN THỊ 1 SA BÀN DUY NHẤT CỦA ĐỘI MÌNH (BẢO VỆ TÍNH BẢO MẬT ĐỐI THỦ) -->
+        <div class="smart-pitch-container" id="pitchSingle">
+            <div class="smart-pitch-markings"></div>
+            <div class="smart-penalty-top"></div>
+            <div class="smart-center-line"></div>
+            <div class="smart-center-circle"></div>
+            <div class="smart-center-spot"></div>
+            <div class="smart-penalty-bottom"></div>
+            <div class="smart-goal-bottom"></div>
+            <!-- Dynamic Slots container -->
+            <div id="pitchSlotsFieldSingle" style="position: absolute; inset: 0;"></div>
+        </div>
+    }
 
     <!-- BENCH / SUBSTITUTES TRAY -->
     <div class="smart-bench-wrapper">
@@ -494,7 +571,7 @@
             @if (canEdit)
             {
                 <div class="text-white-50 small" style="font-size: 0.75rem;">
-                    Kéo thả hoặc chạm thẻ để thay người vào sân
+                    Kéo thả hoặc chạm thẻ để thay người vào sân của Đội A hoặc Đội B
                 </div>
             }
         </div>
@@ -608,9 +685,21 @@
                 </div>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
-                    <button type="button" class="btn btn-primary btn-sm fw-bold px-3" onclick="applyModalSettingsAndDivide()">
-                        <i class="bi bi-magic me-1"></i> Áp dụng & Xếp đội hình
-                    </button>
+                    @if (isInternal)
+                    {
+                        <button type="button" class="btn btn-success btn-sm fw-bold px-3" onclick="applyModalSettingsAndDivide('a_vs_b')">
+                            <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Xếp Đội A vs B
+                        </button>
+                        <button type="button" class="btn btn-info text-dark btn-sm fw-bold px-3" onclick="applyModalSettingsAndDivide('balanced')">
+                            <i class="bi bi-scales me-1"></i> Xếp Trận Cân Bằng
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-primary btn-sm fw-bold px-3" onclick="applyModalSettingsAndDivide('friendly')">
+                            <i class="bi bi-magic me-1"></i> Áp dụng & Xếp đội hình
+                        </button>
+                    }
                 </div>
             </div>
         </div>
@@ -620,7 +709,7 @@
 
 <script>
     // =========================================================================
-    // REUSABLE FORMATION TEMPLATES (Loaded from Server-side FormationRegistry)
+    // REUSABLE FORMATION TEMPLATES & CONFIGURATION
     // =========================================================================
     const formationTemplates = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(allFormations));
     const isInternalMatch = @(isInternal ? "true" : "false");
@@ -635,10 +724,10 @@
     let currentLineupRevision = @Model.LineupRevision;
     let selectedPitchFormat = '@activePitchFormat';
     let activeFormationCode = '@currentFormation.Code';
-    let currentViewingSide = isInternalMatch ? 'A' : myTeamSide; // Luôn cố định bên đội mình nếu là giao hữu
     let isManagerRole = canManage;
-    let selectedSwapSource = null; // { playerId, side, slotCode, name }
-    let draggedTokenData = null; // { playerId, side, slotCode, source }
+    let selectedSwapSource = null; // { playerId, side, slotCode, playerName, isBench }
+    let draggedTokenData = null;   // { playerId, side, slotCode, playerName, isBench }
+    let currentDivisionMode = isInternalMatch ? 'a_vs_b' : 'friendly';
 
     // Roster Seeds
     const myTeamPlayerSeeds = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(myTeamPlayers.Select(p => new {
@@ -652,15 +741,15 @@
     })));
 
     // Lineup In-Memory State
-    let sideASlots = []; // Array of slot assignments
-    let sideBSlots = [];
+    let sideASlots = []; // Array of slot assignments for Team A
+    let sideBSlots = []; // Array of slot assignments for Team B
     let benchPlayers = []; // Substitutes
 
     document.addEventListener("DOMContentLoaded", function () {
         initPitchFormatPresets();
         populateInitialLineupState();
         updateRoleAndPermissions();
-        renderTacticalPitch();
+        renderAllTacticalPitches();
         renderBenchTray();
         updateTacticalStats();
     });
@@ -685,7 +774,7 @@
         const selectEl = document.getElementById('tacticalFormationSelect');
         if (selectEl && selectEl.options.length > 0) {
             activeFormationCode = selectEl.value;
-            triggerAutoDivision();
+            triggerDivision(currentDivisionMode);
         }
     }
 
@@ -718,21 +807,8 @@
         const selectEl = document.getElementById('tacticalFormationSelect');
         if (selectEl) {
             activeFormationCode = selectEl.value;
-            triggerAutoDivision();
+            triggerDivision(currentDivisionMode);
         }
-    }
-
-    function switchSideView(side) {
-        if (!isInternalMatch) return; // Bảo vệ tính bảo mật: không cho xem đối thủ khi đá giao hữu
-        currentViewingSide = side;
-        const btnA = document.getElementById('btnSideA');
-        const btnB = document.getElementById('btnSideB');
-        if (btnA) btnA.className = side === 'A' ? 'btn btn-primary active fw-semibold' : 'btn btn-outline-primary fw-semibold';
-        if (btnB) btnB.className = side === 'B' ? 'btn btn-warning text-dark active fw-semibold' : 'btn btn-outline-warning text-light fw-semibold';
-        updateRoleAndPermissions();
-        renderTacticalPitch();
-        renderBenchTray();
-        updateTacticalStats();
     }
 
     function updateRoleAndPermissions() {
@@ -740,13 +816,12 @@
 
         const badgeEl = document.getElementById('badgeRoleIndicator');
         if (badgeEl) {
-            const currentSideName = isInternalMatch ? (currentViewingSide === 'A' ? teamAName : teamBName) : myTeamName;
             if (isManagerRole) {
                 badgeEl.className = 'badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-50';
-                badgeEl.innerHTML = '<i class="bi bi-pencil-fill me-1"></i> Quyền Đội trưởng (' + escapeHtml(currentSideName) + ')';
+                badgeEl.innerHTML = '<i class="bi bi-pencil-fill me-1"></i> Quyền Đội trưởng (' + escapeHtml(myTeamName) + ')';
             } else {
                 badgeEl.className = 'badge bg-secondary bg-opacity-25 text-light border border-secondary border-opacity-50';
-                badgeEl.innerHTML = '<i class="bi bi-eye-fill me-1"></i> Thành viên (Chế độ xem - ' + escapeHtml(currentSideName) + ')';
+                badgeEl.innerHTML = '<i class="bi bi-eye-fill me-1"></i> Thành viên (Chế độ xem - ' + escapeHtml(myTeamName) + ')';
             }
         }
 
@@ -820,6 +895,7 @@
                         photoUrl: '@(l.Player?.PhotoUrl ?? "")',
                         preferredFoot: '@(l.Player?.PreferredFoot ?? "")',
                         experience: '@(l.Player?.Experience ?? "")',
+                        category: '@(AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(l.Player?.Position ?? "MF"))',
                         designatedSide: '@(isForSideA ? "A" : "B")',
                         substituteReason: 'Dự bị chiến thuật'
                     });
@@ -828,15 +904,14 @@
             }
         }
 
-        // Nếu trận chưa có đội hình lưu trước đó: Tự động sắp sẵn đội hình chính điểm cao nhất & dự bị
-        const currentTargetSlots = currentViewingSide === 'A' ? sideASlots : sideBSlots;
-        if (currentTargetSlots.length === 0 && myTeamPlayerSeeds.length > 0) {
-            runSmartClientSideDivision(myTeamPlayerSeeds, currentViewingSide);
+        // Nếu trận chưa có đội hình lưu trước đó: Tự động sắp sẵn
+        if (sideASlots.length === 0 && myTeamPlayerSeeds.length > 0) {
+            triggerDivision(isInternalMatch ? 'a_vs_b' : 'friendly');
         }
     }
 
     // =========================================================================
-    // SMART DIVISION ENGINE (Xếp cầu thủ điểm cao nhất vào sân, phần còn lại vào dự bị)
+    // SMART DIVISION ENGINES (ĐỘI A VS ĐỘI B & TRẬN ĐẤU CÂN BẰNG)
     // =========================================================================
     function getPlayerSkillScore(p) {
         let score = 70;
@@ -852,23 +927,72 @@
         return score;
     }
 
-    function runSmartClientSideDivision(candidatePool, side) {
+    function getNormalizedFormationSlots() {
         const activeFormation = formationTemplates.find(f => (f.code || f.Code) === activeFormationCode) || formationTemplates[0];
-        if (!activeFormation) return;
-
+        if (!activeFormation) return [];
         const rawSlots = activeFormation.slots || activeFormation.Slots || [];
-        const formationSlots = rawSlots.map(s => ({
+        return rawSlots.map(s => ({
             slotCode: s.slotCode || s.SlotCode,
             slotName: s.slotName || s.SlotName,
             category: s.category || s.Category,
             xPercent: s.xPercent ?? s.XPercent ?? 50,
             yPercent: s.yPercent ?? s.YPercent ?? 50
         }));
+    }
 
-        const targetList = side === 'A' ? sideASlots : sideBSlots;
-        targetList.length = 0;
+    function triggerDivision(mode) {
+        if (!isManagerRole) return;
+        currentDivisionMode = mode;
 
-        // Chuẩn hóa toàn bộ danh sách ứng viên
+        // Feedback loading trên nút
+        const btnAVsB = document.getElementById('btnModeAVsB');
+        const btnBalanced = document.getElementById('btnModeBalanced');
+        const btnAuto = document.getElementById('btnAutoDivide');
+
+        if (mode === 'a_vs_b' && btnAVsB) btnAVsB.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang xếp...`;
+        if (mode === 'balanced' && btnBalanced) btnBalanced.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang chia...`;
+        if (mode === 'friendly' && btnAuto) btnAuto.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang xếp...`;
+
+        // Lấy ứng viên từ Modal hoặc toàn bộ danh sách
+        const selectedIds = getSelectedModalParticipantIds();
+        let candidatePool = myTeamPlayerSeeds;
+        if (selectedIds && selectedIds.length > 0) {
+            candidatePool = myTeamPlayerSeeds.filter(p => {
+                const id = p.playerId || p.PlayerId;
+                return selectedIds.some(sel => sel.toLowerCase() === id.toLowerCase());
+            });
+        }
+
+        // Chạy chia đội tương ứng
+        if (isInternalMatch) {
+            if (mode === 'a_vs_b') {
+                runInternalDivision_AVsB(candidatePool);
+            } else {
+                runInternalDivision_Balanced(candidatePool);
+            }
+        } else {
+            runFriendlySingleDivision(candidatePool);
+        }
+
+        setTimeout(() => {
+            if (btnAVsB) btnAVsB.innerHTML = `<i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Đội A vs Đội B`;
+            if (btnBalanced) btnBalanced.innerHTML = `<i class="bi bi-scales me-1"></i> Trận đấu cân bằng`;
+            if (btnAuto) btnAuto.innerHTML = `<i class="bi bi-magic me-1"></i> Tự động xếp sơ đồ`;
+        }, 300);
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. TÙY CHỌN 1: "ĐỘI A VS ĐỘI B"
+    // Điểm Đội A cao nhất, Đội B từng vị trí điểm thấp hơn A, còn lại dự bị
+    // -------------------------------------------------------------------------
+    function runInternalDivision_AVsB(candidatePool) {
+        const formationSlots = getNormalizedFormationSlots();
+        if (formationSlots.length === 0) return;
+
+        sideASlots.length = 0;
+        sideBSlots.length = 0;
+        benchPlayers.length = 0;
+
         const normalizedPool = (candidatePool || []).map(p => ({
             playerId: p.playerId || p.PlayerId,
             playerName: p.playerName || p.PlayerName,
@@ -879,149 +1003,355 @@
             category: p.category || p.Category || 'MF'
         }));
 
-        // Lọc danh sách dự bị được chỉ định rõ trong modal (nếu có)
         const explicitSubIds = getSelectedModalSubstituteIds() || [];
         const pool = normalizedPool.filter(p => !explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
         const forcedSubs = normalizedPool.filter(p => explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
 
-        // Sắp xếp các ứng viên khả dụng theo điểm thực tế từ cao xuống thấp
+        // Sắp xếp giảm dần theo điểm năng lực
         const sortedPool = [...pool].sort((a, b) => getPlayerSkillScore(b) - getPlayerSkillScore(a));
+        const assignedIds = new Set();
 
-        const assignedPlayerIds = new Set();
-
-        // 1. ƯU TIÊN 1: Thủ môn (GK)
-        const gkSlot = formationSlots.find(s => s.category === 'GK');
-        if (gkSlot) {
-            let bestGk = sortedPool.find(p => p.category === 'GK');
-            if (!bestGk && sortedPool.length > 0) bestGk = sortedPool[0]; // Dự phòng
-
+        // --- BƯỚC 1: XẾP ĐỘI A (LẤY NHỮNG CẦU THỦ ĐIỂM CAO NHẤT) ---
+        // 1.1 GK cho Đội A
+        const gkSlotA = formationSlots.find(s => s.category === 'GK');
+        if (gkSlotA) {
+            let bestGk = sortedPool.find(p => !assignedIds.has(p.playerId) && p.category === 'GK') || sortedPool.find(p => !assignedIds.has(p.playerId));
             if (bestGk) {
-                assignedPlayerIds.add(bestGk.playerId);
-                targetList.push({
-                    slotCode: gkSlot.slotCode,
-                    slotName: gkSlot.slotName,
-                    category: gkSlot.category,
-                    xPercent: gkSlot.xPercent,
-                    yPercent: gkSlot.yPercent,
-                    playerId: bestGk.playerId,
-                    playerName: bestGk.playerName,
-                    kitNumber: bestGk.kitNumber,
-                    photoUrl: bestGk.photoUrl,
-                    preferredFoot: bestGk.preferredFoot,
-                    experience: bestGk.experience,
-                    isPrimaryPosition: bestGk.category === 'GK',
-                    assignmentReason: bestGk.category === 'GK' ? 'Thủ môn sở trường' : 'Phân bổ chiến thuật'
-                });
+                assignedIds.add(bestGk.playerId);
+                sideASlots.push(buildAssignedSlot(gkSlotA, bestGk, 'Đội A - Thủ môn xuất sắc nhất'));
             }
         }
-
-        // 2. ƯU TIÊN 2: Các vị trí outfield (DF, MF, FW) khớp đúng sở trường của cầu thủ điểm cao
-        const outfieldSlots = formationSlots.filter(s => s.category !== 'GK');
-        outfieldSlots.forEach(slot => {
-            const matchIdx = sortedPool.findIndex(p => !assignedPlayerIds.has(p.playerId) && p.category === slot.category);
-            if (matchIdx !== -1) {
-                const p = sortedPool[matchIdx];
-                assignedPlayerIds.add(p.playerId);
-                targetList.push({
-                    slotCode: slot.slotCode,
-                    slotName: slot.slotName,
-                    category: slot.category,
-                    xPercent: slot.xPercent,
-                    yPercent: slot.yPercent,
-                    playerId: p.playerId,
-                    playerName: p.playerName,
-                    kitNumber: p.kitNumber,
-                    photoUrl: p.photoUrl,
-                    preferredFoot: p.preferredFoot,
-                    experience: p.experience,
-                    isPrimaryPosition: true,
-                    assignmentReason: 'Đúng vị trí sở trường'
-                });
+        // 1.2 Outfield khớp vị trí cho Đội A
+        const outfieldSlotsA = formationSlots.filter(s => s.category !== 'GK');
+        outfieldSlotsA.forEach(slot => {
+            const match = sortedPool.find(p => !assignedIds.has(p.playerId) && p.category === slot.category);
+            if (match) {
+                assignedIds.add(match.playerId);
+                sideASlots.push(buildAssignedSlot(slot, match, 'Đội A - Đúng sở trường'));
             }
         });
-
-        // 3. ƯU TIÊN 3: Lấp đầy các ô trống còn lại bằng các cầu thủ điểm cao nhất chưa được xếp
-        outfieldSlots.forEach(slot => {
-            const isFilled = targetList.some(s => s.slotCode === slot.slotCode);
-            if (!isFilled) {
-                const candidate = sortedPool.find(p => !assignedPlayerIds.has(p.playerId));
-                if (candidate) {
-                    assignedPlayerIds.add(candidate.playerId);
-                    targetList.push({
-                        slotCode: slot.slotCode,
-                        slotName: slot.slotName,
-                        category: slot.category,
-                        xPercent: slot.xPercent,
-                        yPercent: slot.yPercent,
-                        playerId: candidate.playerId,
-                        playerName: candidate.playerName,
-                        kitNumber: candidate.kitNumber,
-                        photoUrl: candidate.photoUrl,
-                        preferredFoot: candidate.preferredFoot,
-                        experience: candidate.experience,
-                        isPrimaryPosition: false,
-                        assignmentReason: 'Phân bổ chiến thuật'
-                    });
+        // 1.3 Lấp đầy các vị trí còn lại của Đội A bằng cầu thủ điểm cao nhất
+        outfieldSlotsA.forEach(slot => {
+            if (!sideASlots.some(s => s.slotCode === slot.slotCode)) {
+                const nextBest = sortedPool.find(p => !assignedIds.has(p.playerId));
+                if (nextBest) {
+                    assignedIds.add(nextBest.playerId);
+                    sideASlots.push(buildAssignedSlot(slot, nextBest, 'Đội A - Phân bổ chiến thuật'));
                 }
             }
         });
 
-        // 4. TẤT CẢ CẦU THỦ CÒN LẠI (ĐIỂM THẤP HƠN HOẶC VƯỢT QUÁ SUẤT ĐÁ CHÍNH) SẼ VÀO DỰ BỊ
-        benchPlayers = [];
-        // Cầu thủ bị chỉ định dự bị
-        forcedSubs.forEach(p => {
-            benchPlayers.push({
-                playerId: p.playerId,
-                playerName: p.playerName,
-                kitNumber: p.kitNumber,
-                photoUrl: p.photoUrl,
-                preferredFoot: p.preferredFoot,
-                experience: p.experience,
-                category: p.category,
-                designatedSide: side,
-                substituteReason: 'Dự bị chỉ định'
-            });
+        // --- BƯỚC 2: XẾP ĐỘI B (CÁC VỊ TRÍ KẾ TIẾP, ĐIỂM THẤP HƠN ĐỘI A) ---
+        // 2.1 GK cho Đội B
+        const gkSlotB = formationSlots.find(s => s.category === 'GK');
+        if (gkSlotB) {
+            let secondGk = sortedPool.find(p => !assignedIds.has(p.playerId) && p.category === 'GK') || sortedPool.find(p => !assignedIds.has(p.playerId));
+            if (secondGk) {
+                assignedIds.add(secondGk.playerId);
+                sideBSlots.push(buildAssignedSlot(gkSlotB, secondGk, 'Đội B - Thủ môn kế tiếp'));
+            }
+        }
+        // 2.2 Outfield khớp vị trí cho Đội B
+        const outfieldSlotsB = formationSlots.filter(s => s.category !== 'GK');
+        outfieldSlotsB.forEach(slot => {
+            const match = sortedPool.find(p => !assignedIds.has(p.playerId) && p.category === slot.category);
+            if (match) {
+                assignedIds.add(match.playerId);
+                sideBSlots.push(buildAssignedSlot(slot, match, 'Đội B - Đúng sở trường'));
+            }
         });
-
-        // Cầu thủ không lọt vào đội hình chính
-        sortedPool.forEach(p => {
-            if (!assignedPlayerIds.has(p.playerId)) {
-                benchPlayers.push({
-                    playerId: p.playerId,
-                    playerName: p.playerName,
-                    kitNumber: p.kitNumber,
-                    photoUrl: p.photoUrl,
-                    preferredFoot: p.preferredFoot,
-                    experience: p.experience,
-                    category: p.category,
-                    designatedSide: side,
-                    substituteReason: 'Dự bị chiến thuật'
-                });
+        // 2.3 Lấp đầy các vị trí còn lại của Đội B
+        outfieldSlotsB.forEach(slot => {
+            if (!sideBSlots.some(s => s.slotCode === slot.slotCode)) {
+                const nextBest = sortedPool.find(p => !assignedIds.has(p.playerId));
+                if (nextBest) {
+                    assignedIds.add(nextBest.playerId);
+                    sideBSlots.push(buildAssignedSlot(slot, nextBest, 'Đội B - Phân bổ chiến thuật'));
+                }
             }
         });
 
-        renderTacticalPitch();
+        // --- BƯỚC 3: CÁC CẦU THỦ CÒN LẠI VÀO BĂNG GHẾ DỰ BỊ ---
+        forcedSubs.forEach(p => benchPlayers.push(buildBenchPlayer(p, 'Dự bị chỉ định', 'A')));
+        sortedPool.forEach(p => {
+            if (!assignedIds.has(p.playerId)) {
+                benchPlayers.push(buildBenchPlayer(p, 'Dự bị chiến thuật', 'B'));
+            }
+        });
+
+        renderAllTacticalPitches();
         renderBenchTray();
         updateTacticalStats();
     }
 
-    // Render 2D pitch with reusable template coordinates
-    function renderTacticalPitch() {
-        const fieldEl = document.getElementById('pitchSlotsField');
+    // -------------------------------------------------------------------------
+    // 2. TÙY CHỌN 2: "TRẬN ĐẤU CÂN BẰNG"
+    // Điểm số và sức mạnh chia đều cho 2 đội (Alternating / Balanced Draft)
+    // -------------------------------------------------------------------------
+    function runInternalDivision_Balanced(candidatePool) {
+        const formationSlots = getNormalizedFormationSlots();
+        if (formationSlots.length === 0) return;
+
+        sideASlots.length = 0;
+        sideBSlots.length = 0;
+        benchPlayers.length = 0;
+
+        const normalizedPool = (candidatePool || []).map(p => ({
+            playerId: p.playerId || p.PlayerId,
+            playerName: p.playerName || p.PlayerName,
+            kitNumber: p.kitNumber ?? p.KitNumber,
+            photoUrl: p.photoUrl || p.PhotoUrl,
+            preferredFoot: p.preferredFoot || p.PreferredFoot,
+            experience: p.experience || p.Experience,
+            category: p.category || p.Category || 'MF'
+        }));
+
+        const explicitSubIds = getSelectedModalSubstituteIds() || [];
+        const pool = normalizedPool.filter(p => !explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
+        const forcedSubs = normalizedPool.filter(p => explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
+
+        // Sắp xếp giảm dần theo điểm
+        const sortedPool = [...pool].sort((a, b) => getPlayerSkillScore(b) - getPlayerSkillScore(a));
+        const assignedIds = new Set();
+
+        let totalScoreA = 0;
+        let totalScoreB = 0;
+
+        // 2.1 Chia Thủ môn (GK)
+        const gkSlot = formationSlots.find(s => s.category === 'GK');
+        if (gkSlot) {
+            const gks = sortedPool.filter(p => p.category === 'GK');
+            if (gks.length >= 2) {
+                // GK1 -> A, GK2 -> B
+                assignedIds.add(gks[0].playerId);
+                sideASlots.push(buildAssignedSlot(gkSlot, gks[0], 'GK Đội A (Cân bằng)'));
+                totalScoreA += getPlayerSkillScore(gks[0]);
+
+                assignedIds.add(gks[1].playerId);
+                sideBSlots.push(buildAssignedSlot(gkSlot, gks[1], 'GK Đội B (Cân bằng)'));
+                totalScoreB += getPlayerSkillScore(gks[1]);
+            } else if (gks.length === 1) {
+                assignedIds.add(gks[0].playerId);
+                sideASlots.push(buildAssignedSlot(gkSlot, gks[0], 'GK Đội A'));
+                totalScoreA += getPlayerSkillScore(gks[0]);
+
+                const subGk = sortedPool.find(p => !assignedIds.has(p.playerId));
+                if (subGk) {
+                    assignedIds.add(subGk.playerId);
+                    sideBSlots.push(buildAssignedSlot(gkSlot, subGk, 'GK Đội B (Bù trừ)'));
+                    totalScoreB += getPlayerSkillScore(subGk);
+                }
+            }
+        }
+
+        // 2.2 Chia theo từng nhóm vị trí Outfield: DF -> MF -> FW
+        const categories = ['DF', 'MF', 'FW'];
+        categories.forEach(cat => {
+            const slotsOfCat = formationSlots.filter(s => s.category === cat);
+            const candidates = sortedPool.filter(p => !assignedIds.has(p.playerId) && p.category === cat);
+
+            slotsOfCat.forEach((slot, idx) => {
+                // Ô cho Đội A
+                if (!sideASlots.some(s => s.slotCode === slot.slotCode)) {
+                    // Chọn cầu thủ sao cho cân bằng tổng điểm
+                    let pick = null;
+                    if (candidates.length > 0) {
+                        // Nếu A đang thấp điểm hơn B, lấy người điểm cao hơn
+                        if (totalScoreA <= totalScoreB) {
+                            pick = candidates.shift();
+                        } else if (candidates.length > 1) {
+                            pick = candidates.splice(1, 1)[0];
+                        } else {
+                            pick = candidates.shift();
+                        }
+                    }
+                    if (pick) {
+                        assignedIds.add(pick.playerId);
+                        sideASlots.push(buildAssignedSlot(slot, pick, 'Cân bằng sở trường'));
+                        totalScoreA += getPlayerSkillScore(pick);
+                    }
+                }
+
+                // Ô cho Đội B
+                if (!sideBSlots.some(s => s.slotCode === slot.slotCode)) {
+                    let pick = null;
+                    if (candidates.length > 0) {
+                        pick = candidates.shift();
+                    }
+                    if (pick) {
+                        assignedIds.add(pick.playerId);
+                        sideBSlots.push(buildAssignedSlot(slot, pick, 'Cân bằng sở trường'));
+                        totalScoreB += getPlayerSkillScore(pick);
+                    }
+                }
+            });
+        });
+
+        // 2.3 Lấp đầy các vị trí còn trống theo nguyên tắc Greedy bù trừ tổng điểm
+        const remainingOutfieldSlots = formationSlots.filter(s => s.category !== 'GK');
+        remainingOutfieldSlots.forEach(slot => {
+            if (!sideASlots.some(s => s.slotCode === slot.slotCode)) {
+                const cand = sortedPool.find(p => !assignedIds.has(p.playerId));
+                if (cand) {
+                    assignedIds.add(cand.playerId);
+                    sideASlots.push(buildAssignedSlot(slot, cand, 'Cân bằng quân số'));
+                    totalScoreA += getPlayerSkillScore(cand);
+                }
+            }
+            if (!sideBSlots.some(s => s.slotCode === slot.slotCode)) {
+                const cand = sortedPool.find(p => !assignedIds.has(p.playerId));
+                if (cand) {
+                    assignedIds.add(cand.playerId);
+                    sideBSlots.push(buildAssignedSlot(slot, cand, 'Cân bằng quân số'));
+                    totalScoreB += getPlayerSkillScore(cand);
+                }
+            }
+        });
+
+        // 2.4 Cầu thủ còn lại vào Dự bị
+        forcedSubs.forEach(p => benchPlayers.push(buildBenchPlayer(p, 'Dự bị chỉ định', 'A')));
+        sortedPool.forEach(p => {
+            if (!assignedIds.has(p.playerId)) {
+                benchPlayers.push(buildBenchPlayer(p, 'Dự bị chiến thuật', 'B'));
+            }
+        });
+
+        renderAllTacticalPitches();
+        renderBenchTray();
+        updateTacticalStats();
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. TỰ ĐỘNG XẾP CHO TRẬN GIAO HỮU (CHỈ 1 ĐỘI CỦA MÌNH)
+    // -------------------------------------------------------------------------
+    function runFriendlySingleDivision(candidatePool) {
+        const formationSlots = getNormalizedFormationSlots();
+        if (formationSlots.length === 0) return;
+
+        const targetSlots = myTeamSide === 'B' ? sideBSlots : sideASlots;
+        targetSlots.length = 0;
+        benchPlayers.length = 0;
+
+        const normalizedPool = (candidatePool || []).map(p => ({
+            playerId: p.playerId || p.PlayerId,
+            playerName: p.playerName || p.PlayerName,
+            kitNumber: p.kitNumber ?? p.KitNumber,
+            photoUrl: p.photoUrl || p.PhotoUrl,
+            preferredFoot: p.preferredFoot || p.PreferredFoot,
+            experience: p.experience || p.Experience,
+            category: p.category || p.Category || 'MF'
+        }));
+
+        const explicitSubIds = getSelectedModalSubstituteIds() || [];
+        const pool = normalizedPool.filter(p => !explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
+        const forcedSubs = normalizedPool.filter(p => explicitSubIds.some(id => id.toLowerCase() === p.playerId.toLowerCase()));
+
+        const sortedPool = [...pool].sort((a, b) => getPlayerSkillScore(b) - getPlayerSkillScore(a));
+        const assignedIds = new Set();
+
+        // GK
+        const gkSlot = formationSlots.find(s => s.category === 'GK');
+        if (gkSlot) {
+            let bestGk = sortedPool.find(p => p.category === 'GK') || sortedPool[0];
+            if (bestGk) {
+                assignedIds.add(bestGk.playerId);
+                targetSlots.push(buildAssignedSlot(gkSlot, bestGk, 'Thủ môn sở trường'));
+            }
+        }
+        // Outfield sở trường
+        const outfieldSlots = formationSlots.filter(s => s.category !== 'GK');
+        outfieldSlots.forEach(slot => {
+            const match = sortedPool.find(p => !assignedIds.has(p.playerId) && p.category === slot.category);
+            if (match) {
+                assignedIds.add(match.playerId);
+                targetSlots.push(buildAssignedSlot(slot, match, 'Đúng sở trường'));
+            }
+        });
+        // Lấp đầy ô trống
+        outfieldSlots.forEach(slot => {
+            if (!targetSlots.some(s => s.slotCode === slot.slotCode)) {
+                const next = sortedPool.find(p => !assignedIds.has(p.playerId));
+                if (next) {
+                    assignedIds.add(next.playerId);
+                    targetSlots.push(buildAssignedSlot(slot, next, 'Phân bổ chiến thuật'));
+                }
+            }
+        });
+        // Dự bị
+        forcedSubs.forEach(p => benchPlayers.push(buildBenchPlayer(p, 'Dự bị chỉ định', myTeamSide)));
+        sortedPool.forEach(p => {
+            if (!assignedIds.has(p.playerId)) {
+                benchPlayers.push(buildBenchPlayer(p, 'Dự bị chiến thuật', myTeamSide));
+            }
+        });
+
+        renderAllTacticalPitches();
+        renderBenchTray();
+        updateTacticalStats();
+    }
+
+    // Helper tạo object slot đá chính
+    function buildAssignedSlot(slotDef, player, reason) {
+        return {
+            slotCode: slotDef.slotCode,
+            slotName: slotDef.slotName,
+            category: slotDef.category,
+            xPercent: slotDef.xPercent,
+            yPercent: slotDef.yPercent,
+            playerId: player.playerId,
+            playerName: player.playerName,
+            kitNumber: player.kitNumber,
+            photoUrl: player.photoUrl,
+            preferredFoot: player.preferredFoot,
+            experience: player.experience,
+            isPrimaryPosition: player.category === slotDef.category,
+            assignmentReason: reason
+        };
+    }
+
+    // Helper tạo object dự bị
+    function buildBenchPlayer(player, reason, side) {
+        return {
+            playerId: player.playerId,
+            playerName: player.playerName,
+            kitNumber: player.kitNumber,
+            photoUrl: player.photoUrl,
+            preferredFoot: player.preferredFoot,
+            experience: player.experience,
+            category: player.category,
+            designatedSide: side,
+            substituteReason: reason
+        };
+    }
+
+    // =========================================================================
+    // RENDER TACTICAL PITCHES (HỖ TRỢ ĐỒNG THỜI 2 SA BÀN ĐỘI A & ĐỘI B HOẶC 1 SA BÀN)
+    // =========================================================================
+    function renderAllTacticalPitches() {
+        if (isInternalMatch) {
+            renderPitchToField('pitchSlotsFieldA', sideASlots, 'A');
+            renderPitchToField('pitchSlotsFieldB', sideBSlots, 'B');
+        } else {
+            const singleField = document.getElementById('pitchSlotsFieldSingle');
+            if (singleField) {
+                const currentSlots = myTeamSide === 'B' ? sideBSlots : sideASlots;
+                renderPitchToField('pitchSlotsFieldSingle', currentSlots, myTeamSide);
+            }
+        }
+    }
+
+    function renderPitchToField(containerId, slotsList, side) {
+        const fieldEl = document.getElementById(containerId);
         if (!fieldEl) return;
         fieldEl.innerHTML = '';
 
-        const activeFormation = formationTemplates.find(f => (f.code || f.Code) === activeFormationCode) || formationTemplates[0];
-        if (!activeFormation) return;
-        const rawSlots = activeFormation.slots || activeFormation.Slots || [];
+        const formationSlots = getNormalizedFormationSlots();
 
-        const currentSlots = currentViewingSide === 'A' ? sideASlots : sideBSlots;
-
-        rawSlots.forEach(s => {
-            const slotCode = s.slotCode || s.SlotCode;
-            const slotCategory = s.category || s.Category;
-            const xPercent = s.xPercent ?? s.XPercent ?? 50;
-            const yPercent = s.yPercent ?? s.YPercent ?? 50;
+        formationSlots.forEach(s => {
+            const slotCode = s.slotCode;
+            const slotCategory = s.category;
+            const xPercent = s.xPercent;
+            const yPercent = s.yPercent;
 
             const anchorEl = document.createElement('div');
             anchorEl.className = 'tactical-slot-anchor';
@@ -1029,15 +1359,14 @@
             anchorEl.style.top = `${yPercent}%`;
             anchorEl.dataset.slotCode = slotCode;
             anchorEl.dataset.slotCategory = slotCategory;
+            anchorEl.dataset.side = side;
 
-            // Tìm cầu thủ đang giữ ô vị trí này
-            const assignment = currentSlots.find(slot => slot.slotCode === slotCode);
+            const assignment = slotsList.find(slot => slot.slotCode === slotCode);
 
             if (assignment) {
-                const cardEl = createPlayerCardElement(assignment, currentViewingSide, false);
+                const cardEl = createPlayerCardElement(assignment, side, false);
                 anchorEl.appendChild(cardEl);
             } else {
-                // Ô trống dự phòng
                 const emptyEl = document.createElement('div');
                 emptyEl.className = 'ab-slot-empty';
                 emptyEl.innerHTML = `
@@ -1045,16 +1374,15 @@
                     <span style="font-size: 0.58rem;">Trống</span>
                 `;
                 if (isManagerRole) {
-                    emptyEl.onclick = () => onEmptySlotClicked(slotCode, currentViewingSide);
+                    emptyEl.onclick = () => onEmptySlotClicked(slotCode, side);
                 }
                 anchorEl.appendChild(emptyEl);
             }
 
-            // Sự kiện Drag & Drop
             if (isManagerRole) {
                 anchorEl.ondragover = (e) => onSlotDragOver(e, anchorEl);
                 anchorEl.ondragleave = () => anchorEl.classList.remove('drag-hover');
-                anchorEl.ondrop = (e) => onSlotDrop(e, slotCode, currentViewingSide);
+                anchorEl.ondrop = (e) => onSlotDrop(e, slotCode, side);
             }
 
             fieldEl.appendChild(anchorEl);
@@ -1132,14 +1460,14 @@
         benchPlayers.forEach(p => {
             const wrap = document.createElement('div');
             wrap.className = 'smart-bench-item';
-            const cardEl = createPlayerCardElement(p, p.designatedSide || currentViewingSide, true);
+            const cardEl = createPlayerCardElement(p, p.designatedSide || 'A', true);
             wrap.appendChild(cardEl);
             benchEl.appendChild(wrap);
         });
     }
 
     // =========================================================================
-    // TAP-TO-SWAP & INTERACTIVE DRAG-AND-DROP
+    // TAP-TO-SWAP & INTERACTIVE DRAG-AND-DROP (GIỮA 2 SA BÀN VÀ DỰ BỊ)
     // =========================================================================
     function onCardClickedForSwap(player, side, isBench) {
         if (!isManagerRole) return;
@@ -1153,10 +1481,11 @@
                 isBench: isBench
             };
             document.getElementById('swapPlayerName').innerText = player.playerName;
+            document.getElementById('swapPlayerSide').innerText = isBench ? 'Dự bị' : (side === 'A' ? 'Đội A' : 'Đội B');
             const alertEl = document.getElementById('swapAlertBanner');
             alertEl.classList.remove('d-none');
             alertEl.classList.add('d-flex');
-            renderTacticalPitch();
+            renderAllTacticalPitches();
             renderBenchTray();
         } else {
             if (selectedSwapSource.playerId === player.playerId) {
@@ -1189,12 +1518,12 @@
             alertEl.classList.add('d-none');
             alertEl.classList.remove('d-flex');
         }
-        renderTacticalPitch();
+        renderAllTacticalPitches();
         renderBenchTray();
     }
 
     function executeSwap(source, target) {
-        // Cả 2 cùng trên sân
+        // Cả 2 cùng trên sân (có thể cùng Đội A, cùng Đội B hoặc 1 người Đội A, 1 người Đội B)
         if (!source.isBench && !target.isBench) {
             const listSource = source.side === 'A' ? sideASlots : sideBSlots;
             const listTarget = target.side === 'A' ? sideASlots : sideBSlots;
@@ -1239,7 +1568,7 @@
             return;
         }
 
-        renderTacticalPitch();
+        renderAllTacticalPitches();
         renderBenchTray();
         updateTacticalStats();
     }
@@ -1266,7 +1595,7 @@
             }
         }
 
-        renderTacticalPitch();
+        renderAllTacticalPitches();
         renderBenchTray();
         updateTacticalStats();
     }
@@ -1326,7 +1655,7 @@
             listPitch.splice(listPitch.indexOf(starter), 1);
             starter.slotCode = null;
             benchPlayers.push(starter);
-            renderTacticalPitch();
+            renderAllTacticalPitches();
             renderBenchTray();
             updateTacticalStats();
         }
@@ -1334,40 +1663,8 @@
     }
 
     // =========================================================================
-    // AUTO-DIVISION & SAVE ACTIONS
+    // SAVE ACTIONS & STATS
     // =========================================================================
-    function triggerAutoDivision() {
-        if (!isManagerRole) return;
-
-        const btnAuto = document.getElementById('btnAutoDivide');
-        if (btnAuto) {
-            btnAuto.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Đang xếp...`;
-        }
-
-        // Lấy danh sách cầu thủ được chọn từ modal (nếu có tích chọn)
-        const selectedIds = getSelectedModalParticipantIds();
-        let candidatePool = myTeamPlayerSeeds;
-        if (selectedIds && selectedIds.length > 0) {
-            candidatePool = myTeamPlayerSeeds.filter(p => {
-                const id = p.playerId || p.PlayerId;
-                return selectedIds.some(sel => sel.toLowerCase() === id.toLowerCase());
-            });
-        }
-
-        // Chạy chia thông minh tức thì trên Client-side (mượt mà, không lag)
-        runSmartClientSideDivision(candidatePool, currentViewingSide);
-
-        if (btnAuto) {
-            setTimeout(() => {
-                btnAuto.innerHTML = `<i class="bi bi-check2-circle me-1"></i> Đã xếp xong!`;
-                setTimeout(() => {
-                    btnAuto.innerHTML = `<i class="bi bi-magic me-1"></i> Tự động xếp sơ đồ`;
-                }, 1800);
-            }, 250);
-        }
-    }
-
-    // Save final lineup to server
     function saveLineupToServer() {
         if (!isManagerRole) return;
 
@@ -1379,7 +1676,7 @@
         sideASlots.forEach(s => assignments.push({ playerId: s.playerId, teamSide: 'A', slotCode: s.slotCode }));
         sideBSlots.forEach(s => assignments.push({ playerId: s.playerId, teamSide: 'B', slotCode: s.slotCode }));
 
-        const substitutes = benchPlayers.map(b => ({ playerId: b.playerId, designatedSide: b.designatedSide || currentViewingSide }));
+        const substitutes = benchPlayers.map(b => ({ playerId: b.playerId, designatedSide: b.designatedSide || 'A' }));
 
         const requestBody = {
             matchId: tacticalMatchId,
@@ -1418,16 +1715,42 @@
         });
     }
 
-    // Update stats bar
+    // Update stats bar and team average scores
     function updateTacticalStats() {
-        const currentSlots = currentViewingSide === 'A' ? sideASlots : sideBSlots;
-        const totalStarters = currentSlots.length;
+        const totalStarters = sideASlots.length + (isInternalMatch ? sideBSlots.length : 0);
         const totalSubs = benchPlayers.length;
-        const primaryCount = currentSlots.filter(s => s.isPrimaryPosition).length;
+
+        // Tính điểm trung bình của từng đội
+        let sumA = 0;
+        let primA = 0;
+        sideASlots.forEach(s => {
+            sumA += getPlayerSkillScore(s);
+            if (s.isPrimaryPosition) primA++;
+        });
+        const avgA = sideASlots.length > 0 ? Math.round(sumA / sideASlots.length) : 0;
+
+        let sumB = 0;
+        let primB = 0;
+        sideBSlots.forEach(s => {
+            sumB += getPlayerSkillScore(s);
+            if (s.isPrimaryPosition) primB++;
+        });
+        const avgB = sideBSlots.length > 0 ? Math.round(sumB / sideBSlots.length) : 0;
+
+        const countAEl = document.getElementById('countA');
+        const avgAEl = document.getElementById('avgScoreA');
+        if (countAEl) countAEl.innerText = `${sideASlots.length}`;
+        if (avgAEl) avgAEl.innerText = `${avgA} đ`;
+
+        const countBEl = document.getElementById('countB');
+        const avgBEl = document.getElementById('avgScoreB');
+        if (countBEl) countBEl.innerText = `${sideBSlots.length}`;
+        if (avgBEl) avgBEl.innerText = `${avgB} đ`;
 
         document.getElementById('statStartersCount').innerText = `${totalStarters} cầu thủ`;
         document.getElementById('statSubsCount').innerText = totalSubs;
-        document.getElementById('statPrimaryCount').innerText = totalStarters > 0 ? `${Math.round((primaryCount / totalStarters) * 100)}%` : '--';
+        const totalPrimary = primA + (isInternalMatch ? primB : 0);
+        document.getElementById('statPrimaryCount').innerText = totalStarters > 0 ? `${Math.round((totalPrimary / totalStarters) * 100)}%` : '--';
     }
 
     // =========================================================================
@@ -1465,12 +1788,12 @@
         if (sEl) sEl.innerText = subs;
     }
 
-    function applyModalSettingsAndDivide() {
+    function applyModalSettingsAndDivide(mode) {
         const modalEl = document.getElementById('participantSettingsModal');
         if (modalEl) {
             bootstrap.Modal.getOrCreateInstance(modalEl).hide();
         }
-        triggerAutoDivision();
+        triggerDivision(mode || currentDivisionMode);
     }
 
     function getSelectedModalParticipantIds() {
