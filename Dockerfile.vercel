@@ -21,8 +21,10 @@ RUN dotnet publish -c Release -o /app/publish --no-restore
 
 # Stage 2: Runtime Environment
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+USER root
 WORKDIR /app
 COPY --from=build /app/publish .
+RUN mkdir -p /app/App_Data/DataProtection-Keys /app/wwwroot/uploads && chmod -R 777 /app
 
 # Default container ports (Vercel routes to Port 80 by default or $PORT)
 EXPOSE 80
