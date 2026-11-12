@@ -367,14 +367,40 @@ public partial class TeamsController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(string name, string? activityArea, string? homePitch, string? description, DateTime? establishedDate = null, string? logoUrl = null)
+    public async Task<IActionResult> Create(string name, string? activityArea, string? homePitch, string? description, DateTime? establishedDate = null, string? logoUrl = null, IFormFile? logoFile = null)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
 
+        // Xử lý upload ảnh logo nếu người dùng tải ảnh lên
+        if (logoFile != null && logoFile.Length > 0)
+        {
+            var (isValid, errorMsg) = ValidateImageFile(logoFile, 5 * 1024 * 1024);
+            if (!isValid)
+            {
+                ModelState.AddModelError("", errorMsg ?? "File ảnh logo không hợp lệ.");
+                return View();
+            }
+
+            var ext = Path.GetExtension(logoFile.FileName).ToLowerInvariant();
+            var safeFileName = $"team_logo_{Guid.NewGuid():N}{ext}";
+
+            var webRoot = GetWebRootPath();
+            var uploadDir = Path.Combine(webRoot, "uploads", "teams");
+            Directory.CreateDirectory(uploadDir);
+
+            var fullPath = Path.Combine(uploadDir, safeFileName);
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await logoFile.CopyToAsync(stream);
+            }
+
+            logoUrl = $"/uploads/teams/{safeFileName}";
+        }
+
         if (string.IsNullOrWhiteSpace(name) || name.Length > 150 || !CompetitionRules.SafeImageUrl(logoUrl) || establishedDate > CompetitionRules.LocalNow.Date)
         {
-            ModelState.AddModelError("", "Kiểm tra tên đội, ngày thành lập và đường dẫn logo HTTPS.");
+            ModelState.AddModelError("", "Kiểm tra tên đội, ngày thành lập và ảnh logo.");
             return View();
         }
 

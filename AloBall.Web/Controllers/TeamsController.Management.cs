@@ -28,6 +28,32 @@ public partial class TeamsController
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
         if (!await _auth.HasManagerAccessAsync(input.Id, user.Id)) return Forbid();
+
+        // Xử lý upload ảnh logo nếu có file tải lên
+        if (input.LogoFile != null && input.LogoFile.Length > 0)
+        {
+            var (isValid, errorMsg) = ValidateImageFile(input.LogoFile, 5 * 1024 * 1024);
+            if (!isValid)
+            {
+                ModelState.AddModelError(nameof(input.LogoFile), errorMsg ?? "File ảnh không hợp lệ.");
+                return View(input);
+            }
+
+            var ext = Path.GetExtension(input.LogoFile.FileName).ToLowerInvariant();
+            var safeFileName = $"team_logo_{Guid.NewGuid():N}{ext}";
+
+            var webRoot = GetWebRootPath();
+            var uploadDir = Path.Combine(webRoot, "uploads", "teams");
+            Directory.CreateDirectory(uploadDir);
+
+            var fullPath = Path.Combine(uploadDir, safeFileName);
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await input.LogoFile.CopyToAsync(stream);
+            }
+
+            input.LogoUrl = $"/uploads/teams/{safeFileName}";
+        }
         if (!CompetitionRules.SafeImageUrl(input.LogoUrl)) ModelState.AddModelError(nameof(input.LogoUrl), "Dùng đường dẫn ảnh bắt đầu bằng https://.");
         if (input.EstablishedDate > CompetitionRules.LocalNow.Date) ModelState.AddModelError(nameof(input.EstablishedDate), "Ngày thành lập không được ở tương lai.");
         if (!ModelState.IsValid) return View(input);

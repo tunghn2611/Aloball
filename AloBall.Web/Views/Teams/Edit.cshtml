@@ -3,14 +3,36 @@
 @await Html.PartialAsync("_TeamNavigation", Model.Id)
 <div class="workspace-heading"><div><span class="eyebrow">Bản sắc câu lạc bộ</span><h1>Hồ sơ đội bóng</h1><p>Thông tin để mọi người biết đến đội của bạn.</p></div></div>
 <div class="row g-4"><div class="col-lg-8">
-<form method="post" class="arena-card editor-panel">
+<form method="post" enctype="multipart/form-data" class="arena-card editor-panel">
     <input asp-for="Id" type="hidden" />
+    <input asp-for="LogoUrl" type="hidden" id="editLogoUrl" />
     <div asp-validation-summary="All" class="text-danger"></div>
     <section class="editor-section"><h2>Thông tin cơ bản</h2><p>Tên đội, ngày thành lập và logo được hiển thị trên trang công khai.</p>
     <div class="row g-3">
         <div class="col-md-8"><label asp-for="Name" class="form-label">Tên đội bóng</label><input asp-for="Name" class="form-control" required maxlength="150" /></div>
         <div class="col-md-4"><label asp-for="EstablishedDate" class="form-label">Ngày thành lập</label><input asp-for="EstablishedDate" type="date" class="form-control" /></div>
-        <div class="col-12"><label asp-for="LogoUrl" class="form-label">Đường dẫn ảnh logo</label><input asp-for="LogoUrl" type="url" class="form-control" placeholder="https://…/logo.png" /><div class="form-text">Dùng đường dẫn HTTPS đến ảnh logo của đội.</div></div>
+
+        <!-- TẢI ẢNH LOGO LÊN -->
+        <div class="col-12">
+            <label class="form-label fw-bold d-block">
+                <i class="bi bi-shield-shaded me-1 text-primary"></i> Logo đội bóng
+            </label>
+            <div class="logo-upload-card border rounded-3 p-3 text-center position-relative" style="border: 2px dashed #cbd5e1; background: #f8fafc;">
+                <input type="file" id="editLogoFileInput" name="LogoFile" accept="image/png,image/jpeg,image/webp,image/jpg" class="d-none" onchange="previewEditLogo(event)" />
+                <div class="d-flex align-items-center justify-content-center gap-3 flex-wrap">
+                    <div class="position-relative">
+                        <img id="editLogoPreview" src="@(string.IsNullOrEmpty(Model.LogoUrl) ? "/images/default-team.png" : Model.LogoUrl)" alt="Logo" class="rounded-circle border shadow-sm" style="width: 72px; height: 72px; object-fit: cover;" onerror="this.src='/images/default-team.png'" />
+                    </div>
+                    <div class="text-start">
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" onclick="document.getElementById('editLogoFileInput').click()">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Tải ảnh logo mới
+                        </button>
+                        <div class="text-muted small mt-1" style="font-size: 0.75rem;">Hỗ trợ PNG, JPG, WEBP (Tối đa 5MB)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="col-12"><label asp-for="Description" class="form-label">Giới thiệu đội</label><textarea asp-for="Description" class="form-control" rows="4" placeholder="Tinh thần đội bóng, lịch sinh hoạt, phong cách thi đấu…"></textarea></div>
     </div></section>
     <section class="editor-section"><h2>Nơi chúng ta ra sân</h2><p>Giúp các đội khác tìm được đối phù hợp.</p><div class="row g-3">
@@ -20,3 +42,20 @@
     <section class="editor-section"><div class="form-check form-switch"><input asp-for="IsPublic" class="form-check-input" /><label asp-for="IsPublic" class="form-check-label">Công khai hồ sơ đội bóng</label></div><p class="mt-2 mb-0">Khi tắt, khách ngoài đội không thể mở trang hồ sơ của đội.</p></section>
     <div class="editor-footer"><a asp-action="Dashboard" asp-route-id="@Model.Id" class="btn btn-arena-outline">Quay lại</a><button class="btn btn-arena-primary" type="submit">Lưu hồ sơ</button></div>
 </form></div><aside class="col-lg-4"><div class="club-hero"><span class="eyebrow">Một đội bóng · Một bản sắc</span><h2 class="mt-3">Để mỗi lần ra sân<br />đều đáng nhớ.</h2><p class="mb-0">Hồ sơ rõ ràng giúp kết nối đối thủ, lưu giữ thành tích và giới thiệu những người đồng đội.</p></div></aside></div>
+
+<script>
+    function previewEditLogo(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Dung lượng file ảnh không được vượt quá 5MB.');
+            e.target.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            document.getElementById('editLogoPreview').src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+</script>

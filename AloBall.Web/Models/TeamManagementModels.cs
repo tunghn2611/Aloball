@@ -9,6 +9,7 @@ public class TeamProfileInput
     [Required(ErrorMessage = "Nhập tên đội bóng."), StringLength(150)] public string Name { get; set; } = "";
     [DataType(DataType.Date)] public DateTime? EstablishedDate { get; set; }
     [StringLength(1000)] public string? LogoUrl { get; set; }
+    public Microsoft.AspNetCore.Http.IFormFile? LogoFile { get; set; }
     [StringLength(100)] public string? ActivityArea { get; set; }
     [StringLength(200)] public string? HomePitch { get; set; }
     [StringLength(2000)] public string? Description { get; set; }

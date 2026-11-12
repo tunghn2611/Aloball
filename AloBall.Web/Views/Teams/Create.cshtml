@@ -1,11 +1,155 @@
 @{ ViewData["Title"] = "Thành lập đội bóng"; }
-<header class="page-heading"><div><span class="eyebrow">MỘT MÀU ÁO · MỘT TẬP THỂ</span><h1>Câu chuyện bắt đầu từ đây.</h1><p>Tạo ngôi nhà chung cho đội bóng của bạn.</p></div><a asp-action="Index" class="btn btn-arena-outline">Đội của tôi <i class="bi bi-arrow-up-right"></i></a></header>
+<header class="page-heading">
+    <div>
+        <span class="eyebrow">MỘT MÀU ÁO · MỘT TẬP THỂ</span>
+        <h1>Câu chuyện bắt đầu từ đây.</h1>
+        <p>Tạo ngôi nhà chung cho đội bóng của bạn.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-arena-outline">Đội của tôi <i class="bi bi-arrow-up-right"></i></a>
+</header>
+
 <div class="creation-layout">
-    <aside class="creation-story"><span class="eyebrow">WELCOME TO THE CLUB</span><h2>Đội bóng nhỏ.<br />Đam mê lớn.</h2><p>Từ những buổi đá cuối tuần đến mùa giải đáng nhớ, giữ mọi hoạt động của đội ở một nơi.</p><div class="creation-step"><span>01</span><div><h3>Tạo bản sắc</h3><p>Tên, logo và câu chuyện của đội.</p></div></div><div class="creation-step"><span>02</span><div><h3>Tập hợp anh em</h3><p>Thêm danh sách cầu thủ và thông tin áo đấu.</p></div></div><div class="creation-step"><span>03</span><div><h3>Hẹn ngày ra sân</h3><p>Lên lịch, điểm danh và ghi lại thành tích.</p></div></div></aside>
-    <form asp-action="Create" method="post" class="editor-panel">
+    <aside class="creation-story">
+        <span class="eyebrow">WELCOME TO THE CLUB</span>
+        <h2>Đội bóng nhỏ.<br />Đam mê lớn.</h2>
+        <p>Từ những buổi đá cuối tuần đến mùa giải đáng nhớ, giữ mọi hoạt động của đội ở một nơi.</p>
+        <div class="creation-step">
+            <span>01</span>
+            <div>
+                <h3>Tạo bản sắc</h3>
+                <p>Tên, logo và câu chuyện của đội.</p>
+            </div>
+        </div>
+        <div class="creation-step">
+            <span>02</span>
+            <div>
+                <h3>Tập hợp anh em</h3>
+                <p>Thêm danh sách cầu thủ và thông tin áo đấu.</p>
+            </div>
+        </div>
+        <div class="creation-step">
+            <span>03</span>
+            <div>
+                <h3>Hẹn ngày ra sân</h3>
+                <p>Lên lịch, điểm danh và ghi lại thành tích.</p>
+            </div>
+        </div>
+    </aside>
+
+    <form asp-action="Create" method="post" enctype="multipart/form-data" class="editor-panel">
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-        <section class="editor-section"><h2>Thông tin nhận diện</h2><p>Những thông tin này xuất hiện trên hồ sơ công khai.</p><div class="row g-3"><div class="col-12"><label for="name" class="form-label">Tên đội bóng *</label><input id="name" name="name" class="form-control" placeholder="Ví dụ: KLB FC" required /></div><div class="col-md-6"><label for="establishedDate" class="form-label">Ngày thành lập</label><input type="date" id="establishedDate" name="establishedDate" class="form-control" /></div><div class="col-md-6"><label for="logoUrl" class="form-label">Đường dẫn logo (HTTPS)</label><input type="url" id="logoUrl" name="logoUrl" class="form-control" placeholder="https://…/logo.png" /></div></div></section>
-        <section class="editor-section"><h2>Nơi chúng ta ra sân</h2><p>Giúp các đội khác biết bạn ở đâu và sẵn sàng giao lưu.</p><div class="row g-3"><div class="col-md-6"><label for="activityArea" class="form-label">Khu vực hoạt động</label><input id="activityArea" name="activityArea" class="form-control" placeholder="Quận, huyện, thành phố" /></div><div class="col-md-6"><label for="homePitch" class="form-label">Sân nhà</label><input id="homePitch" name="homePitch" class="form-control" placeholder="Tên sân bóng (nếu có)" /></div><div class="col-12"><label for="description" class="form-label">Câu chuyện của đội</label><textarea id="description" name="description" class="form-control" rows="4" placeholder="Lịch đá quen thuộc, phong cách và tinh thần của đội…"></textarea></div></div></section>
-        <div class="editor-footer"><a asp-action="Index" class="btn btn-arena-outline">Để sau</a><button type="submit" class="btn btn-arena-primary">Thành lập đội <i class="bi bi-arrow-right"></i></button></div>
+
+        <section class="editor-section">
+            <h2>Thông tin nhận diện</h2>
+            <p>Những thông tin này xuất hiện trên hồ sơ công khai.</p>
+            
+            <div class="row g-3">
+                <div class="col-12">
+                    <label for="name" class="form-label">Tên đội bóng *</label>
+                    <input id="name" name="name" class="form-control" placeholder="Ví dụ: KLB FC" required />
+                </div>
+
+                <div class="col-md-6">
+                    <label for="establishedDate" class="form-label">Ngày thành lập</label>
+                    <input type="date" id="establishedDate" name="establishedDate" class="form-control" />
+                </div>
+
+                <!-- TẢI ẢNH LOGO LÊN (THAY THẾ ĐƯỜNG DẪN LOGO) -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold d-block">
+                        <i class="bi bi-shield-shaded me-1 text-primary"></i> Logo đội bóng
+                    </label>
+
+                    <div class="logo-upload-card border rounded-3 p-3 text-center position-relative" id="logoUploadCard" style="border: 2px dashed #cbd5e1; background: #f8fafc; transition: all 0.2s ease;">
+                        <input type="file" id="logoFileInput" name="logoFile" accept="image/png,image/jpeg,image/webp,image/jpg" class="d-none" onchange="previewLogo(event)" />
+                        <input type="hidden" id="logoUrl" name="logoUrl" />
+
+                        <!-- Trạng thái 1: Chưa chọn ảnh -->
+                        <div id="logoPrompt" onclick="document.getElementById('logoFileInput').click()" style="cursor: pointer;">
+                            <div class="mb-2">
+                                <i class="bi bi-cloud-arrow-up-fill text-primary" style="font-size: 2.2rem;"></i>
+                            </div>
+                            <div class="fw-bold text-dark small mb-1">Tải ảnh logo lên</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Hỗ trợ PNG, JPG, WEBP (Tối đa 5MB)</div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2 px-3 rounded-pill shadow-sm">
+                                <i class="bi bi-folder2-open me-1"></i> Chọn tệp từ máy
+                            </button>
+                        </div>
+
+                        <!-- Trạng thái 2: Đã chọn ảnh & Xem trước -->
+                        <div id="logoPreviewBox" class="d-none">
+                            <div class="position-relative d-inline-block">
+                                <img id="logoPreviewImage" src="#" alt="Xem trước logo" class="rounded-circle border shadow-sm" style="width: 82px; height: 82px; object-fit: cover; border: 2px solid #ffffff !important;" />
+                                <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 p-0 shadow" style="transform: translate(25%, -25%); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;" onclick="clearLogoPreview(event)" title="Xóa logo">
+                                    <i class="bi bi-x fs-6"></i>
+                                </button>
+                            </div>
+                            <div class="small fw-semibold text-dark mt-2 text-truncate px-2" id="logoPreviewFilename">logo.png</div>
+                            <div class="text-muted small" id="logoPreviewFilesize" style="font-size: 0.72rem;">-- KB</div>
+                            <button type="button" class="btn btn-sm btn-link text-primary p-0 mt-1 text-decoration-none" onclick="document.getElementById('logoFileInput').click()">
+                                <i class="bi bi-arrow-repeat me-1"></i> Chọn ảnh khác
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="editor-section">
+            <h2>Nơi chúng ta ra sân</h2>
+            <p>Giúp các đội khác biết bạn ở đâu và sẵn sàng giao lưu.</p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="activityArea" class="form-label">Khu vực hoạt động</label>
+                    <input id="activityArea" name="activityArea" class="form-control" placeholder="Quận, huyện, thành phố" />
+                </div>
+                <div class="col-md-6">
+                    <label for="homePitch" class="form-label">Sân nhà</label>
+                    <input id="homePitch" name="homePitch" class="form-control" placeholder="Tên sân bóng (nếu có)" />
+                </div>
+                <div class="col-12">
+                    <label for="description" class="form-label">Câu chuyện của đội</label>
+                    <textarea id="description" name="description" class="form-control" rows="4" placeholder="Lịch đá quen thuộc, phong cách và tinh thần của đội…"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <div class="editor-footer">
+            <a asp-action="Index" class="btn btn-arena-outline">Để sau</a>
+            <button type="submit" class="btn btn-arena-primary">
+                Thành lập đội <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
     </form>
 </div>
+
+<script>
+    function previewLogo(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Dung lượng file ảnh không được vượt quá 5MB.');
+            event.target.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('logoPreviewImage').src = e.target.result;
+            document.getElementById('logoPreviewFilename').innerText = file.name;
+            document.getElementById('logoPreviewFilesize').innerText = (file.size / 1024).toFixed(1) + ' KB';
+            document.getElementById('logoPrompt').classList.add('d-none');
+            document.getElementById('logoPreviewBox').classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearLogoPreview(event) {
+        if (event) event.stopPropagation();
+        const input = document.getElementById('logoFileInput');
+        if (input) input.value = '';
+        document.getElementById('logoPrompt').classList.remove('d-none');
+        document.getElementById('logoPreviewBox').classList.add('d-none');
+    }
+</script>
