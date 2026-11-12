@@ -136,15 +136,18 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>
 });
 
 // Hỗ trợ biến môi trường PORT (Vercel / Cloud Container cung cấp)
+// Chỉ override URL khi chạy trong container (có biến PORT) – KHÔNG override khi chạy local Development
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
 {
     builder.WebHost.UseUrls("http://0.0.0.0:" + port);
 }
-else
+else if (!builder.Environment.IsDevelopment())
 {
+    // Production/Staging container mặc định port 8080
     builder.WebHost.UseUrls("http://0.0.0.0:8080");
 }
+// Khi Development: dùng URL từ launchSettings.json (https://localhost:7035 / http://localhost:5193)
 
 if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
 {
