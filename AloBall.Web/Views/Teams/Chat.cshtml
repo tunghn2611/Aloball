@@ -1,0 +1,702 @@
+@model IEnumerable<AloBall.Web.Data.Entities.TeamMessage>
+@using AloBall.Web.Data.Entities
+@{
+    var team = ViewBag.Team as Team;
+    var currentUser = ViewBag.CurrentUser as ApplicationUser;
+    var targetUser = ViewBag.TargetUser as ApplicationUser;
+    var targetPlayer = ViewBag.TargetPlayer as Player;
+    var targetMember = ViewBag.TargetMember as TeamMember;
+    var conversationId = (Guid)ViewBag.ConversationId;
+    string targetUserId = ViewBag.TargetUserId as string ?? "";
+    bool isManager = ViewBag.IsManager ?? false;
+
+    string targetDisplayName = targetPlayer?.FullName ?? targetUser?.FullName ?? "Cầu thủ";
+    string targetAvatar = targetPlayer?.PhotoUrl ?? targetUser?.AvatarUrl ?? "";
+    string targetPosition = targetPlayer?.Position ?? "Cầu thủ";
+    int? targetKit = targetPlayer?.KitNumber;
+    bool isLeader = targetKit == 7 || targetMember?.Role == TeamRole.Owner || targetMember?.Role == TeamRole.Manager;
+
+    ViewData["Title"] = $"Nhắn tin với {targetDisplayName} - {team?.Name}";
+
+    string targetInitials = "CT";
+    var nameParts = targetDisplayName.Trim().Split(' ');
+    if (nameParts.Length == 1) targetInitials = nameParts[0].Substring(0, Math.Min(2, nameParts[0].Length)).ToUpperInvariant();
+    else if (nameParts.Length > 1) targetInitials = (nameParts[0][0].ToString() + nameParts[^1][0].ToString()).ToUpperInvariant();
+}
+
+@await Html.PartialAsync("_TeamNavigation", team!.Id)
+
+<style>
+    /* ==========================================================================
+       INSTAGRAM DIRECT CHAT BOX INTERFACE
+       ========================================================================== */
+    .ig-chat-wrapper {
+        max-width: 680px;
+        margin: 0 auto;
+        background: #f8f6fc;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 24px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        height: 84vh;
+        min-height: 580px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* 1. Instagram Chat Header */
+    .ig-chat-header {
+        padding: 12px 18px;
+        background: #ffffff;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+    }
+    .ig-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+    .ig-back-btn {
+        color: #0f172a;
+        font-size: 1.35rem;
+        padding: 4px;
+        border-radius: 50%;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s ease;
+    }
+    .ig-back-btn:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    .ig-chat-header-avatar {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #1e293b;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1.5px solid rgba(0, 0, 0, 0.08);
+    }
+    .ig-chat-header-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .ig-header-user-info {
+        min-width: 0;
+    }
+    .ig-header-username-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .ig-header-name {
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ig-header-status {
+        font-size: 0.75rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ig-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: #0f172a;
+    }
+    .ig-header-action-btn {
+        background: transparent;
+        border: none;
+        color: #0f172a;
+        font-size: 1.25rem;
+        padding: 6px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ig-header-action-btn:hover {
+        background: #f1f5f9;
+        color: #7b2cbf;
+        transform: scale(1.08);
+    }
+
+    /* 2. Chat Messages Area */
+    .ig-chat-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 18px 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: radial-gradient(circle at 50% 0%, rgba(243, 232, 255, 0.6) 0%, #f8f6fc 100%);
+        scroll-behavior: smooth;
+    }
+
+    /* Top Profile Card in Chat */
+    .ig-profile-card-top {
+        text-align: center;
+        padding: 24px 16px 20px 16px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+    .ig-profile-card-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto 12px auto;
+        background: #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+        border: 2px solid #ffffff;
+    }
+    .ig-profile-card-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .ig-profile-card-name {
+        font-weight: 800;
+        font-size: 1.15rem;
+        color: #0f172a;
+        margin-bottom: 2px;
+    }
+    .ig-profile-card-sub {
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-bottom: 12px;
+    }
+
+    /* Date divider */
+    .ig-date-divider {
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #94a3b8;
+        margin: 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Message Rows & Bubbles */
+    .ig-msg-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        width: 100%;
+        animation: fadeInMsg 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @@keyframes fadeInMsg {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .ig-msg-row.is-me {
+        justify-content: flex-end;
+    }
+    .ig-msg-row.is-other {
+        justify-content: flex-start;
+    }
+    .ig-msg-avatar-small {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #1e293b;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 4px;
+        border: 1px solid rgba(0,0,0,0.06);
+    }
+    .ig-msg-avatar-small img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Bubble Styles */
+    .ig-bubble-wrap {
+        max-width: 74%;
+        display: flex;
+        flex-direction: column;
+    }
+    .ig-msg-row.is-me .ig-bubble-wrap {
+        align-items: flex-end;
+    }
+    .ig-msg-row.is-other .ig-bubble-wrap {
+        align-items: flex-start;
+    }
+
+    /* Sent Bubble: Instagram Gradient Purple / Pink */
+    .ig-bubble-sent {
+        background: linear-gradient(135deg, #7b2cbf 0%, #9d4edd 50%, #c77dff 100%);
+        color: #ffffff;
+        padding: 10px 16px;
+        border-radius: 20px 20px 4px 20px;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        white-space: pre-line;
+        word-break: break-word;
+        box-shadow: 0 4px 12px rgba(123, 44, 191, 0.25);
+    }
+
+    /* Received Bubble: Clean White Card */
+    .ig-bubble-received {
+        background: #ffffff;
+        color: #0f172a;
+        padding: 10px 16px;
+        border-radius: 20px 20px 20px 4px;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        white-space: pre-line;
+        word-break: break-word;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .ig-msg-time {
+        font-size: 0.68rem;
+        color: #94a3b8;
+        margin-top: 3px;
+        padding: 0 4px;
+    }
+
+    /* Floating Scroll to Bottom */
+    .ig-scroll-btn {
+        position: absolute;
+        bottom: 80px;
+        right: 22px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 5;
+    }
+    .ig-scroll-btn.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .ig-scroll-btn:hover {
+        background: #f8fafc;
+        transform: translateY(-2px);
+    }
+
+    /* 3. Instagram Bottom Input Bar */
+    .ig-chat-input-bar {
+        padding: 12px 16px;
+        background: #ffffff;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+        z-index: 10;
+    }
+    .ig-input-pill {
+        display: flex;
+        align-items: center;
+        background: #f1f5f9;
+        border-radius: 28px;
+        padding: 4px 8px 4px 12px;
+        gap: 8px;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+    }
+    .ig-input-pill:focus-within {
+        background: #ffffff;
+        border-color: #a855f7;
+        box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+    }
+    .ig-btn-camera {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #7b2cbf;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+        cursor: pointer;
+        border: none;
+        transition: transform 0.15s ease, background 0.15s ease;
+    }
+    .ig-btn-camera:hover {
+        transform: scale(1.06);
+        background: #6a24a6;
+    }
+    .ig-text-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.92rem;
+        color: #0f172a;
+        max-height: 100px;
+        resize: none;
+        line-height: 1.4;
+        padding: 6px 0;
+    }
+    .ig-input-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+    .ig-icon-btn {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-size: 1.15rem;
+        padding: 6px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .ig-icon-btn:hover {
+        color: #7b2cbf;
+        transform: scale(1.1);
+    }
+    .ig-btn-send {
+        background: #7b2cbf;
+        color: #ffffff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        cursor: pointer;
+        display: none;
+        transition: all 0.2s ease;
+    }
+    .ig-btn-send:hover {
+        background: #6a24a6;
+    }
+    .ig-btn-send.active {
+        display: block;
+    }
+</style>
+
+<div class="ig-chat-wrapper">
+    <!-- 1. INSTAGRAM CHAT HEADER -->
+    <div class="ig-chat-header">
+        <div class="ig-header-left">
+            <a asp-action="Messages" asp-route-teamId="@team?.Id" class="ig-back-btn" title="Quay lại hộp thư">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+
+            <div class="ig-chat-header-avatar">
+                @if (!string.IsNullOrEmpty(targetAvatar))
+                {
+                    <img src="@targetAvatar" alt="@targetDisplayName" />
+                }
+                else
+                {
+                    <span class="fw-bold text-white fs-6">@targetInitials</span>
+                }
+            </div>
+
+            <div class="ig-header-user-info">
+                <div class="ig-header-username-row">
+                    <span class="ig-header-name">@targetDisplayName</span>
+                    @if (isLeader)
+                    {
+                        <i class="bi bi-patch-check-fill text-primary" title="Lãnh đạo đội bóng" style="font-size: 0.85rem;"></i>
+                    }
+                </div>
+                <div class="ig-header-status">
+                    <span class="text-success"><i class="bi bi-dot"></i>Đang hoạt động</span> · @targetPosition · #@(targetKit?.ToString() ?? "-")
+                </div>
+            </div>
+        </div>
+
+        <div class="ig-header-actions">
+            <button type="button" class="ig-header-action-btn" title="Gọi thoại" onclick="alert('Tính năng gọi thoại đang kết nối!')">
+                <i class="bi bi-telephone"></i>
+            </button>
+            <button type="button" class="ig-header-action-btn" title="Gọi video" onclick="alert('Tính năng gọi video đang kết nối!')">
+                <i class="bi bi-camera-video"></i>
+            </button>
+            <button type="button" class="ig-header-action-btn" title="Thông tin" onclick="showProfileInfo()">
+                <i class="bi bi-info-circle"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. INSTAGRAM CHAT BODY / MESSAGES -->
+    <div class="ig-chat-body" id="chatBody">
+        <!-- Profile Card at Top of Thread -->
+        <div class="ig-profile-card-top">
+            <div class="ig-profile-card-avatar">
+                @if (!string.IsNullOrEmpty(targetAvatar))
+                {
+                    <img src="@targetAvatar" alt="@targetDisplayName" />
+                }
+                else
+                {
+                    <span class="fw-bold text-white fs-3">@targetInitials</span>
+                }
+            </div>
+            <div class="ig-profile-card-name">
+                @targetDisplayName
+                @if (isLeader)
+                {
+                    <i class="bi bi-patch-check-fill text-primary ms-1" style="font-size: 1rem;"></i>
+                }
+            </div>
+            <div class="ig-profile-card-sub">
+                <span>@(targetPlayer?.Position ?? "Cầu thủ")</span> · 
+                <span>Số áo #@(targetKit?.ToString() ?? "-")</span> · 
+                <span>@team?.Name</span>
+            </div>
+            @if (targetPlayer != null)
+            {
+                <a asp-action="PlayerPublicProfile" asp-route-teamId="@team?.Id" asp-route-playerId="@targetPlayer.Id" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm">
+                    <i class="bi bi-person-badge me-1"></i> Xem trang cá nhân
+                </a>
+            }
+        </div>
+
+        <div class="ig-date-divider">Cuộc trò chuyện bảo mật trên AloBall</div>
+
+        <!-- Message Bubbles -->
+        <div id="messagesContainer" class="d-flex flex-column gap-3">
+            @foreach (var m in Model)
+            {
+                bool isMe = m.SenderUserId == currentUser?.Id;
+
+                <div class="ig-msg-row @(isMe ? "is-me" : "is-other")">
+                    @if (!isMe)
+                    {
+                        <div class="ig-msg-avatar-small">
+                            @if (!string.IsNullOrEmpty(targetAvatar))
+                            {
+                                <img src="@targetAvatar" alt="@targetDisplayName" />
+                            }
+                            else
+                            {
+                                <span class="fw-bold text-white" style="font-size: 0.65rem;">@targetInitials</span>
+                            }
+                        </div>
+                    }
+
+                    <div class="ig-bubble-wrap">
+                        <div class="@(isMe ? "ig-bubble-sent" : "ig-bubble-received")">
+                            @m.Content
+                        </div>
+                        <div class="ig-msg-time">
+                            @m.CreatedAt.ToLocalTime().ToString("HH:mm")
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Scroll-to-bottom Floating Arrow -->
+    <div class="ig-scroll-btn" id="scrollBtn" onclick="scrollToBottom()" title="Cuộn xuống dưới">
+        <i class="bi bi-arrow-down fs-5"></i>
+    </div>
+
+    <!-- 3. INSTAGRAM BOTTOM INPUT BAR -->
+    <div class="ig-chat-input-bar">
+        <form id="chatForm" onsubmit="onSendMessage(event)">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="teamId" value="@team?.Id" />
+            <input type="hidden" name="conversationId" value="@conversationId" />
+            <input type="hidden" name="targetUserId" value="@targetUserId" />
+
+            <div class="ig-input-pill">
+                <button type="button" class="ig-btn-camera" title="Ảnh / Camera" onclick="document.getElementById('msgInput').focus()">
+                    <i class="bi bi-camera-fill"></i>
+                </button>
+
+                <textarea id="msgInput" name="content" class="ig-text-input" placeholder="Nhắn tin..." rows="1" oninput="onInputChanged(this)" onkeydown="onInputKeydown(event)" required></textarea>
+
+                <div class="ig-input-actions">
+                    <button type="button" class="ig-icon-btn" id="btnMic" title="Ghi âm" onclick="alert('Tính năng gửi ghi âm giọng nói!')">
+                        <i class="bi bi-mic"></i>
+                    </button>
+                    <button type="button" class="ig-icon-btn" id="btnImg" title="Hình ảnh" onclick="alert('Tính năng chia sẻ hình ảnh sân bóng!')">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <button type="button" class="ig-icon-btn" id="btnEmoji" title="Cảm xúc" onclick="addEmoji('⚽')">
+                        <i class="bi bi-emoji-smile"></i>
+                    </button>
+                    <button type="submit" class="ig-btn-send" id="btnSend">
+                        Gửi
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        scrollToBottom(false);
+
+        const chatBody = document.getElementById('chatBody');
+        const scrollBtn = document.getElementById('scrollBtn');
+
+        if (chatBody && scrollBtn) {
+            chatBody.addEventListener('scroll', function () {
+                const isNearBottom = chatBody.scrollHeight - chatBody.scrollTop - chatBody.clientHeight < 120;
+                scrollBtn.classList.toggle('visible', !isNearBottom);
+            });
+        }
+    });
+
+    function scrollToBottom(smooth = true) {
+        const chatBody = document.getElementById('chatBody');
+        if (chatBody) {
+            if (smooth) {
+                chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+            } else {
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
+        }
+    }
+
+    function onInputChanged(textarea) {
+        // Tự động co giãn chiều cao
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+
+        const hasText = textarea.value.trim().length > 0;
+        const btnSend = document.getElementById('btnSend');
+        const btnMic = document.getElementById('btnMic');
+        const btnImg = document.getElementById('btnImg');
+
+        if (btnSend) btnSend.classList.toggle('active', hasText);
+        if (btnMic) btnMic.style.display = hasText ? 'none' : 'flex';
+        if (btnImg) btnImg.style.display = hasText ? 'none' : 'flex';
+    }
+
+    function onInputKeydown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const form = document.getElementById('chatForm');
+            if (form) onSendMessage(e);
+        }
+    }
+
+    function addEmoji(emoji) {
+        const input = document.getElementById('msgInput');
+        if (input) {
+            input.value += emoji;
+            onInputChanged(input);
+            input.focus();
+        }
+    }
+
+    function showProfileInfo() {
+        alert("Cầu thủ: @targetDisplayName\nVị trí: @targetPosition\nSố áo: #@(targetKit?.ToString() ?? "-")\nĐội bóng: @team?.Name");
+    }
+
+    // AJAX Send message without reloading the page
+    function onSendMessage(e) {
+        e.preventDefault();
+        const input = document.getElementById('msgInput');
+        if (!input) return;
+
+        const content = input.value.trim();
+        if (!content) return;
+
+        // 1. Optimistic UI update: Vẽ bong bóng tin nhắn của mình ngay lập tức
+        const now = new Date();
+        const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+        const container = document.getElementById('messagesContainer');
+        const tempRow = document.createElement('div');
+        tempRow.className = 'ig-msg-row is-me';
+        tempRow.innerHTML = `
+            <div class="ig-bubble-wrap">
+                <div class="ig-bubble-sent">${escapeHtml(content)}</div>
+                <div class="ig-msg-time">${timeStr} · Đang gửi...</div>
+            </div>
+        `;
+        container.appendChild(tempRow);
+        scrollToBottom(true);
+
+        // Reset input
+        input.value = '';
+        onInputChanged(input);
+        input.focus();
+
+        // 2. Gửi request lên server
+        const form = document.getElementById('chatForm');
+        const formData = new FormData(form);
+        formData.set('content', content);
+
+        fetch('/Teams/SendDirectMessage', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // Cập nhật timestamp thành công
+                const timeEl = tempRow.querySelector('.ig-msg-time');
+                if (timeEl) timeEl.innerText = data.createdAt || timeStr;
+            } else {
+                const timeEl = tempRow.querySelector('.ig-msg-time');
+                if (timeEl) {
+                    timeEl.innerText = 'Lỗi gửi tin';
+                    timeEl.classList.add('text-danger');
+                }
+            }
+        })
+        .catch(err => {
+            const timeEl = tempRow.querySelector('.ig-msg-time');
+            if (timeEl) {
+                timeEl.innerText = 'Lỗi mạng';
+                timeEl.classList.add('text-danger');
+            }
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+</script>

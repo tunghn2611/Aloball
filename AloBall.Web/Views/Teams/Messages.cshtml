@@ -1,127 +1,548 @@
+@using AloBall.Web.Data.Entities
 @{
-    var team = ViewBag.Team as AloBall.Web.Data.Entities.Team;
-    ViewData["Title"] = $"Tin nhắn & Liên hệ - {team?.Name}";
+    var team = ViewBag.Team as Team;
+    ViewData["Title"] = $"Hộp thư & Cầu thủ - {team?.Name}";
     bool isManager = ViewBag.IsManager ?? false;
-    var userRole = ViewBag.UserRole as AloBall.Web.Data.Entities.TeamRole?;
-    var announcements = ViewBag.Announcements as List<AloBall.Web.Data.Entities.TeamMessage> ?? new();
+    var userRole = ViewBag.UserRole as TeamRole?;
+    var currentUser = ViewBag.CurrentUser as ApplicationUser;
+    var players = ViewBag.Players as List<Player> ?? new();
+    var members = ViewBag.TeamMembers as List<TeamMember> ?? new();
+    var announcements = ViewBag.Announcements as List<TeamMessage> ?? new();
     var conversations = ViewBag.Conversations as List<AloBall.Web.Services.ConversationSummaryDto> ?? new();
-    var members = ViewBag.TeamMembers as List<AloBall.Web.Data.Entities.TeamMember> ?? new();
+    var latestMessageMap = ViewBag.LatestMessageMap as Dictionary<string, (string Content, DateTime CreatedAt, int Unread, Guid ConversationId)> ?? new();
     int unreadCount = ViewBag.UnreadCount ?? 0;
     string activeTab = ViewBag.ActiveTab as string ?? "inbox";
-    var preselectedUser = ViewBag.PreselectedUser as AloBall.Web.Data.Entities.ApplicationUser;
 }
 
 @await Html.PartialAsync("_TeamNavigation", team!.Id)
 
-<div class="page-heading">
-    <div>
-        <span class="eyebrow">LIÊN LẠC NỘI BỘ · @team?.Name</span>
-        <h1>Hộp thư & Thông báo đội.</h1>
-        <p>Kênh trao đổi riêng tư, an toàn giữa cầu thủ và Ban cán sự / Đội trưởng.</p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        @if (isManager)
-        {
-            <button class="btn btn-arena-outline btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#announcementModal">
+<style>
+    /* ==========================================================================
+       INSTAGRAM DIRECT STYLE INBOX & PLAYER LIST
+       ========================================================================== */
+    .ig-inbox-wrapper {
+        max-width: 680px;
+        margin: 0 auto;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+    /* Top Bar */
+    .ig-top-bar {
+        padding: 14px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        background: #ffffff;
+    }
+    .ig-username-dropdown {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+        cursor: pointer;
+    }
+    .ig-username-dropdown:hover {
+        opacity: 0.8;
+    }
+
+    /* Search Bar (Capsule Pill) */
+    .ig-search-container {
+        padding: 10px 20px;
+        background: #ffffff;
+    }
+    .ig-search-box {
+        position: relative;
+        background: #f1f5f9;
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        gap: 10px;
+        transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .ig-search-box:focus-within {
+        background: #ffffff;
+        box-shadow: 0 0 0 2px #a855f7;
+    }
+    .ig-search-input {
+        border: none;
+        background: transparent;
+        outline: none;
+        width: 100%;
+        font-size: 0.9rem;
+        color: #1e293b;
+    }
+
+    /* Notes / Stories Tray */
+    .ig-notes-tray {
+        padding: 12px 18px 16px 18px;
+        display: flex;
+        gap: 18px;
+        overflow-x: auto;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        scrollbar-width: none;
+        background: #fafafa;
+    }
+    .ig-notes-tray::-webkit-scrollbar {
+        display: none;
+    }
+    .ig-note-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+        color: inherit;
+        flex-shrink: 0;
+        width: 72px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+    .ig-note-item:hover {
+        transform: translateY(-2px);
+    }
+    /* Note Speech Bubble */
+    .ig-note-bubble {
+        position: relative;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 14px;
+        padding: 3px 8px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        margin-bottom: 5px;
+        text-align: center;
+    }
+    .ig-note-bubble::after {
+        content: '';
+        position: absolute;
+        bottom: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 5px 5px 0 5px;
+        border-style: solid;
+        border-color: #ffffff transparent transparent transparent;
+    }
+    /* Avatar Ring */
+    .ig-avatar-ring {
+        position: relative;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        padding: 2px;
+        background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ig-avatar-ring.is-me {
+        background: #e2e8f0;
+    }
+    .ig-avatar-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        overflow: hidden;
+        background: #0f172a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ig-avatar-inner img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .ig-avatar-fallback {
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 1rem;
+    }
+    .ig-note-name {
+        margin-top: 5px;
+        font-size: 0.72rem;
+        color: #475569;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 72px;
+        text-align: center;
+    }
+
+    /* Section Header */
+    .ig-section-header {
+        padding: 12px 20px 8px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #0f172a;
+    }
+
+    /* Player Conversation List */
+    .ig-conversation-list {
+        display: flex;
+        flex-direction: column;
+    }
+    .ig-player-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        text-decoration: none;
+        color: inherit;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+        transition: background 0.15s ease;
+        position: relative;
+    }
+    .ig-player-row:hover {
+        background: #f8fafc;
+        color: inherit;
+    }
+    .ig-player-avatar-wrap {
+        position: relative;
+        flex-shrink: 0;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        margin-right: 14px;
+    }
+    .ig-player-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #1e293b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+    .ig-player-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .ig-online-dot {
+        position: absolute;
+        bottom: 1px;
+        right: 1px;
+        width: 13px;
+        height: 13px;
+        background: #22c55e;
+        border: 2.5px solid #ffffff;
+        border-radius: 50%;
+    }
+    .ig-player-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .ig-player-name-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 2px;
+    }
+    .ig-player-name {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ig-badge-kit {
+        background: #fef08a;
+        color: #854d0e;
+        font-weight: 800;
+        font-size: 0.68rem;
+        padding: 1px 5px;
+        border-radius: 4px;
+        line-height: 1.1;
+    }
+    .ig-badge-pos {
+        background: #e0e7ff;
+        color: #3730a3;
+        font-weight: 700;
+        font-size: 0.68rem;
+        padding: 1px 5px;
+        border-radius: 4px;
+        line-height: 1.1;
+    }
+    .ig-player-preview {
+        font-size: 0.82rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .ig-player-preview.unread {
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .ig-player-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        margin-left: 10px;
+    }
+    .ig-time-text {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+    .ig-unread-dot {
+        width: 9px;
+        height: 9px;
+        background: #3b82f6;
+        border-radius: 50%;
+    }
+    .ig-action-cam {
+        color: #64748b;
+        font-size: 1.1rem;
+        padding: 4px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+    }
+    .ig-player-row:hover .ig-action-cam {
+        color: #7b2cbf;
+        transform: scale(1.1);
+    }
+</style>
+
+<!-- TAB NAVIGATION (HỘP THƯ / THÔNG BÁO) -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <ul class="nav nav-pills gap-2" id="messageTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "inbox" ? "active" : "") fw-bold px-3 py-2" id="inbox-tab" data-bs-toggle="pill" data-bs-target="#inbox-pane" type="button" role="tab">
+                <i class="bi bi-chat-dots-fill me-1"></i> Hộp thư & Cầu thủ
+                @if (unreadCount > 0)
+                {
+                    <span class="badge bg-danger rounded-pill ms-1">@unreadCount mới</span>
+                }
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "announcements" ? "active" : "") fw-bold px-3 py-2" id="announcements-tab" data-bs-toggle="pill" data-bs-target="#announcements-pane" type="button" role="tab">
+                <i class="bi bi-megaphone-fill me-1"></i> Thông báo toàn đội
+                <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">@announcements.Count</span>
+            </button>
+        </li>
+    </ul>
+
+    @if (isManager)
+    {
+        <div>
+            <button class="btn btn-sm btn-outline-warning text-dark fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#announcementModal">
                 <i class="bi bi-megaphone-fill me-1 text-warning"></i> Đăng thông báo đội
             </button>
-            <button class="btn btn-arena-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#messageMemberModal">
-                <i class="bi bi-send-fill me-1"></i> Nhắn tin cho thành viên
-            </button>
-        }
-        else
-        {
-            <button class="btn btn-arena-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#contactCaptainModal">
-                <i class="bi bi-chat-left-text-fill me-1"></i> Liên hệ Đội trưởng
-            </button>
-        }
-    </div>
+        </div>
+    }
 </div>
 
-<!-- Nav Tabs -->
-<ul class="nav nav-pills mb-4 gap-2" id="messageTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link @(activeTab == "inbox" ? "active" : "") fw-bold px-3 py-2" id="inbox-tab" data-bs-toggle="pill" data-bs-target="#inbox-pane" type="button" role="tab">
-            <i class="bi bi-inbox-fill me-1"></i> Hộp thư liên hệ
-            @if (unreadCount > 0)
-            {
-                <span class="badge bg-danger rounded-pill ms-1">@unreadCount mới</span>
-            }
-            else
-            {
-                <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">@conversations.Count</span>
-            }
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link @(activeTab == "announcements" ? "active" : "") fw-bold px-3 py-2" id="announcements-tab" data-bs-toggle="pill" data-bs-target="#announcements-pane" type="button" role="tab">
-            <i class="bi bi-megaphone-fill me-1"></i> Thông báo toàn đội
-            <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">@announcements.Count</span>
-        </button>
-    </li>
-</ul>
-
 <div class="tab-content" id="messageTabContent">
-    <!-- Tab 1: Hộp thư liên hệ -->
+    <!-- =====================================================================
+         TAB 1: HỘP THƯ LIÊN HỆ - DANH SÁCH CẦU THỦ INSTAGRAM STYLE
+         ===================================================================== -->
     <div class="tab-pane fade @(activeTab == "inbox" ? "show active" : "")" id="inbox-pane" role="tabpanel">
-        @if (!conversations.Any())
-        {
-            <div class="arena-card text-center p-5">
-                <div class="display-4 text-muted mb-3"><i class="bi bi-chat-square-dots"></i></div>
-                <h5 class="fw-bold text-dark">Chưa có cuộc trò chuyện nào</h5>
-                <p class="text-muted small mb-4">
-                    @(isManager ? "Hiện chưa có thành viên nào gửi tin nhắn liên hệ về Ban cán sự." : "Bạn chưa gửi tin nhắn nào tới Đội trưởng hoặc Ban cán sự.")
-                </p>
-                <div>
-                    @if (isManager)
-                    {
-                        <button class="btn btn-arena-primary btn-sm" data-bs-toggle="modal" data-bs-target="#messageMemberModal">
-                            <i class="bi bi-send-fill me-1"></i> Gửi tin nhắn cho thành viên
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="btn btn-arena-primary btn-sm" data-bs-toggle="modal" data-bs-target="#contactCaptainModal">
-                            <i class="bi bi-chat-left-text-fill me-1"></i> Gửi tin nhắn ngay
-                        </button>
-                    }
+        <div class="ig-inbox-wrapper">
+            <!-- 1. Top Bar -->
+            <div class="ig-top-bar">
+                <div class="ig-username-dropdown" title="Đội bóng">
+                    <span>@team?.Name</span>
+                    <i class="bi bi-chevron-down fs-6 text-muted"></i>
+                </div>
+                <div class="d-flex align-items-center gap-3 text-muted">
+                    <span class="badge bg-light text-dark border rounded-pill px-2.5 py-1">
+                        <i class="bi bi-people-fill text-primary me-1"></i> @players.Count cầu thủ
+                    </span>
+                    <i class="bi bi-pencil-square fs-5 text-dark" style="cursor: pointer;" title="Nhắn tin nhanh"></i>
                 </div>
             </div>
-        }
-        else
-        {
-            <div class="list-group list-group-flush arena-card overflow-hidden">
-                @foreach (var c in conversations)
+
+            <!-- 2. Instagram Search Bar (Capsule Pill) -->
+            <div class="ig-search-container">
+                <div class="ig-search-box">
+                    <i class="bi bi-search text-muted"></i>
+                    <input type="text" id="playerSearchInput" class="ig-search-input" placeholder="Tìm kiếm cầu thủ theo tên, số áo, vị trí..." oninput="onSearchPlayers(this.value)" autocomplete="off" />
+                    <button type="button" class="btn btn-sm text-muted p-0 d-none" id="btnClearSearch" onclick="clearPlayerSearch()">
+                        <i class="bi bi-x-circle-fill"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Instagram Notes / Story Bar (Horizontal Scroll) -->
+            <div class="ig-notes-tray">
+                <!-- Cầu thủ của mình (Your Note) -->
+                @{
+                    var myPlayer = players.FirstOrDefault(p => p.LinkedUserId == currentUser?.Id);
+                    string myNoteText = myPlayer != null ? $"#{myPlayer.KitNumber} Ra sân" : "Ghi chú...";
+                }
+                <div class="ig-note-item" onclick="document.getElementById('playerSearchInput').focus()">
+                    <div class="ig-note-bubble text-truncate">@myNoteText</div>
+                    <div class="ig-avatar-ring is-me">
+                        <div class="ig-avatar-inner">
+                            @if (!string.IsNullOrEmpty(currentUser?.AvatarUrl))
+                            {
+                                <img src="@currentUser.AvatarUrl" alt="Avatar" />
+                            }
+                            else
+                            {
+                                <span class="ig-avatar-fallback">@(string.IsNullOrEmpty(currentUser?.FullName) ? "ME" : currentUser.FullName.Substring(0, 1).ToUpperInvariant())</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="ig-note-name">Ghi chú của bạn</div>
+                </div>
+
+                <!-- Các cầu thủ khác trong đội -->
+                @foreach (var p in players)
                 {
-                    <a asp-action="Conversation" asp-route-teamId="@team?.Id" asp-route-conversationId="@c.ConversationId" class="list-group-item list-group-item-action p-3 d-flex align-items-center justify-content-between gap-3 border-bottom @(c.UnreadCount > 0 ? "bg-light" : "")">
-                        <div class="d-flex align-items-center gap-3 min-w-0">
-                            <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center flex-shrink-0 text-primary fw-bold" style="width: 44px; height: 44px; font-size: 1.1rem;">
-                                @(string.IsNullOrEmpty(c.OtherPartyName) ? "A" : c.OtherPartyName.Substring(0, 1).ToUpperInvariant())
-                            </div>
-                            <div class="min-w-0">
-                                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                                    <span class="fw-bold text-dark text-truncate">@c.OtherPartyName</span>
-                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0" style="font-size: 11px;">@c.OtherPartyRole</span>
-                                    @if (c.UnreadCount > 0)
-                                    {
-                                        <span class="badge bg-danger rounded-pill" style="font-size: 10px;">@c.UnreadCount tin mới</span>
-                                    }
-                                </div>
-                                <h6 class="fw-semibold text-dark mb-1 text-truncate">@c.Title</h6>
-                                <p class="text-muted small mb-0 text-truncate" style="max-width: 600px;">@c.LastMessageContent</p>
+                    if (p.LinkedUserId == currentUser?.Id) continue;
+
+                    string noteStatus = "Sẵn sàng ⚽";
+                    if (p.Position?.Contains("Thủ môn") == true || p.StandardPrimaryPosition == "GK") noteStatus = "GK 🧤";
+                    else if (p.KitNumber == 7 || p.KitNumber == 10) noteStatus = "Đội trưởng ⭐";
+                    else if (p.Position?.Contains("Tiền đạo") == true || p.StandardPrimaryPosition == "ST") noteStatus = "Săn bàn 🔥";
+                    else if (p.Position?.Contains("Tiền vệ") == true) noteStatus = "Kiến tạo 🎯";
+                    else if (p.Position?.Contains("Trung vệ") == true || p.Position?.Contains("Hậu vệ") == true) noteStatus = "Thép 🛡️";
+
+                    string shortName = p.FullName;
+                    var parts = p.FullName.Trim().Split(' ');
+                    if (parts.Length >= 2) shortName = parts[^1];
+
+                    <a asp-action="Chat" asp-route-teamId="@team?.Id" asp-route-playerId="@p.Id" class="ig-note-item">
+                        <div class="ig-note-bubble text-truncate" title="@noteStatus">@noteStatus</div>
+                        <div class="ig-avatar-ring">
+                            <div class="ig-avatar-inner">
+                                @if (!string.IsNullOrEmpty(p.PhotoUrl))
+                                {
+                                    <img src="@p.PhotoUrl" alt="@p.FullName" />
+                                }
+                                else
+                                {
+                                    <span class="ig-avatar-fallback">@shortName.Substring(0, 1).ToUpperInvariant()</span>
+                                }
                             </div>
                         </div>
-                        <div class="text-end flex-shrink-0">
-                            <small class="text-muted d-block mb-1">@c.LastMessageAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
-                            <span class="btn btn-arena-outline btn-sm py-0 px-2" style="font-size: 12px;">Xem & Phản hồi <i class="bi bi-chevron-right ms-1"></i></span>
-                        </div>
+                        <div class="ig-note-name" title="@p.FullName">@shortName</div>
                     </a>
                 }
             </div>
-        }
+
+            <!-- 4. Section Title -->
+            <div class="ig-section-header">
+                <span>Tin nhắn &amp; Trực tiếp</span>
+                <span class="text-muted small fw-normal">Trực tuyến</span>
+            </div>
+
+            <!-- 5. Danh sách cầu thủ trong đội (Nhấn vào ai -> tự chuyển sang Box chat Instagram) -->
+            <div class="ig-conversation-list" id="playerConversationList">
+                @if (!players.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
+                        <span>Chưa có cầu thủ nào trong danh sách đội bóng.</span>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var p in players)
+                    {
+                        // Kiểm tra xem đã có tin nhắn với người này chưa
+                        string? targetUid = p.LinkedUserId;
+                        
+                        string previewSnippet = $"{p.Position ?? "Cầu thủ"} · #{(p.KitNumber?.ToString() ?? "-")} · Nhấn để nhắn tin trực tiếp";
+                        string timeAgo = "";
+                        int unread = 0;
+
+                        if (!string.IsNullOrEmpty(targetUid) && latestMessageMap.TryGetValue(targetUid, out var msgInfo))
+                        {
+                            
+                            previewSnippet = msgInfo.Content;
+                            unread = msgInfo.Unread;
+                            timeAgo = msgInfo.CreatedAt.ToLocalTime().ToString("HH:mm");
+                        }
+
+                        // Lấy avatar initials
+                        string initials = "CT";
+                        var nameParts = p.FullName.Trim().Split(' ');
+                        if (nameParts.Length == 1) initials = nameParts[0].Substring(0, Math.Min(2, nameParts[0].Length)).ToUpperInvariant();
+                        else if (nameParts.Length > 1) initials = (nameParts[0][0].ToString() + nameParts[^1][0].ToString()).ToUpperInvariant();
+
+                        bool isCaptain = p.KitNumber == 7 || p.FullName.Contains("Đội Trưởng") || p.FullName.Contains("Chủ Tịch");
+
+                        <a asp-action="Chat" asp-route-teamId="@team?.Id" asp-route-playerId="@p.Id" class="ig-player-row" data-name="@p.FullName.ToLower()" data-kit="@(p.KitNumber?.ToString() ?? "")" data-pos="@((p.Position ?? "").ToLower())">
+                            <div class="ig-player-avatar-wrap">
+                                <div class="ig-player-avatar">
+                                    @if (!string.IsNullOrEmpty(p.PhotoUrl))
+                                    {
+                                        <img src="@p.PhotoUrl" alt="@p.FullName" />
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold text-white fs-6">@initials</span>
+                                    }
+                                </div>
+                                <div class="ig-online-dot"></div>
+                            </div>
+
+                            <div class="ig-player-info">
+                                <div class="ig-player-name-row">
+                                    <span class="ig-player-name">@p.FullName</span>
+                                    @if (isCaptain)
+                                    {
+                                        <i class="bi bi-patch-check-fill text-primary" title="Lãnh đạo đội bóng" style="font-size: 0.85rem;"></i>
+                                    }
+                                    @if (p.KitNumber.HasValue)
+                                    {
+                                        <span class="ig-badge-kit">#@p.KitNumber</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(p.Position))
+                                    {
+                                        <span class="ig-badge-pos">@p.Position</span>
+                                    }
+                                </div>
+                                <div class="ig-player-preview @(unread > 0 ? "unread" : "")">
+                                    @previewSnippet
+                                </div>
+                            </div>
+
+                            <div class="ig-player-meta">
+                                @if (!string.IsNullOrEmpty(timeAgo))
+                                {
+                                    <span class="ig-time-text">@timeAgo</span>
+                                }
+                                @if (unread > 0)
+                                {
+                                    <div class="ig-unread-dot" title="@unread tin mới"></div>
+                                }
+                                <i class="bi bi-camera ig-action-cam" title="Mở hộp chat"></i>
+                            </div>
+                        </a>
+                    }
+                }
+            </div>
+        </div>
     </div>
 
-    <!-- Tab 2: Thông báo toàn đội -->
+    <!-- =====================================================================
+         TAB 2: THÔNG BÁO TOÀN ĐỘI
+         ===================================================================== -->
     <div class="tab-pane fade @(activeTab == "announcements" ? "show active" : "")" id="announcements-pane" role="tabpanel">
         @if (!announcements.Any())
         {
@@ -162,95 +583,9 @@
     </div>
 </div>
 
-<!-- Modal 1: Thành viên liên hệ Đội trưởng / Ban cán sự -->
-<div class="modal fade" id="contactCaptainModal" tabindex="-1" aria-labelledby="contactCaptainModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="contactCaptainModalLabel">
-                    <i class="bi bi-chat-left-text text-primary me-2"></i>Liên hệ Đội trưởng / Ban cán sự
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <form asp-action="SendMessageToCaptain" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="teamId" value="@team?.Id" />
-                <div class="modal-body p-4">
-                    <p class="small text-muted mb-3">
-                        Tin nhắn này sẽ được gửi trực tiếp và bảo mật đến Đội trưởng và Ban cán sự đội bóng <strong>@team?.Name</strong>.
-                    </p>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Tiêu đề tin nhắn <span class="text-danger">*</span></label>
-                        <input type="text" name="title" class="form-control" placeholder="Ví dụ: Xin phép vắng mặt trận tới, Đăng ký số áo..." maxlength="200" required />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Nội dung chi tiết <span class="text-danger">*</span></label>
-                        <textarea name="content" class="form-control" rows="5" placeholder="Nhập nội dung bạn muốn trao đổi với Đội trưởng..." maxlength="2000" required></textarea>
-                        <div class="form-text text-end">Tối đa 2000 ký tự.</div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-arena-primary">
-                        <i class="bi bi-send-fill me-1"></i> Gửi tin nhắn
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal 2: Lãnh đạo gửi tin nhắn cho thành viên cụ thể -->
+<!-- Modal Đăng thông báo toàn đội (cho Ban cán sự) -->
 @if (isManager)
 {
-    <div class="modal fade" id="messageMemberModal" tabindex="-1" aria-labelledby="messageMemberModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold" id="messageMemberModalLabel">
-                        <i class="bi bi-send text-primary me-2"></i>Gửi tin nhắn cho thành viên
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-                </div>
-                <form asp-action="SendMessageToMember" method="post">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="teamId" value="@team?.Id" />
-                    <div class="modal-body p-4">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Chọn thành viên nhận tin <span class="text-danger">*</span></label>
-                            <select name="recipientUserId" class="form-select" required>
-                                <option value="">-- Chọn cầu thủ / thành viên --</option>
-                                @foreach (var m in members)
-                                {
-                                    bool isSelected = preselectedUser != null && preselectedUser.Id == m.UserId;
-                                    <option value="@m.UserId" selected="@(isSelected ? "selected" : null)">
-                                        @(string.IsNullOrWhiteSpace(m.User.FullName) ? m.User.UserName : m.User.FullName) (@m.Role)
-                                    </option>
-                                }
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Tiêu đề tin nhắn <span class="text-danger">*</span></label>
-                            <input type="text" name="title" class="form-control" placeholder="Ví dụ: Nhắc nhở chuyên cần, Phân công nhiệm vụ..." maxlength="200" required />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Nội dung <span class="text-danger">*</span></label>
-                            <textarea name="content" class="form-control" rows="5" placeholder="Nhập nội dung gửi tới thành viên..." maxlength="2000" required></textarea>
-                            <div class="form-text text-end">Tối đa 2000 ký tự.</div>
-                        </div>
-                    </div>
-                    <div class="modal-footer bg-light">
-                        <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-arena-primary">
-                            <i class="bi bi-send-fill me-1"></i> Gửi tin nhắn
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal 3: Đăng thông báo toàn đội -->
     <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
@@ -289,17 +624,36 @@
     </div>
 }
 
-@section Scripts {
-@if (preselectedUser != null && isManager)
-{
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const modalEl = document.getElementById('messageMemberModal');
-            if (modalEl) {
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
+<script>
+    // Client-side search & filter for Instagram player list
+    function onSearchPlayers(query) {
+        const q = (query || '').trim().toLowerCase();
+        const rows = document.querySelectorAll('#playerConversationList .ig-player-row');
+        const clearBtn = document.getElementById('btnClearSearch');
+
+        if (clearBtn) {
+            clearBtn.classList.toggle('d-none', q.length === 0);
+        }
+
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name') || '';
+            const kit = row.getAttribute('data-kit') || '';
+            const pos = row.getAttribute('data-pos') || '';
+
+            if (!q || name.includes(q) || kit.includes(q) || pos.includes(q)) {
+                row.style.display = 'flex';
+            } else {
+                row.style.display = 'none';
             }
         });
-    </script>
-}
-}
+    }
+
+    function clearPlayerSearch() {
+        const input = document.getElementById('playerSearchInput');
+        if (input) {
+            input.value = '';
+            onSearchPlayers('');
+            input.focus();
+        }
+    }
+</script>
