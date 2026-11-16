@@ -17,7 +17,21 @@ var rawPg = builder.Configuration.GetConnectionString("PostgreSqlConnection")
     ?? Environment.GetEnvironmentVariable("POSTGRES_URL")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL");
 var pgConnection = ConvertPostgresUriToConnectionString(rawPg);
-var sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=AloBall.db";
+string sqliteConnection;
+if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("DefaultConnection")))
+{
+    sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnection")!;
+}
+else if (builder.Environment.IsDevelopment())
+{
+    sqliteConnection = "Data Source=AloBall.db";
+}
+else
+{
+    // Trên Vercel/Container: chỉ có thư mục /tmp có quyền ghi (Read-Write)
+    var tempDbPath = Path.Combine(Path.GetTempPath(), "AloBall.db");
+    sqliteConnection = $"Data Source={tempDbPath}";
+}
 
 if (isProduction && string.IsNullOrWhiteSpace(pgConnection))
 {
@@ -78,15 +92,29 @@ if (!string.IsNullOrEmpty(pgConnection))
 }
 else
 {
-    // Local development fallback
-    var keysDirectory = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys"));
-    if (!keysDirectory.Exists)
+    // Trên Vercel/Container: ContentRootPath là read-only.
+    // Dùng Path.GetTempPath() (/tmp) để lưu DataProtection keys an toàn không bị lỗi EROFS
+    try
     {
-        keysDirectory.Create();
+        var baseKeysPath = builder.Environment.IsDevelopment()
+            ? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtection-Keys")
+            : Path.Combine(Path.GetTempPath(), "AloBall-DataProtection-Keys");
+
+        var keysDirectory = new DirectoryInfo(baseKeysPath);
+        if (!keysDirectory.Exists)
+        {
+            keysDirectory.Create();
+        }
+        builder.Services.AddDataProtection()
+            .PersistKeysToFileSystem(keysDirectory)
+            .SetApplicationName("AloBall");
     }
-    builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(keysDirectory)
-        .SetApplicationName("AloBall");
+    catch (Exception ex)
+    {
+        Console.WriteLine($"WARNING: Không thể tạo thư mục DataProtection keys: {ex.Message}. Sử dụng bộ nhớ tạm thời.");
+        builder.Services.AddDataProtection()
+            .SetApplicationName("AloBall");
+    }
 }
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -284,7 +312,9 @@ static string? ConvertPostgresUriToConnectionString(string? uriOrConnStr)
             Database = database,
             Username = username,
             Password = password,
-            SslMode = Npgsql.SslMode.Require
+            SslMode = Npgsql.SslMode.Require,
+            Timeout = 5,
+            CommandTimeout = 10
         };
         return connBuilder.ConnectionString;
     }
