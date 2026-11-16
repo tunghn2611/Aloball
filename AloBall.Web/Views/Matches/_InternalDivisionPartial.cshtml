@@ -502,7 +502,7 @@
                             <span class="text-white-50">Đá chính:</span> <strong class="text-info fs-6" id="countA">0</strong>
                         </div>
                     </div>
-                    <div class="smart-pitch-container" id="pitchA">
+                    <div class="smart-pitch-container fc27-emerald-pitch" id="pitchA">
                         <div class="smart-pitch-markings"></div>
                         <div class="smart-penalty-top"></div>
                         <div class="smart-center-line"></div>
@@ -530,7 +530,7 @@
                             <span class="text-white-50">Đá chính:</span> <strong class="text-info fs-6" id="countB">0</strong>
                         </div>
                     </div>
-                    <div class="smart-pitch-container" id="pitchB">
+                    <div class="smart-pitch-container fc27-emerald-pitch" id="pitchB">
                         <div class="smart-pitch-markings"></div>
                         <div class="smart-penalty-top"></div>
                         <div class="smart-center-line"></div>
@@ -548,7 +548,7 @@
     else
     {
         <!-- CHẾ ĐỘ GIAO HỮU: CHỈ HIỂN THỊ 1 SA BÀN DUY NHẤT CỦA ĐỘI MÌNH (BẢO VỆ TÍNH BẢO MẬT ĐỐI THỦ) -->
-        <div class="smart-pitch-container" id="pitchSingle">
+        <div class="smart-pitch-container fc27-emerald-pitch" id="pitchSingle">
             <div class="smart-pitch-markings"></div>
             <div class="smart-penalty-top"></div>
             <div class="smart-center-line"></div>
@@ -737,6 +737,7 @@
         photoUrl = p.PhotoUrl,
         preferredFoot = p.PreferredFoot,
         experience = p.Experience,
+        playStyles = p.PlayStyles,
         category = AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(p.Position ?? "MF")
     })));
 
@@ -862,6 +863,7 @@
                         photoUrl: '@(l.Player?.PhotoUrl ?? "")',
                         preferredFoot: '@(l.Player?.PreferredFoot ?? "")',
                         experience: '@(l.Player?.Experience ?? "")',
+                        playStyles: '@(l.Player?.PlayStyles ?? "")',
                         isPrimaryPosition: true,
                         assignmentReason: 'Đã lưu đội hình'
                     });
@@ -880,6 +882,7 @@
                         photoUrl: '@(l.Player?.PhotoUrl ?? "")',
                         preferredFoot: '@(l.Player?.PreferredFoot ?? "")',
                         experience: '@(l.Player?.Experience ?? "")',
+                        playStyles: '@(l.Player?.PlayStyles ?? "")',
                         isPrimaryPosition: true,
                         assignmentReason: 'Đã lưu đội hình'
                     });
@@ -895,6 +898,7 @@
                         photoUrl: '@(l.Player?.PhotoUrl ?? "")',
                         preferredFoot: '@(l.Player?.PreferredFoot ?? "")',
                         experience: '@(l.Player?.Experience ?? "")',
+                        playStyles: '@(l.Player?.PlayStyles ?? "")',
                         category: '@(AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(l.Player?.Position ?? "MF"))',
                         designatedSide: '@(isForSideA ? "A" : "B")',
                         substituteReason: 'Dự bị chiến thuật'
@@ -1304,6 +1308,7 @@
             photoUrl: player.photoUrl,
             preferredFoot: player.preferredFoot,
             experience: player.experience,
+            playStyles: player.playStyles || player.PlayStyles || "",
             isPrimaryPosition: player.category === slotDef.category,
             assignmentReason: reason
         };
@@ -1318,6 +1323,7 @@
             photoUrl: player.photoUrl,
             preferredFoot: player.preferredFoot,
             experience: player.experience,
+            playStyles: player.playStyles || player.PlayStyles || "",
             category: player.category,
             designatedSide: side,
             substituteReason: reason
@@ -1393,7 +1399,7 @@
     function createPlayerCardElement(player, side, isBench) {
         const card = document.createElement('div');
         const posCat = player.category || 'MF';
-        card.className = `ab-card-premium ${side === 'B' ? 'side-B-card' : ''} ${!isManagerRole ? 'readonly-card' : ''}`;
+        card.className = `ab-card-premium fc27-shield-card ${side === 'B' ? 'side-B-card' : ''} ${!isManagerRole ? 'readonly-card' : ''}`;
         card.dataset.playerId = player.playerId;
         card.dataset.playerName = player.playerName;
         card.dataset.side = side;
@@ -1416,7 +1422,6 @@
             };
         }
 
-        // Đang chọn trong cơ chế Tap-to-swap
         if (selectedSwapSource && selectedSwapSource.playerId === player.playerId) {
             card.classList.add('selected-for-swap');
         }
@@ -1424,20 +1429,40 @@
         const initials = getInitials(player.playerName);
         const shortName = getShortName(player.playerName);
         const footIcon = player.preferredFoot === 'Trái' ? '👟 T' : player.preferredFoot === 'Hai chân' ? '👟 2C' : '👟 P';
-        const expLabel = player.experience ? player.experience.replace(' năm', 'n') : 'Cầu thủ';
+        const ovr = player.ovr || getPlayerSkillScore(player) || 75;
+
+        // Render up to 4 PlayStyle diamond badges stacked vertically along side edge
+        let psBadgesHtml = '';
+        const rawPS = player.playStyles || player.PlayStyles;
+        if (rawPS && typeof fc27SvgMap !== 'undefined') {
+            const tokens = rawPS.split(',').map(t => t.trim()).filter(Boolean).slice(0, 4);
+            if (tokens.length > 0) {
+                psBadgesHtml = '<div class="fc27-pitch-card-playstyles">';
+                tokens.forEach(t => {
+                    const isPlus = t.endsWith('+');
+                    const code = t.replace('+', '').toUpperCase();
+                    const iconPath = fc27SvgMap[code];
+                    if (iconPath) {
+                        psBadgesHtml += `<span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" title="${code}${isPlus ? ' [PlayStyle+]' : ''}"><svg viewBox="0 0 24 24" class="fc27-ps-icon"><path d="${iconPath}" fill="currentColor"/></svg></span>`;
+                    }
+                });
+                psBadgesHtml += '</div>';
+            }
+        }
 
         card.innerHTML = `
-            <div class="ab-card-topbar">
-                <span class="ab-pos-badge ab-pos-${posCat}">${player.slotCode || 'SUB'}</span>
-                <span class="ab-kit-num">#${player.kitNumber || '-'}</span>
+            ${psBadgesHtml}
+            <div class="fc27-shield-top">
+                <span class="fc27-shield-ovr">${ovr}</span>
+                <span class="fc27-shield-pos fc27-pos-${posCat}">${player.slotCode || posCat}</span>
             </div>
-            <div class="ab-card-avatar">
-                ${player.photoUrl ? `<img src="${escapeHtml(player.photoUrl)}" alt="${escapeHtml(player.playerName)}" />` : `<span class="ab-avatar-fallback">${initials}</span>`}
+            <div class="fc27-shield-avatar">
+                ${player.photoUrl ? `<img src="${escapeHtml(player.photoUrl)}" alt="${escapeHtml(player.playerName)}" />` : `<span class="fc27-shield-fallback">${initials}</span>`}
             </div>
-            <div class="ab-card-name">${escapeHtml(shortName)}</div>
-            <div class="ab-card-meta">
+            <div class="fc27-shield-name">${escapeHtml(shortName)}</div>
+            <div class="fc27-shield-submeta">
+                <span>#${player.kitNumber || '-'}</span>
                 <span>${footIcon}</span>
-                <span>${expLabel}</span>
             </div>
             ${player.assignmentReason ? `<div class="ab-card-reason-pill">${escapeHtml(player.assignmentReason)}</div>` : ''}
         `;

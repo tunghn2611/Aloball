@@ -73,6 +73,8 @@ public static class DbInitializer
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN Region TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PublicPreferredFoot INTEGER NOT NULL DEFAULT 0;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PublicExperience INTEGER NOT NULL DEFAULT 0;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PlayStyles TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE TeamMatchReviews ADD COLUMN PlayStyleVibeTags TEXT NULL;"); } catch { }
 
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN CoverImageUrl TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN CoverOpacity REAL NULL;"); } catch { }

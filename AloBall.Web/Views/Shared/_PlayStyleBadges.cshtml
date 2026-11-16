@@ -1,0 +1,20 @@
+@model string?
+@{
+    var styles = AloBall.Web.Models.PlayStyleCatalog.Parse(Model);
+}
+@if (styles.Any())
+{
+    <span class="fc27-ps-cluster" aria-label="PlayStyles">
+        @foreach (var s in styles)
+        {
+            <span class="fc27-ps-diamond @(s.IsPlus ? "fc27-ps-gold" : "fc27-ps-cyan")"
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="top"
+                  title="@($"{s.Definition.NameVi} · {s.Definition.NameEn}{(s.IsPlus ? " ★ [PlayStyle+]" : "")}")">
+                <svg viewBox="0 0 24 24" class="fc27-ps-icon" aria-hidden="true">
+                    <path d="@s.Definition.SvgPath" fill="currentColor" />
+                </svg>
+            </span>
+        }
+    </span>
+}

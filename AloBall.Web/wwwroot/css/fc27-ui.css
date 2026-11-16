@@ -1,0 +1,496 @@
+/* ==========================================================================
+   ALOBALL EA FC 27 DARK-ESPORTS UI & PLAYSTYLES DESIGN SYSTEM
+   ========================================================================== */
+
+:root {
+    --fc27-bg-deep: #090d16;
+    --fc27-surface: #111827;
+    --fc27-surface-elevated: #1e293b;
+    --fc27-border: rgba(255, 255, 255, 0.12);
+    --fc27-lime: #a3e635;
+    --fc27-lime-glow: rgba(163, 230, 53, 0.45);
+    --fc27-gold-grad: linear-gradient(135deg, #f59e0b 0%, #fef08a 50%, #d97706 100%);
+    --fc27-gold-glow: rgba(245, 158, 11, 0.65);
+    --fc27-cyan-grad: linear-gradient(135deg, #38bdf8 0%, #e2e8f0 70%, #0284c7 100%);
+    --fc27-cyan-glow: rgba(56, 189, 248, 0.5);
+    --fc27-font-condensed: 'Barlow Condensed', sans-serif;
+    --fc27-font-text: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* 1. PLAYSTYLE DIAMOND BADGES */
+.fc27-ps-cluster {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    vertical-align: middle;
+}
+
+.fc27-ps-diamond {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.18s ease;
+    cursor: pointer;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.fc27-ps-diamond:hover {
+    transform: scale(1.28) translateY(-1px);
+    z-index: 10;
+}
+
+.fc27-ps-diamond.fc27-ps-gold {
+    background: var(--fc27-gold-grad);
+    color: #0b0f19;
+    filter: drop-shadow(0 0 5px var(--fc27-gold-glow));
+}
+
+.fc27-ps-diamond.fc27-ps-cyan {
+    background: var(--fc27-cyan-grad);
+    color: #090d16;
+    filter: drop-shadow(0 0 4px var(--fc27-cyan-glow));
+}
+
+.fc27-ps-diamond .fc27-ps-icon {
+    width: 12px;
+    height: 12px;
+}
+
+/* Badge sizes */
+.fc27-ps-sm {
+    width: 16px;
+    height: 16px;
+}
+.fc27-ps-sm .fc27-ps-icon {
+    width: 10px;
+    height: 10px;
+}
+
+.fc27-ps-lg {
+    width: 26px;
+    height: 26px;
+}
+.fc27-ps-lg .fc27-ps-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Vertical Stack along side edge (e.g. Pitch Player Card) */
+.fc27-pitch-card-playstyles {
+    position: absolute;
+    top: 4px;
+    right: -10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    z-index: 6;
+    pointer-events: auto;
+}
+
+.fc27-pitch-card-playstyles .fc27-ps-diamond {
+    width: 18px;
+    height: 18px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+}
+
+.fc27-pitch-card-playstyles .fc27-ps-diamond .fc27-ps-icon {
+    width: 11px;
+    height: 11px;
+}
+
+/* 2. TACTICAL PITCH — FC 27 DARK EMERALD GRID WITH GLOWING LIME LINES */
+.fc27-emerald-pitch {
+    background: radial-gradient(ellipse at 50% 50%, #073827 0%, #032117 65%, #02120d 100%) !important;
+    border: 3px solid #064e3b !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), inset 0 0 80px rgba(0, 0, 0, 0.6) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.fc27-emerald-pitch::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(163, 230, 53, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(163, 230, 53, 0.05) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* Glowing Neon Lime Pitch Markings */
+.fc27-emerald-pitch .smart-pitch-markings {
+    border-color: rgba(163, 230, 53, 0.85) !important;
+    box-shadow: 0 0 8px var(--fc27-lime-glow);
+}
+
+.fc27-emerald-pitch .smart-center-line {
+    background: rgba(163, 230, 53, 0.85) !important;
+    box-shadow: 0 0 8px var(--fc27-lime-glow);
+}
+
+.fc27-emerald-pitch .smart-center-circle {
+    border-color: rgba(163, 230, 53, 0.85) !important;
+    box-shadow: 0 0 8px var(--fc27-lime-glow);
+}
+
+.fc27-emerald-pitch .smart-center-spot {
+    background: #a3e635 !important;
+    box-shadow: 0 0 8px #a3e635;
+}
+
+.fc27-emerald-pitch .smart-penalty-top,
+.fc27-emerald-pitch .smart-penalty-bottom,
+.fc27-emerald-pitch .smart-goal-bottom {
+    border-color: rgba(163, 230, 53, 0.85) !important;
+    box-shadow: 0 0 8px var(--fc27-lime-glow);
+}
+
+/* 3. MINI FC 27 SHIELD PLAYER CARD TOKEN ON PITCH */
+.fc27-shield-card {
+    position: relative;
+    width: 78px;
+    min-height: 84px;
+    background: linear-gradient(180deg, #182235 0%, #0d1424 100%) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.22) !important;
+    border-radius: 8px 8px 14px 14px !important;
+    clip-path: polygon(0 0, 100% 0, 100% 88%, 50% 100%, 0 88%);
+    padding: 3px 3px 8px 3px !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+    cursor: grab;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+}
+
+.fc27-shield-card:hover:not(.readonly-card) {
+    transform: translateY(-4px) scale(1.08) !important;
+    border-color: var(--fc27-lime) !important;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.9), 0 0 16px var(--fc27-lime-glow) !important;
+}
+
+.fc27-shield-card.side-B-card {
+    border-color: rgba(245, 158, 11, 0.6) !important;
+}
+
+.fc27-shield-card.side-B-card:hover:not(.readonly-card) {
+    border-color: #f59e0b !important;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.9), 0 0 16px var(--fc27-gold-glow) !important;
+}
+
+.fc27-shield-top {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1px 4px;
+    line-height: 1;
+}
+
+.fc27-shield-ovr {
+    font-family: var(--fc27-font-condensed);
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #fef08a;
+    letter-spacing: -0.5px;
+}
+
+.fc27-shield-pos {
+    font-family: var(--fc27-font-condensed);
+    font-weight: 700;
+    font-size: 0.62rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.fc27-pos-GK { background: #eab308; color: #000; }
+.fc27-pos-DF { background: #2563eb; }
+.fc27-pos-MF { background: #16a34a; }
+.fc27-pos-FW { background: #dc2626; }
+
+.fc27-shield-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 2px 0;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fc27-shield-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.fc27-shield-fallback {
+    font-family: var(--fc27-font-condensed);
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.fc27-shield-name {
+    font-family: var(--fc27-font-text);
+    font-weight: 700;
+    font-size: 0.62rem;
+    color: #f8fafc;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 2px;
+}
+
+.fc27-shield-submeta {
+    font-size: 0.55rem;
+    color: #94a3b8;
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+    margin-top: 1px;
+}
+
+/* 4. TEAM PLAYSTYLE VIBE TAGS & PILLS */
+.fc27-vibe-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.fc27-vibe-pill.vibe-duongsinh {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(52, 211, 153, 0.4);
+}
+
+.fc27-vibe-pill.vibe-banbat {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.4);
+}
+
+.fc27-vibe-pill.vibe-theluc {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border-color: rgba(165, 180, 252, 0.4);
+}
+
+.fc27-vibe-pill.vibe-darat {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+.fc27-vibe-pill.vibe-vuive {
+    background: rgba(217, 70, 239, 0.15);
+    color: #e879f9;
+    border-color: rgba(232, 121, 249, 0.4);
+}
+
+/* Post-Match Review Interactive Vibe Checkbox Pills */
+.fc27-vibe-checkbox-label {
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.fc27-vibe-pill-choice {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    transition: all 0.2s ease;
+}
+
+.fc27-vibe-checkbox-label input:checked + .fc27-vibe-pill-choice {
+    background: #0f3d2e;
+    color: #a3e635;
+    border-color: #a3e635;
+    box-shadow: 0 0 10px rgba(163, 230, 53, 0.35);
+}
+
+/* AMBER WARNING BANNER FOR ĐÁ DƯỠNG SINH VS ĐÁ RÁT */
+.fc27-vibe-warning-alert {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(180, 83, 9, 0.28) 100%);
+    border: 1.5px solid #f59e0b;
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: #fef3c7;
+    box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: pulseWarning 3s ease-in-out infinite;
+}
+
+@keyframes pulseWarning {
+    0%, 100% { box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15); }
+    50% { box-shadow: 0 8px 30px rgba(245, 158, 11, 0.35); }
+}
+
+.fc27-vibe-warning-alert .warning-icon {
+    font-size: 1.4rem;
+    color: #fbbf24;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.fc27-vibe-warning-alert .warning-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 3px;
+    color: #fde68a;
+}
+
+.fc27-vibe-warning-alert .warning-desc {
+    font-size: 0.85rem;
+    color: #fef3c7;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 5. SLEEK DARK MODAL FOR CAPTAIN ASSIGNING PLAYSTYLES */
+.fc27-modal .modal-content {
+    background: #090d16;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+    color: #f8fafc;
+}
+
+.fc27-modal .modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 20px;
+}
+
+.fc27-modal .nav-pills .nav-link {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.15s ease;
+}
+
+.fc27-modal .nav-pills .nav-link.active {
+    background: var(--fc27-lime);
+    color: #090d16;
+    font-weight: 700;
+}
+
+.fc27-ps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+    gap: 8px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.fc27-ps-grid::-webkit-scrollbar {
+    width: 6px;
+}
+.fc27-ps-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.fc27-ps-card {
+    background: #111827;
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    user-select: none;
+}
+
+.fc27-ps-card:hover {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.fc27-ps-card.ps-selected-regular {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    box-shadow: 0 0 12px var(--fc27-cyan-glow);
+}
+
+.fc27-ps-card.ps-selected-plus {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.16);
+    box-shadow: 0 0 16px var(--fc27-gold-glow);
+}
+
+.fc27-ps-card .card-diamond {
+    margin-bottom: 6px;
+}
+
+.fc27-ps-card .card-name-vi {
+    font-family: var(--fc27-font-text);
+    font-weight: 700;
+    font-size: 0.74rem;
+    color: #f1f5f9;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.fc27-ps-card .card-name-en {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    line-height: 1.1;
+}
+
+.fc27-ps-badge-pill {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.fc27-badge-plus {
+    background: var(--fc27-gold-grad);
+    color: #000;
+}
+
+.fc27-badge-reg {
+    background: var(--fc27-cyan-grad);
+    color: #000;
+}

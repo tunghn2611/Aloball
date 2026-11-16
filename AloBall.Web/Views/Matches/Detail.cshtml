@@ -1087,3 +1087,16 @@
         }
     </div>
 </div>
+
+<script>
+    function onVibeCheckChanged(el) {
+        const checked = document.querySelectorAll('.fc27-vibe-check:checked');
+        if (checked.length > 2) {
+            el.checked = false;
+            alert('Bạn chỉ được chọn tối đa 2 phong cách thi đấu.');
+            return;
+        }
+        const counter = document.getElementById('fc27VibeCount');
+        if (counter) counter.textContent = `${checked.length}/2 đã chọn`;
+    }
+</script>

@@ -56,7 +56,7 @@ public class TestUserManager : UserManager<ApplicationUser>
 public class TestMatchmakingService : IMatchmakingService
 {
     public Task<(bool Success, string Message, Guid? MatchId)> AcceptProposalAndLockMatchAsync(Guid postId, Guid proposalId, string managerUserId) => Task.FromResult<(bool, string, Guid?)>((true, "", null));
-    public Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment) => Task.FromResult((true, ""));
+    public Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment, string? vibeTags = null) => Task.FromResult((true, ""));
     public Task UpdateTeamRatingAndBlacklistStatusAsync(Guid teamId) => Task.CompletedTask;
     public Task<(bool Success, string Message)> ResolveAppealAsync(Guid appealId, bool invalidateReview, string adminNote, string adminUserId) => Task.FromResult((true, ""));
     public Task<(bool Success, string Message)> SetTeamBlacklistStatusAsync(Guid teamId, bool isRestricted, string? reason, string adminUserId) => Task.FromResult((true, ""));

@@ -29,6 +29,16 @@
             </div>
         }
 
+        @if (ViewBag.ShowVibeWarning == true)
+        {
+            <div class="fc27-vibe-warning-alert">
+                <div class="warning-icon">⚠️</div>
+                <div>
+                    <div class="warning-title">Cảnh Báo Phong Cách Thi Đấu</div>
+                    <p class="warning-desc">⚠️ Cảnh báo: Đối thủ có tỷ lệ đánh giá <strong>Đá rát – quyết liệt cao</strong> (@(((AloBall.Web.Models.TeamVibeAnalysis?)ViewBag.HostVibe)?.HardTacklePercentage ?? 0)%). Hãy thống nhất luật chơi trước khi nhận kèo!</p>
+                </div>
+            </div>
+        }
         <!-- Post Detail Card -->
         <div class="read-only-note"><i class="bi bi-geo-alt me-2"></i>@(Model.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.HomePitch ? "Đội đăng tin đá sân nhà" : Model.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.AwayPitch ? "Đội đăng tin đi khách" : "Linh hoạt thỏa thuận sân")</div>
         <div class="arena-card p-4 mb-4">
@@ -50,6 +60,29 @@
                         <div class="text-warning small mt-1">
                             <i class="bi bi-star-fill"></i> @Model.Team.AverageRating (@Model.Team.ValidReviewCount lượt đánh giá)
                         </div>
+                        @{
+                            var hostVibe = ViewBag.HostVibe as AloBall.Web.Models.TeamVibeAnalysis;
+                        }
+                        @if (hostVibe != null && hostVibe.TopVibes.Any())
+                        {
+                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                @foreach (var v in hostVibe.TopVibes)
+                                {
+                                    var vibeClass = v switch {
+                                        "Đá dưỡng sinh" => "vibe-duongsinh",
+                                        "Ban bật – kỹ thuật" => "vibe-banbat",
+                                        "Thể lực – chạy khỏe" => "vibe-theluc",
+                                        "Đá rát – quyết liệt" => "vibe-darat",
+                                        _ => "vibe-vuive"
+                                    };
+                                    <span class="fc27-vibe-pill @vibeClass">@v</span>
+                                }
+                                @if (hostVibe.HardTacklePercentage >= 35.0)
+                                {
+                                    <span class="badge bg-warning text-dark border"><i class="bi bi-exclamation-triangle-fill me-1"></i>@hostVibe.HardTacklePercentage% đá rát</span>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
                 <div>

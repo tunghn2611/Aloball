@@ -18,6 +18,8 @@ public class ApplicationUser : IdentityUser
     public string? Experience { get; set; }
     [MaxLength(100)]
     public string? Region { get; set; }
+    [MaxLength(120)]
+    public string? PlayStyles { get; set; }
     [MaxLength(50)]
     public string? PrimaryPosition { get; set; }
     public bool HasCompletedOnboarding { get; set; } = false;
@@ -138,6 +140,8 @@ public class Player
     public string? Experience { get; set; }
     [MaxLength(100)]
     public string? Region { get; set; }
+    [MaxLength(120)]
+    public string? PlayStyles { get; set; }
 
     // Cấu hình công khai từng trường
     public bool IsPublicProfile { get; set; } = true;

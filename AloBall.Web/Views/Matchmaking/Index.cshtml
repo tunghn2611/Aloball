@@ -26,7 +26,32 @@
         <article class="invitation-card">
             <div class="invitation-date"><strong>@post.MatchDate.ToString("dd")</strong><span>THÁNG @post.MatchDate.ToString("MM")</span></div>
             <div class="invitation-main"><div class="d-flex align-items-center gap-2 mb-2"><span class="badge bg-success-subtle text-success">Đang tìm đối</span><span class="small text-muted">@post.PitchType · @(post.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.AwayPitch ? "Đi khách" : post.PitchArrangement == AloBall.Web.Data.Entities.PitchArrangement.HomePitch ? "Sân nhà" : "Linh hoạt")</span></div>
-                <h2>@post.Team.Name</h2><div class="invitation-meta"><span><i class="bi bi-clock"></i> @post.StartTime.ToString(@"hh\:mm") – @post.EndTime.ToString(@"hh\:mm")</span><span><i class="bi bi-geo-alt"></i> @(post.PitchName ?? post.Area)</span></div>
+                <h2>@post.Team.Name</h2>
+                @{
+                    var teamVibes = ViewBag.TeamVibes as Dictionary<Guid, AloBall.Web.Models.TeamVibeAnalysis>;
+                    AloBall.Web.Models.TeamVibeAnalysis? vibeInfo = null;
+                    teamVibes?.TryGetValue(post.TeamId, out vibeInfo);
+                }
+                @if (vibeInfo != null && vibeInfo.TopVibes.Any())
+                {
+                    <div class="d-flex flex-wrap gap-1 my-1">
+                        @foreach (var v in vibeInfo.TopVibes)
+                        {
+                            var vibeClass = v switch {
+                                "Đá dưỡng sinh" => "vibe-duongsinh",
+                                "Ban bật – kỹ thuật" => "vibe-banbat",
+                                "Thể lực – chạy khỏe" => "vibe-theluc",
+                                "Đá rát – quyết liệt" => "vibe-darat",
+                                _ => "vibe-vuive"
+                            };
+                            <span class="fc27-vibe-pill @vibeClass">@v</span>
+                        }
+                        @if (vibeInfo.HardTacklePercentage >= 35.0)
+                        {
+                            <span class="badge bg-warning text-dark border"><i class="bi bi-exclamation-triangle-fill me-1"></i>@vibeInfo.HardTacklePercentage% đá rát</span>
+                        }
+                    </div>
+                }<div class="invitation-meta"><span><i class="bi bi-clock"></i> @post.StartTime.ToString(@"hh\:mm") – @post.EndTime.ToString(@"hh\:mm")</span><span><i class="bi bi-geo-alt"></i> @(post.PitchName ?? post.Area)</span></div>
                 <div class="invitation-meta"><span>Trình độ: @post.DesiredLevel</span><span>Tiền sân: @post.CostSharing</span><span><i class="bi bi-star-fill"></i> @post.Team.AverageRating.ToString("0.0") · @post.Team.ValidReviewCount đánh giá</span></div>
                 @if (!string.IsNullOrWhiteSpace(post.Notes)) { <p class="small text-muted mt-2 mb-0">@post.Notes</p> }
             </div>

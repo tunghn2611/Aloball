@@ -119,6 +119,8 @@ public class TeamMatchReview
 
     [Required]
     public string Comment { get; set; } = string.Empty; // Nếu 1 sao thì bắt buộc có lý do chi tiết
+    [MaxLength(150)]
+    public string? PlayStyleVibeTags { get; set; }
 
     public bool IsValid { get; set; } = true; // Trạng thái hiệu lực (true = kích hoạt blacklist nếu 1 sao)
     public string? InvalidationReason { get; set; }

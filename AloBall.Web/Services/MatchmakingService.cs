@@ -7,7 +7,7 @@ namespace AloBall.Web.Services;
 public interface IMatchmakingService
 {
     Task<(bool Success, string Message, Guid? MatchId)> AcceptProposalAndLockMatchAsync(Guid postId, Guid proposalId, string managerUserId);
-    Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment);
+    Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment, string? vibeTags = null);
     Task UpdateTeamRatingAndBlacklistStatusAsync(Guid teamId);
     Task<(bool Success, string Message)> ResolveAppealAsync(Guid appealId, bool invalidateReview, string adminNote, string adminUserId);
     Task<(bool Success, string Message)> SetTeamBlacklistStatusAsync(Guid teamId, bool isRestricted, string? reason, string adminUserId);
@@ -117,7 +117,7 @@ public class MatchmakingService : IMatchmakingService
         }
     }
 
-    public async Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment)
+    public async Task<(bool Success, string Message)> SubmitReviewAsync(Guid matchId, Guid reviewerTeamId, string userId, int stars, string comment, string? vibeTags = null)
     {
         if (stars < 1 || stars > 5) return (false, "Đánh giá phải từ 1 đến 5 sao.");
         comment = comment?.Trim() ?? "";

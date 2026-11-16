@@ -1221,12 +1221,13 @@ public partial class MatchesController : Controller
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SubmitReview(Guid matchId, Guid reviewerTeamId, int stars, string comment)
+    public async Task<IActionResult> SubmitReview(Guid matchId, Guid reviewerTeamId, int stars, string comment, string[]? vibeTags)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        var result = await _matchmaking.SubmitReviewAsync(matchId, reviewerTeamId, user.Id, stars, comment);
+        string? joinedVibes = (vibeTags != null && vibeTags.Length > 0) ? string.Join(",", vibeTags) : null;
+        var result = await _matchmaking.SubmitReviewAsync(matchId, reviewerTeamId, user.Id, stars, comment, joinedVibes);
 
         if (result.Success)
         {
