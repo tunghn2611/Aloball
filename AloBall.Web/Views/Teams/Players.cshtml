@@ -96,7 +96,7 @@
                         <th>Size Áo / Quần</th>
                         <th>Thể hình</th>
                         <th>Trạng thái</th>
-                        @if (isManager) { <th><span class="visually-hidden">Thao tác</span></th> }
+                        <th class="text-end pe-3" style="min-width: 140px;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody id="memberTableBody">
@@ -109,7 +109,7 @@
                                 </span>
                             </td>
                             <td>
-                                <div class="fw-bold text-dark">@p.FullName</div>
+                                <div><a href="/cau-thu/@p.Id" class="fw-bold text-dark text-decoration-none hover-primary d-inline-flex align-items-center gap-1" title="Xem hồ sơ cầu thủ">@p.FullName <i class="bi bi-box-arrow-up-right small text-muted"></i></a></div>
                                 @if (!string.IsNullOrEmpty(p.LinkedUserId))
                                 {
                                     <small class="text-success"><i class="bi bi-check-circle-fill"></i> Đã liên kết tài khoản</small>
@@ -129,17 +129,23 @@
                                     @(p.IsActive ? "Đang hoạt động" : "Nghỉ đá")
                                 </span>
                             </td>
-                            @if(isManager) {
-                                <td>
-                                    <div class="d-flex gap-1">
+                            <td class="text-end pe-3">
+                                <div class="d-inline-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-warning btn-sm fw-bold px-2 py-1 shadow-sm text-dark d-inline-flex align-items-center gap-1" onclick="openPlayerCardModal('@p.Id')" title="Xem Thẻ FIFA 27">
+                                        <i class="bi bi-person-badge-fill"></i> <span class="d-none d-sm-inline">Thẻ FIFA</span>
+                                    </button>
+                                    <a href="/cau-thu/@p.Id" class="btn btn-arena-outline btn-sm py-1 px-2" title="Xem hồ sơ cá nhân">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    @if(isManager) {
                                         @if (!string.IsNullOrEmpty(p.LinkedUserId))
                                         {
-                                            <a asp-action="Messages" asp-route-teamId="@team?.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm" title="Nhắn tin cho cầu thủ"><i class="bi bi-chat-dots"></i></a>
+                                            <a asp-action="Messages" asp-route-teamId="@team?.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm py-1 px-2" title="Nhắn tin cho cầu thủ"><i class="bi bi-chat-dots"></i></a>
                                         }
-                                        <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm">Sửa</a>
-                                    </div>
-                                </td>
-                            }
+                                        <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm py-1 px-2" title="Chỉnh sửa thông tin">Sửa</a>
+                                    }
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -153,7 +159,7 @@
         {
             <div class="roster-filterable roster-item-card" data-name="@p.FullName.ToLower()" data-number="@(p.KitNumber?.ToString() ?? "")" data-pos="@(p.Position?.ToLower() ?? "")" data-active="@(p.IsActive ? "active" : "inactive")">
                 <!-- Avatar & Kit Number Badge -->
-                <div class="card-avatar-wrap bg-light border d-flex align-items-center justify-content-center text-primary position-relative flex-shrink-0">
+                <a href="/cau-thu/@p.Id" class="card-avatar-wrap bg-light border d-flex align-items-center justify-content-center text-primary position-relative flex-shrink-0 text-decoration-none" title="Xem hồ sơ @p.FullName">
                     @if (p.KitNumber.HasValue)
                     {
                         <strong class="fw-bold">@p.KitNumber</strong>
@@ -162,12 +168,12 @@
                     {
                         <i class="bi bi-person-fill"></i>
                     }
-                </div>
+                </a>
 
                 <!-- Main Info -->
                 <div class="roster-card-body flex-grow-1 min-w-0">
                     <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
-                        <h6 class="fw-bold mb-0 text-dark text-truncate" title="@p.FullName">@p.FullName</h6>
+                        <h6 class="fw-bold mb-0 text-dark text-truncate" title="@p.FullName"><a href="/cau-thu/@p.Id" class="text-decoration-none text-dark hover-primary">@p.FullName</a></h6>
                         <span class="badge @(p.IsActive ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary") border px-2 py-1 card-status-badge">
                             @(p.IsActive ? "Đang đá" : "Nghỉ")
                         </span>
@@ -199,10 +205,16 @@
                     }
                 </div>
 
-                <!-- Action Button for Managers -->
-                @if (isManager)
-                {
-                    <div class="card-action-btn mt-2 mt-sm-0 flex-shrink-0 d-flex gap-1">
+                <!-- Action Buttons -->
+                <div class="card-action-btn mt-2 mt-sm-0 flex-shrink-0 d-flex flex-wrap gap-1 align-items-center">
+                    <button type="button" class="btn btn-warning btn-sm fw-bold py-1 px-2 text-dark shadow-sm" onclick="openPlayerCardModal('@p.Id')" title="Xem Thẻ FIFA 27" style="font-size: 11px;">
+                        <i class="bi bi-person-badge-fill me-1"></i>Thẻ FIFA
+                    </button>
+                    <a href="/cau-thu/@p.Id" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Xem hồ sơ cá nhân">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    @if (isManager)
+                    {
                         @if (!string.IsNullOrEmpty(p.LinkedUserId))
                         {
                             <a asp-action="Messages" asp-route-teamId="@team?.Id" asp-route-contactUserId="@p.LinkedUserId" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;" title="Nhắn tin cho cầu thủ">
@@ -212,8 +224,8 @@
                         <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" asp-route-id="@p.Id" class="btn btn-arena-outline btn-sm py-1 px-2" style="font-size: 11px;">
                             <i class="bi bi-pencil-square me-1"></i>Sửa
                         </a>
-                    </div>
-                }
+                    }
+                </div>
             </div>
         }
     </div>

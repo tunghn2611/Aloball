@@ -1,7 +1,20 @@
 @model AloBall.Web.Models.PlayerProfileInput
 @{ ViewData["Title"] = Model.Id.HasValue ? "Chỉnh sửa cầu thủ" : "Thêm cầu thủ"; }
 @await Html.PartialAsync("_TeamNavigation", Model.TeamId)
-<div class="workspace-heading"><div><span class="eyebrow">Cầu thủ & áo đấu</span><h1>@ViewData["Title"]</h1><p>Nhập một lần, dùng cho đội hình, đặt áo và Giữ Lửa.</p></div></div>
+<div class="workspace-heading d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div><span class="eyebrow">Cầu thủ & áo đấu</span><h1>@ViewData["Title"]</h1><p>Nhập một lần, dùng cho đội hình, đặt áo và Giữ Lửa.</p></div>
+    @if (Model.Id.HasValue)
+    {
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-warning btn-sm fw-bold shadow-sm text-dark d-inline-flex align-items-center gap-1" onclick="openPlayerCardModal('@Model.Id.Value')">
+                <i class="bi bi-person-badge-fill"></i> Thẻ FIFA 27
+            </button>
+            <a href="/cau-thu/@Model.Id.Value" class="btn btn-arena-outline btn-sm d-inline-flex align-items-center gap-1">
+                <i class="bi bi-eye"></i> Xem Hồ sơ công khai
+            </a>
+        </div>
+    }
+</div>
 <form method="post" class="arena-card editor-panel mx-auto" style="max-width:900px">
     <input asp-for="Id" type="hidden" /><input asp-for="TeamId" type="hidden" />
     <div asp-validation-summary="All" class="text-danger"></div>
@@ -26,5 +39,21 @@
         <div class="col-md-6"><div class="form-check">@Html.CheckBox(field.Item1, (bool)Model.GetType().GetProperty(field.Item1)!.GetValue(Model)!, new { @class = "form-check-input", id = field.Item1 })<label for="@field.Item1" class="form-check-label">@field.Item2</label></div></div>
     }
     </div></section>
-    <div class="editor-footer"><a asp-action="Players" asp-route-teamId="@Model.TeamId" class="btn btn-arena-outline">Hủy</a><button type="submit" class="btn btn-arena-primary">Lưu cầu thủ</button></div>
+    <div class="editor-footer d-flex justify-content-between align-items-center">
+        <div>
+            @if (Model.Id.HasValue)
+            {
+                <button type="button" class="btn btn-warning btn-sm fw-bold text-dark me-2" onclick="openPlayerCardModal('@Model.Id.Value')">
+                    <i class="bi bi-person-badge-fill me-1"></i>Xem Thẻ FIFA
+                </button>
+                <a href="/cau-thu/@Model.Id.Value" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-eye me-1"></i>Hồ sơ
+                </a>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Players" asp-route-teamId="@Model.TeamId" class="btn btn-arena-outline">Hủy</a>
+            <button type="submit" class="btn btn-arena-primary">Lưu cầu thủ</button>
+        </div>
+    </div>
 </form>
