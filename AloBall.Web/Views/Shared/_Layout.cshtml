@@ -1,4 +1,4 @@
-@{
+﻿@{
     var section = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
     var sectionName = section switch { "Teams" => "Đội bóng", "Matches" => "Thi đấu", "Attendance" => "Sinh hoạt", "FireKeeping" => "Giữ Lửa", "Matchmaking" => "Kết nối", "Account" => "Tài khoản", "Admin" => "Quản trị", "Sheets" => "Dữ liệu đội", "Contact" => "Liên hệ", _ => "Khám phá" };
@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/arena.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/aloball-cards.css" asp-append-version="true" />
 </head>
 <body class="arena-app page-@(section.ToLowerInvariant()) view-@(action.ToLowerInvariant())">
     <a class="skip-link" href="#main-content">Đến nội dung chính</a>
@@ -55,6 +56,7 @@
     </div>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/arena.js" asp-append-version="true"></script>
+    <script src="~/js/share-card.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

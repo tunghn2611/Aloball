@@ -1,4 +1,4 @@
-@model AloBall.Web.Models.PlayerPublicProfileViewModel
+﻿@model AloBall.Web.Models.PlayerPublicProfileViewModel
 @{
     ViewData["Title"] = $"{Model.DisplayName} - Hồ sơ cầu thủ";
 }
@@ -86,6 +86,9 @@
 
             <!-- Action Buttons for Owner / Manager -->
             <div class="d-flex flex-wrap gap-2 align-self-stretch align-self-md-center">
+                <button type="button" class="btn btn-warning btn-sm fw-bold d-flex align-items-center gap-1 shadow-sm text-dark" onclick="openPlayerCardModal('@Model.PlayerId')">
+                    <i class="bi bi-person-badge-fill"></i> Thẻ chỉ số FIFA
+                </button>
                 @if (Model.IsSelf || Model.IsManager)
                 {
                     <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#privacySettingsModal">

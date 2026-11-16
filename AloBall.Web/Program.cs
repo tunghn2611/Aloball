@@ -111,6 +111,7 @@ builder.Services.AddScoped<IRefereeCoordinationService, RefereeCoordinationServi
 builder.Services.AddScoped<IPitchBookingService, PitchBookingService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
 builder.Services.AddScoped<AloBall.Web.Services.TeamDivision.ITeamDivisionEngine, AloBall.Web.Services.TeamDivision.TeamDivisionEngine>();
+builder.Services.AddHttpClient();
 
 builder.Services.AddControllersWithViews(options =>
 {

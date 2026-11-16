@@ -1,0 +1,150 @@
+@model AloBall.Web.Models.MatchShareViewModel
+@{
+    Layout = null;
+    var poster = Model.Poster;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@Model.OgTitle</title>
+
+    <!-- Open Graph / Facebook / Zalo -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="@Model.OgUrl" />
+    <meta property="og:title" content="@Model.OgTitle" />
+    <meta property="og:description" content="@Model.OgDescription" />
+    <meta property="og:image" content="@Model.OgImage" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@Model.OgTitle" />
+    <meta name="twitter:description" content="@Model.OgDescription" />
+    <meta name="twitter:image" content="@Model.OgImage" />
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/aloball-cards.css" />
+    <style>
+        body { background: #080c14; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 10px; }
+    </style>
+</head>
+<body>
+    <div class="text-center mb-3">
+        <a href="/" class="text-decoration-none text-info fw-bold"><i class="bi bi-shield-fill-check me-1"></i> AloBall Matchday</a>
+        <h1 class="h4 fw-bold mt-1 text-white">Poster Kết Quả Trận Đấu Chính Thức</h1>
+    </div>
+
+    <div class="aloball-aspect-toggle mb-3" style="max-width: 280px;">
+        <button type="button" class="active" id="btnAspectFeed" onclick="togglePosterAspect('feed')">
+            <i class="bi bi-grid-fill me-1"></i> Bảng Tin (4:5)
+        </button>
+        <button type="button" id="btnAspectStory" onclick="togglePosterAspect('story')">
+            <i class="bi bi-phone-fill me-1"></i> Story (9:16)
+        </button>
+    </div>
+
+    <div class="aloball-match-poster-wrapper mb-4">
+        <div class="aloball-match-poster ratio-feed" id="socialMatchPoster">
+            @if (!string.IsNullOrEmpty(poster.TeamA.CoverUrl) || !string.IsNullOrEmpty(poster.TeamB.CoverUrl))
+            {
+                <div class="aloball-poster-backdrop" style="background-image: url('@(poster.TeamA.CoverUrl ?? poster.TeamB.CoverUrl)'); opacity: @poster.TeamA.CoverOpacity;"></div>
+            }
+            <div class="aloball-poster-gradient"></div>
+            <div class="aloball-poster-content">
+                <div class="poster-header">
+                    <span class="poster-category-tag">@poster.Category</span>
+                    <div class="poster-venue-time">
+                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>@poster.Venue · @poster.PitchType · @poster.MatchDate
+                    </div>
+                </div>
+                <div class="poster-scoreboard">
+                    <div class="poster-team">
+                        @if (!string.IsNullOrEmpty(poster.TeamA.LogoUrl))
+                        {
+                            <img src="@poster.TeamA.LogoUrl" class="poster-crest" alt="@poster.TeamA.Name" crossorigin="anonymous" />
+                        }
+                        else
+                        {
+                            <div class="poster-crest-fallback">⚽</div>
+                        }
+                        <div class="poster-team-name">@poster.TeamA.Name</div>
+                    </div>
+                    <div class="poster-scoreline">
+                        <span class="poster-score-digit">@poster.ScoreA</span>
+                        <span class="poster-score-sep">:</span>
+                        <span class="poster-score-digit">@poster.ScoreB</span>
+                    </div>
+                    <div class="poster-team">
+                        @if (!string.IsNullOrEmpty(poster.TeamB.LogoUrl))
+                        {
+                            <img src="@poster.TeamB.LogoUrl" class="poster-crest" alt="@poster.TeamB.Name" crossorigin="anonymous" />
+                        }
+                        else
+                        {
+                            <div class="poster-crest-fallback">🛡️</div>
+                        }
+                        <div class="poster-team-name">@poster.TeamB.Name</div>
+                    </div>
+                </div>
+                <div class="poster-scorers-box">
+                    <div class="poster-scorers-col">
+                        @if (!poster.ScorersA.Any())
+                        {
+                            <div class="text-muted small fst-italic">Chưa có bàn thắng</div>
+                        }
+                        @foreach (var s in poster.ScorersA)
+                        {
+                            <div class="poster-scorer-row">
+                                <span>⚽</span>
+                                <span class="poster-scorer-name">@s.PlayerName</span>
+                                @if (!string.IsNullOrEmpty(s.Minutes)) { <span class="poster-scorer-minute">(@s.Minutes)</span> }
+                                @if (!string.IsNullOrEmpty(s.AssistName)) { <span class="poster-assist-name">👟 @s.AssistName</span> }
+                            </div>
+                        }
+                    </div>
+                    <div class="poster-scorers-col">
+                        @if (!poster.ScorersB.Any())
+                        {
+                            <div class="text-muted small fst-italic">Chưa có bàn thắng</div>
+                        }
+                        @foreach (var s in poster.ScorersB)
+                        {
+                            <div class="poster-scorer-row">
+                                <span>⚽</span>
+                                <span class="poster-scorer-name">@s.PlayerName</span>
+                                @if (!string.IsNullOrEmpty(s.Minutes)) { <span class="poster-scorer-minute">(@s.Minutes)</span> }
+                                @if (!string.IsNullOrEmpty(s.AssistName)) { <span class="poster-assist-name">👟 @s.AssistName</span> }
+                            </div>
+                        }
+                    </div>
+                </div>
+                @if (poster.Motm != null)
+                {
+                    <div class="poster-motm-banner">
+                        <div class="poster-motm-badge">⭐</div>
+                        <div class="poster-motm-info text-start">
+                            <h4>Cầu thủ xuất sắc nhất: @poster.Motm.PlayerName</h4>
+                            <p>@poster.Motm.TeamName · @poster.Motm.Highlight</p>
+                        </div>
+                    </div>
+                }
+                <div class="poster-footer">
+                    Kết quả chính thức xác nhận tại <strong>@poster.BrandTag</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 justify-content-center">
+        <button type="button" class="btn btn-success fw-bold px-4 py-2 shadow" onclick="shareOrDownloadCard('socialMatchPoster', 'Match-Poster-@(poster.ScoreA)-@(poster.ScoreB).png', 'Poster Trận Đấu @poster.TeamA.Name @poster.ScoreA - @poster.ScoreB @poster.TeamB.Name | AloBall')">
+            <i class="bi bi-share-fill me-1"></i> Chia sẻ 1-Chạm (Zalo / FB)
+        </button>
+        <a href="/Matches/Detail/@poster.Id" class="btn btn-outline-light fw-bold px-4 py-2">
+            <i class="bi bi-trophy-fill me-1"></i> Xem chi tiết trận đấu
+        </a>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/share-card.js"></script>
+</body>
+</html>
