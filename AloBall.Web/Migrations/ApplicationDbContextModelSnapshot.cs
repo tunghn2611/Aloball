@@ -93,6 +93,10 @@ namespace AloBall.Web.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("PlayStyles")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<string>("Region")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -1428,6 +1432,10 @@ namespace AloBall.Web.Migrations
                     b.Property<string>("PhotoUrl")
                         .HasColumnType("text");
 
+                    b.Property<string>("PlayStyles")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<string>("Position")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -1893,6 +1901,10 @@ namespace AloBall.Web.Migrations
 
                     b.Property<Guid>("MatchId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PlayStyleVibeTags")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
 
                     b.Property<DateTime?>("ModeratedAt")
                         .HasColumnType("timestamp with time zone");
