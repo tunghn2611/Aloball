@@ -100,17 +100,15 @@ public class ArenaRenderingTests
     }
 
     [Fact]
-    public async Task HomePage_AuthenticatedUser_AlsoRendersLandingPage()
+    public async Task HomePage_AuthenticatedUser_RedirectsToTeamsDashboard()
     {
         using var app = new RequirementsWebFactory();
         await app.Seed();
         using var client = app.Client("owner");
 
         var response = await client.GetAsync("/");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("ALOBALL", html);
-        Assert.Contains("/Teams", html);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Teams", response.Headers.Location?.OriginalString);
     }
 
     [Fact]

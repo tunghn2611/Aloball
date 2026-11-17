@@ -35,7 +35,7 @@ public class HomeControllerTests
     }
 
     [Fact]
-    public void Index_AuthenticatedUser_ReturnsLandingViewResult()
+    public void Index_AuthenticatedUser_RedirectsToTeams()
     {
         using var db = CreateInMemoryDbContext();
         var controller = new HomeController(db, NullLogger<HomeController>.Instance);
@@ -46,8 +46,9 @@ public class HomeControllerTests
 
         var result = controller.Index();
 
-        var viewResult = Assert.IsType<ViewResult>(result);
-        Assert.True(string.IsNullOrEmpty(viewResult.ViewName) || viewResult.ViewName == "Index");
+        var redirectResult = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirectResult.ActionName);
+        Assert.Equal("Teams", redirectResult.ControllerName);
     }
 
     [Fact]
