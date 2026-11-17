@@ -29,8 +29,16 @@
                 <a href="#cach-hoat-dong">Cách hoạt động</a>
             </nav>
             <div class="lp-nav__cta">
-                <a class="lp-btn lp-btn--ghost" href="/Account/Login">Đăng nhập</a>
-                <a class="lp-btn lp-btn--pill" href="/Account/Register">Tạo đội miễn phí</a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a class="lp-btn lp-btn--ghost" href="/kham-pha">Khám phá</a>
+                    <a class="lp-btn lp-btn--pill" href="/Teams">Vào Đội của tôi →</a>
+                }
+                else
+                {
+                    <a class="lp-btn lp-btn--ghost" href="/Account/Login">Đăng nhập</a>
+                    <a class="lp-btn lp-btn--pill" href="/Account/Register">Tạo đội miễn phí</a>
+                }
             </div>
             <button class="lp-burger" type="button" aria-controls="lpDrawer" aria-expanded="false" aria-label="Mở menu"><span></span><span></span><span></span></button>
         </div>
@@ -38,8 +46,16 @@
             <a href="#tinh-nang">Tính năng</a>
             <a href="#he-sinh-thai">Hệ sinh thái phủi</a>
             <a href="#cach-hoat-dong">Cách hoạt động</a>
-            <a class="lp-btn lp-btn--ghost" href="/Account/Login">Đăng nhập</a>
-            <a class="lp-btn lp-btn--pill" href="/Account/Register">Tạo đội miễn phí</a>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="lp-btn lp-btn--ghost" href="/kham-pha">Khám phá</a>
+                <a class="lp-btn lp-btn--pill" href="/Teams">Vào Đội của tôi →</a>
+            }
+            else
+            {
+                <a class="lp-btn lp-btn--ghost" href="/Account/Login">Đăng nhập</a>
+                <a class="lp-btn lp-btn--pill" href="/Account/Register">Tạo đội miễn phí</a>
+            }
         </div>
     </header>
 
