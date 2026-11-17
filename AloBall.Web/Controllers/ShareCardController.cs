@@ -254,6 +254,7 @@ public class ShareCardController : Controller
             Region = player.Region ?? player.Team?.ActivityArea ?? "Hà Nội",
             Experience = player.Experience ?? "Phong trào",
             PhotoUrl = player.PhotoUrl ?? player.LinkedUser?.AvatarUrl,
+            PlayStyles = player.PlayStyles ?? player.LinkedUser?.PlayStyles,
             TeamName = player.Team?.Name ?? "AloBall FC",
             TeamSlug = player.Team?.Slug,
             TeamLogoUrl = player.Team?.LogoUrl,

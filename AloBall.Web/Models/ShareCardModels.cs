@@ -23,6 +23,7 @@ public class PlayerCardDto
     public string? Region { get; set; }
     public string? Experience { get; set; }
     public string? PhotoUrl { get; set; }
+    public string? PlayStyles { get; set; }
     public string? TeamName { get; set; }
     public string? TeamSlug { get; set; }
     public string? TeamLogoUrl { get; set; }

@@ -741,6 +741,23 @@
         category = AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(p.Position ?? "MF")
     })));
 
+    // FC 27 PlayStyle SVG Map & Catalog
+    const fc27SvgMap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AloBall.Web.Models.PlayStyleCatalog.All.ToDictionary(s => s.Code, s => s.SvgPath)));
+    const fc27CatalogMap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AloBall.Web.Models.PlayStyleCatalog.All.ToDictionary(s => s.Code, s => new { s.NameVi, s.NameEn, s.Category })));
+    window.fc27SvgMap = fc27SvgMap;
+    window.fc27CatalogMap = fc27CatalogMap;
+
+    function getPlayerPlayStyles(player) {
+        let raw = player.playStyles || player.PlayStyles;
+        if (raw && typeof raw === 'string' && raw.trim().length > 0) return raw.trim();
+        // Smart positional default PlayStyles if not yet assigned by captain
+        const cat = player.category || 'MF';
+        if (cat === 'GK') return 'DEFLECTOR+,GK_AERIAL';
+        if (cat === 'DF') return 'ANTICIPATE+,BRUISER,MAN_MARKER';
+        if (cat === 'FW') return 'POWER_SHOT+,CLINICAL,RAPID';
+        return 'TIKI_TAKA+,INCISIVE,RELENTLESS';
+    }
+
     // Lineup In-Memory State
     let sideASlots = []; // Array of slot assignments for Team A
     let sideBSlots = []; // Array of slot assignments for Team B
@@ -1004,7 +1021,8 @@
             photoUrl: p.photoUrl || p.PhotoUrl,
             preferredFoot: p.preferredFoot || p.PreferredFoot,
             experience: p.experience || p.Experience,
-            category: p.category || p.Category || 'MF'
+            category: p.category || p.Category || 'MF',
+            playStyles: p.playStyles || p.PlayStyles || ''
         }));
 
         const explicitSubIds = getSelectedModalSubstituteIds() || [];
@@ -1107,7 +1125,8 @@
             photoUrl: p.photoUrl || p.PhotoUrl,
             preferredFoot: p.preferredFoot || p.PreferredFoot,
             experience: p.experience || p.Experience,
-            category: p.category || p.Category || 'MF'
+            category: p.category || p.Category || 'MF',
+            playStyles: p.playStyles || p.PlayStyles || ''
         }));
 
         const explicitSubIds = getSelectedModalSubstituteIds() || [];
@@ -1243,7 +1262,8 @@
             photoUrl: p.photoUrl || p.PhotoUrl,
             preferredFoot: p.preferredFoot || p.PreferredFoot,
             experience: p.experience || p.Experience,
-            category: p.category || p.Category || 'MF'
+            category: p.category || p.Category || 'MF',
+            playStyles: p.playStyles || p.PlayStyles || ''
         }));
 
         const explicitSubIds = getSelectedModalSubstituteIds() || [];
@@ -1395,11 +1415,11 @@
         });
     }
 
-    // Create an AloBall Premium Player Card DOM element
+    // Create an AloBall Premium Player Card DOM element with FC 27 Shield & Side-attached PlayStyle Diamonds
     function createPlayerCardElement(player, side, isBench) {
         const card = document.createElement('div');
         const posCat = player.category || 'MF';
-        card.className = `ab-card-premium fc27-shield-card ${side === 'B' ? 'side-B-card' : ''} ${!isManagerRole ? 'readonly-card' : ''}`;
+        card.className = `ab-card-premium fc27-card-wrapper ${side === 'B' ? 'side-B-card' : ''} ${!isManagerRole ? 'readonly-card' : ''}`;
         card.dataset.playerId = player.playerId;
         card.dataset.playerName = player.playerName;
         card.dataset.side = side;
@@ -1433,17 +1453,19 @@
 
         // Render up to 4 PlayStyle diamond badges stacked vertically along side edge
         let psBadgesHtml = '';
-        const rawPS = player.playStyles || player.PlayStyles;
+        const rawPS = getPlayerPlayStyles(player);
         if (rawPS && typeof fc27SvgMap !== 'undefined') {
             const tokens = rawPS.split(',').map(t => t.trim()).filter(Boolean).slice(0, 4);
             if (tokens.length > 0) {
-                psBadgesHtml = '<div class="fc27-pitch-card-playstyles">';
+                psBadgesHtml = '<div class="fc27-pitch-card-playstyles" aria-label="PlayStyles">';
                 tokens.forEach(t => {
                     const isPlus = t.endsWith('+');
                     const code = t.replace('+', '').toUpperCase();
                     const iconPath = fc27SvgMap[code];
+                    const meta = typeof fc27CatalogMap !== 'undefined' ? fc27CatalogMap[code] : null;
+                    const tooltipText = meta ? `${meta.nameVi} · ${meta.nameEn}${isPlus ? ' ★ [PlayStyle+]' : ''}` : `${code}${isPlus ? ' [PlayStyle+]' : ''}`;
                     if (iconPath) {
-                        psBadgesHtml += `<span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" title="${code}${isPlus ? ' [PlayStyle+]' : ''}"><svg viewBox="0 0 24 24" class="fc27-ps-icon"><path d="${iconPath}" fill="currentColor"/></svg></span>`;
+                        psBadgesHtml += `<span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" title="${escapeHtml(tooltipText)}" data-bs-toggle="tooltip" data-bs-placement="right"><svg viewBox="0 0 24 24" class="fc27-ps-icon" aria-hidden="true"><path d="${iconPath}" fill="currentColor"/></svg></span>`;
                     }
                 });
                 psBadgesHtml += '</div>';
@@ -1452,19 +1474,21 @@
 
         card.innerHTML = `
             ${psBadgesHtml}
-            <div class="fc27-shield-top">
-                <span class="fc27-shield-ovr">${ovr}</span>
-                <span class="fc27-shield-pos fc27-pos-${posCat}">${player.slotCode || posCat}</span>
+            <div class="fc27-shield-card ${side === 'B' ? 'side-B-card' : ''}">
+                <div class="fc27-shield-top">
+                    <span class="fc27-shield-ovr">${ovr}</span>
+                    <span class="fc27-shield-pos fc27-pos-${posCat}">${player.slotCode || posCat}</span>
+                </div>
+                <div class="fc27-shield-avatar">
+                    ${player.photoUrl ? `<img src="${escapeHtml(player.photoUrl)}" alt="${escapeHtml(player.playerName)}" />` : `<span class="fc27-shield-fallback">${initials}</span>`}
+                </div>
+                <div class="fc27-shield-name">${escapeHtml(shortName)}</div>
+                <div class="fc27-shield-submeta">
+                    <span>#${player.kitNumber || '-'}</span>
+                    <span>${footIcon}</span>
+                </div>
+                ${player.assignmentReason ? `<div class="ab-card-reason-pill">${escapeHtml(player.assignmentReason)}</div>` : ''}
             </div>
-            <div class="fc27-shield-avatar">
-                ${player.photoUrl ? `<img src="${escapeHtml(player.photoUrl)}" alt="${escapeHtml(player.playerName)}" />` : `<span class="fc27-shield-fallback">${initials}</span>`}
-            </div>
-            <div class="fc27-shield-name">${escapeHtml(shortName)}</div>
-            <div class="fc27-shield-submeta">
-                <span>#${player.kitNumber || '-'}</span>
-                <span>${footIcon}</span>
-            </div>
-            ${player.assignmentReason ? `<div class="ab-card-reason-pill">${escapeHtml(player.assignmentReason)}</div>` : ''}
         `;
 
         return card;

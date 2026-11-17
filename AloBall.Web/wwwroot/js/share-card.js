@@ -94,6 +94,43 @@
             if (!res.ok) throw new Error('Không thể tải dữ liệu cầu thủ');
             const data = await res.json();
 
+            if (!window.fc27SvgMap) {
+                try {
+                    const catRes = await fetch('/api/playstyles/catalog');
+                    if (catRes.ok) {
+                        const catData = await catRes.json();
+                        window.fc27SvgMap = {};
+                        window.fc27CatalogMap = {};
+                        (catData.categories || []).forEach(c => {
+                            (c.skills || []).forEach(s => {
+                                window.fc27SvgMap[s.code] = s.svgPath;
+                                window.fc27CatalogMap[s.code] = s;
+                            });
+                        });
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            let futPsHtml = '';
+            const futPsRaw = data.playStyles || (data.posCode === 'GK' ? 'DEFLECTOR+,GK_AERIAL' : data.posCode === 'CB' || data.posCode === 'DF' || data.posCode === 'LB' || data.posCode === 'RB' ? 'ANTICIPATE+,BRUISER,MAN_MARKER' : data.posCode === 'ST' || data.posCode === 'FW' ? 'POWER_SHOT+,CLINICAL,RAPID' : 'TIKI_TAKA+,INCISIVE,RELENTLESS');
+            if (futPsRaw && window.fc27SvgMap) {
+                const tokens = futPsRaw.split(',').map(t => t.trim()).filter(Boolean).slice(0, 4);
+                if (tokens.length > 0) {
+                    futPsHtml = '<div class="fc-playstyles-row" style="display:flex;justify-content:center;gap:6px;margin:2px 0 6px 0;">';
+                    tokens.forEach(t => {
+                        const isPlus = t.endsWith('+');
+                        const code = t.replace('+', '').toUpperCase();
+                        const iconPath = window.fc27SvgMap[code];
+                        const meta = window.fc27CatalogMap ? window.fc27CatalogMap[code] : null;
+                        const title = meta ? `${meta.nameVi} · ${meta.nameEn}${isPlus ? ' ★ [PlayStyle+]' : ''}` : code;
+                        if (iconPath) {
+                            futPsHtml += `<span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" style="width:22px;height:22px;" title="${title}"><svg viewBox="0 0 24 24" class="fc27-ps-icon" style="width:13px;height:13px;"><path d="${iconPath}" fill="currentColor"/></svg></span>`;
+                        }
+                    });
+                    futPsHtml += '</div>';
+                }
+            }
+
             const photoSrc = getProxiedUrl(data.photoUrl);
             const logoSrc = getProxiedUrl(data.teamLogoUrl);
 
@@ -115,6 +152,7 @@
                                 <h3 class="fc-name">${data.displayName}</h3>
                                 <div class="fc-club-name">${data.teamName}</div>
                             </div>
+                            ${futPsHtml}
                             <div class="fc-stats-grid">
                                 <div class="fc-stat-item"><span class="fc-stat-val">${data.stats.att}</span><span class="fc-stat-label">ATT</span></div>
                                 <div class="fc-stat-item"><span class="fc-stat-val">${data.stats.cre}</span><span class="fc-stat-label">CRE</span></div>
