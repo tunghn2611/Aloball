@@ -1,18 +1,55 @@
 @model AloBall.Web.Controllers.RegisterViewModel
 @{ ViewData["Title"] = "Tạo tài khoản"; }
 <div class="auth-layout">
-    <section class="auth-story"><span class="eyebrow">YOUR NEXT CHAPTER</span><h1>Trận cầu hay<br />bắt đầu từ<br /><em>một kết nối.</em></h1><p>Tham gia AloBall, tạo đội của bạn và giữ đam mê ra sân mỗi tuần.</p><span class="auth-mark" aria-hidden="true">01.</span></section>
-    <section class="auth-form"><span class="eyebrow">GIA NHẬP CỘNG ĐỒNG</span><h2>Tạo tài khoản</h2><p>Rất vui được có bạn trong đội.</p>
+    <section class="auth-story">
+        <div>
+            <a href="/" class="auth-back-link"><i class="bi bi-arrow-left"></i> Về trang giới thiệu AloBall</a>
+            <div class="mt-2"><span class="eyebrow">⚡ YOUR NEXT CHAPTER</span></div>
+            <h1>Trận cầu hay<br />bắt đầu từ<br /><em>một kết nối.</em></h1>
+            <p>Khởi tạo CLB trong 60 giây, gửi link điểm danh Zalo và tự động phát thẻ chỉ số FIFA cho toàn đội.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-3 small text-light opacity-75">
+            <span>✓ Không bắt cả đội cài app</span>
+            <span>✓ Chia tiền sân VietQR</span>
+        </div>
+        <span class="auth-mark" aria-hidden="true">01.</span>
+    </section>
+    <section class="auth-form">
+        <span class="eyebrow text-success">GIA NHẬP CỘNG ĐỒNG PHỦI VIỆT</span>
+        <h2>Tạo tài khoản mới</h2>
+        <p>Hoàn toàn miễn phí cho đội trưởng và cầu thủ.</p>
         <form asp-action="Register" method="post">
             <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-            <div class="mb-3"><label asp-for="FullName" class="form-label">Họ và tên</label><input asp-for="FullName" class="form-control" autocomplete="name" placeholder="Tên đồng đội sẽ gọi bạn" required /><span asp-validation-for="FullName" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="Email" class="form-label">Email</label><input asp-for="Email" type="email" class="form-control" autocomplete="username" placeholder="ban@example.com" required /><span asp-validation-for="Email" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="Password" class="form-label">Mật khẩu</label><input asp-for="Password" type="password" class="form-control" autocomplete="new-password" placeholder="Tạo mật khẩu của bạn" required /><span asp-validation-for="Password" class="text-danger"></span></div>
-            <div class="mb-4"><label asp-for="ConfirmPassword" class="form-label">Nhập lại mật khẩu</label><input asp-for="ConfirmPassword" type="password" class="form-control" autocomplete="new-password" placeholder="Xác nhận mật khẩu" required /><span asp-validation-for="ConfirmPassword" class="text-danger"></span></div>
-            <button type="submit" class="btn btn-arena-primary">Tạo tài khoản <i class="bi bi-arrow-right"></i></button>
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label">Họ và tên cầu thủ / Đội trưởng</label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" placeholder="Tên đồng đội thường gọi trên sân" required />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label">Địa chỉ Email</label>
+                <input asp-for="Email" type="email" class="form-control" autocomplete="username" placeholder="ban@example.com" required />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label">Mật khẩu</label>
+                <div class="pw-field">
+                    <input asp-for="Password" type="password" class="form-control" autocomplete="new-password" placeholder="Tối thiểu 6 ký tự" required />
+                    <button type="button" class="pw-toggle" aria-label="Hiện hoặc ẩn mật khẩu" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.firstElementChild.className=i.type==='password'?'bi bi-eye':'bi bi-eye-slash'"><i class="bi bi-eye"></i></button>
+                </div>
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+            <div class="mb-4">
+                <label asp-for="ConfirmPassword" class="form-label">Xác nhận lại mật khẩu</label>
+                <div class="pw-field">
+                    <input asp-for="ConfirmPassword" type="password" class="form-control" autocomplete="new-password" placeholder="Nhập lại mật khẩu" required />
+                    <button type="button" class="pw-toggle" aria-label="Hiện hoặc ẩn mật khẩu" onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.firstElementChild.className=i.type==='password'?'bi bi-eye':'bi bi-eye-slash'"><i class="bi bi-eye"></i></button>
+                </div>
+                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-arena-primary">Tạo tài khoản &amp; Vào sân <i class="bi bi-arrow-right"></i></button>
         </form>
-        <div class="auth-switch">Đã là đồng đội? <a asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]">Đăng nhập</a></div>
+        <div class="auth-switch">Đã có tài khoản AloBall? <a asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]">Đăng nhập ngay</a></div>
     </section>
 </div>
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

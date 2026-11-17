@@ -1,0 +1,205 @@
+/* AloBall landing — Modern Stadium Daylight */
+:root{--lp-nav-h:68px;--bg:#F8FAFC;--card:#fff;--line:#E2E8F0;--emerald:#064E3B;--turf:#10B981;--slate:#0F172A;--gold:#F59E0B;--muted:#475569;--shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.08)}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body.lp{margin:0;background:var(--bg);color:var(--slate);font:400 1rem/1.6 "Be Vietnam Pro",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.lp h1,.lp h2,.lp h3,.lp p{margin:0}
+.lp a{color:inherit;text-decoration:none}
+.lp-skip{position:absolute;left:-999px}.lp-skip:focus{left:8px;top:8px;background:#fff;padding:8px 12px;z-index:100}
+.lp-container{width:min(1160px,100% - 32px);margin-inline:auto}
+:focus-visible{outline:3px solid var(--turf);outline-offset:2px}
+
+/* Buttons */
+.lp-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 22px;border-radius:12px;font-weight:700;font-size:.95rem;border:1.5px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s;text-align:center}
+.lp-btn:hover{transform:translateY(-1px)}
+.lp-btn--pill{background:var(--turf);color:#fff;border-radius:999px;box-shadow:0 6px 16px rgba(16,185,129,.35)}
+.lp-btn--ghost{color:var(--emerald);background:transparent}.lp-btn--ghost:hover{background:#ECFDF5}
+.lp-btn--primary{background:var(--emerald);color:#fff;box-shadow:0 8px 20px rgba(6,78,59,.28)}
+.lp-btn--secondary{background:#fff;color:var(--emerald);border-color:var(--line)}
+.lp-btn--gold{background:var(--gold);color:var(--slate)}
+.lp-btn--lg{min-height:56px;padding:0 34px;font-size:1.05rem;border-radius:14px}
+
+/* Navbar */
+.lp-nav{position:sticky;top:0;z-index:50;background:rgba(248,250,252,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(226,232,240,.8)}
+.lp-nav__bar{display:flex;align-items:center;gap:24px;min-height:68px}
+.lp-brand{display:flex;align-items:center;gap:10px;font:800 1.5rem/1 "Barlow Condensed",sans-serif;letter-spacing:.06em;color:var(--emerald)}
+.lp-brand--light{color:#fff}
+.lp-nav__links{display:none;gap:28px;margin-left:24px;font-weight:600;color:var(--muted)}
+.lp-nav__links a{min-height:48px;display:flex;align-items:center}.lp-nav__links a:hover{color:var(--emerald)}
+.lp-nav__cta{display:none;gap:8px;margin-left:auto}
+.lp-burger{margin-left:auto;width:48px;height:48px;border:0;background:none;display:grid;place-content:center;gap:5px;cursor:pointer}
+.lp-burger span{display:block;width:24px;height:2.500px;background:var(--emerald);border-radius:2px;transition:transform .2s,opacity .2s}
+.lp-burger[aria-expanded=true] span:nth-child(1){transform:translateY(7.500px) rotate(45deg)}
+.lp-burger[aria-expanded=true] span:nth-child(2){opacity:0}
+.lp-burger[aria-expanded=true] span:nth-child(3){transform:translateY(-7.500px) rotate(-45deg)}
+.lp-drawer{display:grid;gap:8px;padding:8px 16px 20px;background:#fff;border-top:1px solid var(--line);animation:drop .2s ease-out}
+.lp-drawer[hidden]{display:none}
+.lp-drawer>a:not(.lp-btn){min-height:48px;display:flex;align-items:center;font-weight:600}
+@keyframes drop{from{opacity:0;transform:translateY(-8px)}}
+@media(min-width:900px){.lp-nav__links,.lp-nav__cta{display:flex}.lp-burger,.lp-drawer{display:none!important}}
+
+/* Hero */
+.lp-hero{padding:40px 0 64px;background:radial-gradient(900px 400px at 85% 0,rgba(16,185,129,.14),transparent 70%)}
+.lp-hero__grid{display:grid;gap:48px;align-items:center}
+.lp-badge{display:inline-block;padding:6px 14px;border-radius:999px;background:#ECFDF5;color:var(--emerald);border:1px solid #A7F3D0;font-weight:600;font-size:.8rem}
+.lp-hero h1{margin:16px 0;font-size:clamp(1.9rem,6.500vw,3.3rem);font-weight:800;line-height:1.15;letter-spacing:-.02em;color:var(--emerald)}
+.lp-lead{font-size:1.1rem;color:var(--muted);max-width:56ch}
+.lp-actions{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0 20px}
+.lp-actions .lp-btn{flex:1 1 220px}
+.lp-trust{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0;list-style:none;font-size:.875rem;font-weight:600;color:var(--emerald)}
+@media(min-width:900px){.lp-hero{padding:72px 0 96px}.lp-hero__grid{grid-template-columns:1.05fr .95fr}.lp-actions .lp-btn{flex:0 0 auto}}
+
+/* Floating mockup */
+.lp-hero__visual{position:relative;display:grid;gap:14px;max-width:460px;width:100%;margin-inline:auto}
+.lp-float{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+.lp-float header{display:flex;flex-direction:column;gap:2px;margin-bottom:12px}
+.lp-tag{font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--turf)}.lp-tag--gold{color:#B45309}
+.lp-toggle{display:flex;gap:8px}
+.lp-toggle button{flex:1;min-height:48px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font:600 .85rem "Be Vietnam Pro",sans-serif;cursor:pointer;color:var(--muted)}
+.lp-toggle button.is-on{background:var(--turf);border-color:var(--turf);color:#fff}
+.lp-progress{height:8px;margin:14px 0;background:#E2E8F0;border-radius:99px;overflow:hidden}
+.lp-progress i{display:block;height:100%;background:linear-gradient(90deg,var(--turf),#34D399);border-radius:99px;transition:width .3s}
+.lp-chip{display:inline-block;padding:6px 12px;border-radius:999px;background:#F1F5F9;font-size:.8rem;font-weight:600}
+.lp-bill{font-size:.95rem}.lp-bill strong{color:var(--emerald);font-size:1.1rem}
+.lp-status{display:inline-block;margin-top:10px;padding:4px 12px;border-radius:99px;background:#D1FAE5;color:#047857;font-size:.8rem;font-weight:700}
+.lp-float--card{background:transparent;border:0;box-shadow:none;padding:0;justify-self:end}
+.lp-fut{width:190px;padding:16px;border-radius:18px 18px 40px 40px;display:grid;justify-items:center;gap:2px;text-align:center;color:#3B2A05;background:linear-gradient(145deg,#FDE68A,#F59E0B 55%,#B45309);box-shadow:0 14px 30px rgba(180,83,9,.4),inset 0 0 0 2px rgba(255,255,255,.35)}
+.lp-fut__top{display:flex;gap:10px;align-items:baseline;font-family:"Barlow Condensed",sans-serif}.lp-fut__top b{font-size:2.6rem;line-height:1;font-weight:800}.lp-fut__top span{font-size:1.2rem;font-weight:700}
+.lp-fut strong{font:800 1.2rem "Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.05em}
+.lp-fut small{font-size:.7rem;font-weight:600}.lp-fut em{margin-top:4px;padding:2px 10px;border-radius:99px;background:var(--slate);color:var(--gold);font-style:normal;font-size:.72rem;font-weight:700}
+.lp-fut--sm{width:150px;margin:12px auto}.lp-fut--sm .lp-fut__top b{font-size:2rem}
+@media(min-width:900px){.lp-hero__visual{display:block;min-height:440px}.lp-float{position:absolute}.lp-float--att{top:0;left:0;width:300px;transform:rotate(-2deg)}.lp-float--bill{top:210px;right:0;width:260px;transform:rotate(2deg)}.lp-float--card{bottom:0;left:30px;animation:bob 5s ease-in-out infinite}}
+@keyframes bob{50%{transform:translateY(-8px)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Sections */
+.lp-section{padding:64px 0}.lp-section--tint{background:#fff;border-block:1px solid var(--line)}
+.lp-head{text-align:center;max-width:680px;margin:0 auto 40px}
+.lp-eyebrow{font-size:.75rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--turf)}
+.lp-head h2{margin-top:8px;font-size:clamp(1.6rem,4.500vw,2.4rem);font-weight:800;line-height:1.2;letter-spacing:-.01em}
+
+/* Bento */
+.lp-bento{display:grid;gap:16px}
+.lp-card{padding:24px;background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s}
+.lp-card:hover{transform:translateY(-3px)}
+.lp-card svg{width:44px;height:44px;padding:10px;border-radius:12px;background:#ECFDF5;fill:none;stroke:var(--emerald);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-bottom:14px}
+.lp-card h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}.lp-card p{color:var(--muted);font-size:.95rem}.lp-card em{font-style:normal;font-weight:700;color:var(--emerald)}
+.lp-card--dark{background:var(--slate);border-color:var(--slate);color:#fff}.lp-card--dark p{color:#CBD5E1}.lp-card--dark svg{background:rgba(245,158,11,.15);stroke:var(--gold)}
+@media(min-width:640px){.lp-bento{grid-template-columns:repeat(2,1fr)}.lp-card--wide{grid-column:span 2}}
+@media(min-width:1000px){.lp-bento{grid-template-columns:repeat(3,1fr)}.lp-card--wide{grid-column:span 2}.lp-card--wide:nth-child(4){grid-column:span 2}}
+
+/* Showcase */
+.lp-showcase{display:grid;gap:28px;align-items:center}
+.lp-tabs{display:grid;gap:10px}
+.lp-tabs button{min-height:56px;padding:12px 18px;text-align:left;border:1.5px solid var(--line);border-radius:14px;background:var(--bg);font:600 .95rem "Be Vietnam Pro",sans-serif;color:var(--muted);cursor:pointer;transition:all .2s}
+.lp-tabs button.is-active{background:var(--emerald);border-color:var(--emerald);color:#fff;box-shadow:0 8px 20px rgba(6,78,59,.25)}
+.lp-phone{position:relative;width:min(300px,100%);min-height:420px;margin-inline:auto;padding:34px 16px 20px;border:8px solid var(--slate);border-radius:36px;background:var(--bg);box-shadow:0 24px 50px rgba(15,23,42,.25)}
+.lp-phone__notch{position:absolute;top:8px;left:50%;width:80px;height:6px;margin-left:-40px;border-radius:9px;background:var(--slate)}
+.lp-screen[hidden]{display:none}.lp-screen.is-active{animation:fade .3s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}}
+.lp-screen h3{font-size:1rem;font-weight:800;margin-bottom:12px;color:var(--emerald)}
+.lp-list{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
+.lp-list li{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:12px;font-size:.88rem;font-weight:600}
+.lp-list span{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#ECFDF5;font-size:.75rem;color:var(--emerald)}
+.lp-list em{margin-left:auto;font-style:normal;font-size:.75rem;color:var(--muted)}.lp-list em.ok{color:#047857}.lp-list em.no{color:#B91C1C}
+.lp-split{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lp-split div{padding:10px;border-radius:12px;background:var(--slate);color:#fff;text-align:center}.lp-split small{display:block;color:var(--gold);font-size:.7rem}
+.lp-score{display:flex;justify-content:center;gap:14px;margin-bottom:14px;font:800 3.200rem/1 "Barlow Condensed",sans-serif;color:var(--slate)}.lp-score span{color:var(--turf)}
+@media(min-width:900px){.lp-showcase{grid-template-columns:1fr 340px;gap:64px}}
+
+/* Steps */
+.lp-steps{display:grid;gap:16px;margin:0;padding:0;list-style:none;counter-reset:s}
+.lp-steps li{padding:28px 24px;background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.lp-steps b{display:grid;place-items:center;width:48px;height:48px;margin-bottom:14px;border-radius:50%;background:var(--emerald);color:#fff;font:800 1.5rem "Barlow Condensed",sans-serif}
+.lp-steps h3{font-size:1.1rem;margin-bottom:6px}.lp-steps p{color:var(--muted)}
+@media(min-width:800px){.lp-steps{grid-template-columns:repeat(3,1fr)}}
+
+/* CTA + footer */
+.lp-cta{padding:72px 0;text-align:center;color:#fff;background:radial-gradient(600px 240px at 50% 0,rgba(16,185,129,.35),transparent 70%),repeating-linear-gradient(90deg,#064E3B 0 80px,#055344 80px 160px)}
+.lp-cta h2{max-width:20ch;margin:0 auto 28px;font-size:clamp(1.7rem,5vw,2.7rem);font-weight:800;line-height:1.2}
+.lp-footer{background:var(--slate);color:#CBD5E1;padding:48px 0 24px}
+.lp-footer__grid{display:grid;gap:28px}.lp-footer p{margin-top:8px;font-size:.9rem}
+.lp-footer nav{display:flex;flex-wrap:wrap;gap:4px 24px}.lp-footer nav a{min-height:44px;display:flex;align-items:center;font-size:.9rem}.lp-footer nav a:hover{color:#fff}
+.lp-footer__copy{margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1);font-size:.8rem;color:#94A3B8}
+@media(min-width:700px){.lp-footer__grid{grid-template-columns:1fr 2fr}.lp-footer nav{justify-content:flex-end}}
+
+/* ===== Broadcast hero upgrade ===== */
+@property --a{syntax:"<angle>";inherits:false;initial-value:0deg}
+.lp-hero, .hero{position:relative;overflow:hidden;isolation:isolate;padding:calc(var(--lp-nav-h,68px) + 16px) 0 72px;color:#fff;background:linear-gradient(170deg,#020617 0%,#04251f 55%,#064E3B 100%);scroll-margin-top:calc(var(--lp-nav-h,68px) + 16px)}
+.lp-hero .lp-hero__grid{position:relative;padding-top:40px}
+@media(min-width:900px){.lp-hero{padding-bottom:104px}.lp-hero .lp-hero__grid{padding-top:72px}}
+.lp-stage{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.lp-stage__video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1s}
+.lp-stage__video.is-ready{opacity:.35}
+.lp-dust{position:absolute;inset:0;width:100%;height:100%}
+.lp-beam{position:absolute;top:-12%;width:70%;height:125%;transform-origin:50% 0;background:linear-gradient(to bottom,rgba(226,255,244,.34),rgba(16,185,129,.08) 55%,transparent);clip-path:polygon(47% 0,53% 0,100% 100%,0 100%);filter:blur(10px);mix-blend-mode:screen;will-change:transform}
+.lp-beam--l{left:-18%;animation:sweepL 9s ease-in-out infinite alternate}
+.lp-beam--r{right:-18%;animation:sweepR 11s ease-in-out infinite alternate}
+@keyframes sweepL{from{transform:rotate(-14deg)}to{transform:rotate(6deg)}}
+@keyframes sweepR{from{transform:rotate(14deg)}to{transform:rotate(-6deg)}}
+.lp-pitchgrid{position:absolute;left:-30%;right:-30%;bottom:0;height:46%;transform:perspective(520px) rotateX(64deg);transform-origin:50% 100%;background:repeating-linear-gradient(90deg,rgba(52,211,153,.45) 0 2px,transparent 2px 90px),repeating-linear-gradient(0deg,rgba(52,211,153,.45) 0 2px,transparent 2px 70px);-webkit-mask-image:linear-gradient(to top,#000 5%,transparent 85%);mask-image:linear-gradient(to top,#000 5%,transparent 85%);animation:gridRun 6s linear infinite}
+@keyframes gridRun{to{background-position:0 70px,0 70px}}
+
+/* Ticker */
+.lp-ticker{display:flex;align-items:stretch;height:44px;overflow:hidden;background:rgba(2,6,23,.72);border-bottom:1px solid rgba(255,255,255,.08);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.lp-live{flex:none;display:flex;align-items:center;gap:8px;padding:0 24px 0 16px;background:linear-gradient(90deg,#DC2626,#EF4444);clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%);font:800 .95rem "Barlow Condensed",sans-serif;letter-spacing:.1em}
+.lp-live i{width:9px;height:9px;border-radius:50%;background:#fff;animation:livePulse 1.2s ease-in-out infinite}
+@keyframes livePulse{50%{opacity:.25;transform:scale(.7)}}
+.lp-ticker__track{display:flex;flex:1;overflow:hidden;align-items:center}
+.lp-ticker__track p{flex:none;padding-right:2rem;white-space:nowrap;font-size:.85rem;font-weight:600;color:#E2E8F0;animation:marquee 32s linear infinite}
+.lp-ticker__track b{color:var(--turf);margin:0 .5rem}
+.lp-ticker:hover p{animation-play-state:paused}
+@keyframes marquee{to{transform:translateX(-100%)}}
+
+/* Kinetic type */
+.lp-hero h1{color:#fff;font-family:"Barlow Condensed","Be Vietnam Pro",sans-serif;font-weight:800;font-size:clamp(2.4rem,9.5vw,4.4rem);line-height:1.02;letter-spacing:.005em;text-shadow:0 4px 30px rgba(0,0,0,.4)}
+.lp-grad{background:linear-gradient(90deg,#34D399 0%,#FDE68A 55%,#F59E0B 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.lp-hero .lp-lead{color:#CBD5E1}
+.lp-hero .lp-badge{background:rgba(16,185,129,.14);color:#6EE7B7;border-color:rgba(52,211,153,.4)}
+.lp-hero .lp-trust{color:#A7F3D0}
+.lp-hero .lp-btn--primary{background:linear-gradient(135deg,#10B981,#059669);box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 10px 30px rgba(16,185,129,.45)}
+.lp-hero .lp-btn--secondary{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.28);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.lp-hero .lp-btn--secondary:hover{background:rgba(255,255,255,.16)}
+
+/* Glass cards */
+.lp-hero .lp-float{background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.24);color:#fff;-webkit-backdrop-filter:blur(16px) saturate(140%);backdrop-filter:blur(16px) saturate(140%);box-shadow:0 20px 50px rgba(2,6,23,.45),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .15s ease-out;transform:perspective(800px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+.lp-hero .lp-float--card{background:none;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.lp-hero .lp-tag{color:#6EE7B7}.lp-hero .lp-tag--gold{color:#FCD34D}
+.lp-hero .lp-toggle button{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#E2E8F0;transition:transform .12s,background .2s}
+.lp-hero .lp-toggle button:active,.lp-status:active{transform:scale(.95)}
+.lp-hero .lp-toggle button.is-on{background:var(--turf);border-color:#6EE7B7;color:#fff;box-shadow:0 0 18px rgba(16,185,129,.55)}
+.lp-hero .lp-progress{background:rgba(255,255,255,.16)}
+.lp-hero .lp-chip{background:rgba(255,255,255,.14);color:#fff}
+.lp-hero .lp-bill strong{color:#FDE68A}
+.lp-hero .lp-status{min-height:48px;padding:0 18px;border:1.5px solid rgba(110,231,183,.5);background:rgba(16,185,129,.22);color:#6EE7B7;border-radius:12px;font:700 .85rem "Be Vietnam Pro",sans-serif;cursor:pointer;transition:transform .12s}
+.lp-status.is-pulse,.lp-float.is-pulse{animation:ripple .5s ease-out}
+@keyframes ripple{0%{box-shadow:0 0 0 0 rgba(52,211,153,.7)}100%{box-shadow:0 0 0 18px rgba(52,211,153,0)}}
+.lp-float--att{transform:perspective(800px) rotate(-2deg) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+@media(min-width:900px){.lp-hero .lp-float--att{transform:perspective(800px) rotate(-2deg) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}.lp-hero .lp-float--bill{transform:perspective(800px) rotate(2deg) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}}
+
+/* Metallic gold shimmer */
+.lp-fut{position:relative;overflow:hidden;border:2px solid transparent;background:linear-gradient(145deg,#FDE68A,#F59E0B 55%,#B45309) padding-box,conic-gradient(from var(--a),#FDE68A,#B45309,#FFF7D6,#F59E0B,#FDE68A) border-box;animation:spinA 5s linear infinite}
+.lp-fut::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);transform:translateX(-120%);animation:shine 3.6s ease-in-out infinite}
+@keyframes spinA{to{--a:360deg}}
+@keyframes shine{50%,100%{transform:translateX(120%)}}
+
+/* Stadium tunnel strip */
+.lp-tunnel{position:relative;overflow:hidden;background:#020617;border-block:1px solid rgba(52,211,153,.25);color:#fff}
+.lp-tunnel::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(16,185,129,.1) 0 22px,transparent 22px 64px),linear-gradient(100deg,transparent 60%,rgba(245,158,11,.14) 60% 72%,transparent 72%)}
+.lp-tunnel__grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr)}
+.lp-stat{position:relative;padding:28px 6px;text-align:center}
+.lp-stat+.lp-stat::before{content:"";position:absolute;left:0;top:22%;bottom:22%;width:3px;background:linear-gradient(var(--gold),var(--turf));transform:skewX(-20deg)}
+.lp-stat b{display:block;font:800 clamp(2rem,9vw,3.8rem)/1 "Barlow Condensed",sans-serif;background:linear-gradient(180deg,#fff,#6EE7B7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-variant-numeric:tabular-nums}
+.lp-stat small{display:block;margin-top:6px;font-size:clamp(.68rem,2.8vw,.9rem);font-weight:600;color:#A7F3D0;letter-spacing:.02em}
+
+/* Refinements: Mobile beams opacity, responsive padding & 900px-1150px stack grid */
+@media(max-width:420px){
+  .lp-beam{opacity:.35!important}
+}
+@media(min-width:900px) and (max-width:1150px){
+  .lp-hero .lp-hero__visual,
+  .lp-hero__visual{display:grid!important;grid-template-columns:1fr;gap:16px;min-height:auto!important;max-width:440px;margin-inline:auto}
+  .lp-hero .lp-float,
+  .lp-float{position:static!important;width:100%!important;top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;transform:none!important;animation:none!important}
+  .lp-hero .lp-float--card,
+  .lp-float--card{justify-self:center!important;width:auto!important}
+}

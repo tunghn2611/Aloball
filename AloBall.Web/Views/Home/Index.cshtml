@@ -1,39 +1,179 @@
-@model AloBall.Web.Controllers.HomeViewModel
-@using AloBall.Web.Data.Entities
-@{ ViewData["Title"] = "Khám phá sân chơi"; }
-<div class="discovery-kicker"><strong>CỘNG ĐỒNG BÓNG ĐÁ PHONG TRÀO</strong><span>CHƠI HẾT MÌNH. KẾT NỐI HẾT LÒNG.</span></div>
-<section class="discovery-hero">
-    <div class="hero-copy"><span class="hero-label">YOUR TEAM. YOUR GAME.</span><h1>Hẹn nhau<br />trên <em>sân bóng.</em></h1><p>Tập hợp đồng đội, tìm một đối thủ mới và lưu lại những trận cầu đáng nhớ. Tất cả bắt đầu từ đây.</p><div class="hero-links"><a asp-controller="Matchmaking" asp-action="Index" class="btn btn-arena-primary">Tìm đối giao lưu <i class="bi bi-arrow-up-right"></i></a><a asp-controller="Teams" asp-action="Index" class="text-link">Vào đội của tôi <i class="bi bi-arrow-right"></i></a></div></div>
-    <div class="pitch-poster" role="img" aria-label="Minh họa sân bóng và những vị trí cầu thủ, cùng nhau ra sân mỗi tuần">
-        <div class="poster-grain"></div><span class="poster-label">THE BEAUTIFUL GAME / 001</span><span class="poster-number">90</span>
-        <div class="pitch-drawing"><div class="pitch-box top"></div><div class="pitch-box bottom"></div><span class="pitch-token one">10</span><span class="pitch-token two">07</span><span class="pitch-token three">09</span><span class="pitch-token four">01</span></div>
-        <span class="poster-stamp">MADE FOR YOUR TEAM</span><div class="poster-caption"><strong>CHUNG MỘT SÂN.<br />CHUNG ĐAM MÊ.</strong><span>ALOBALL FOOTBALL CLUBHOUSE</span></div>
+@{
+    Layout = "_LandingLayout";
+    ViewData["Title"] = "Quản lý đội bóng phủi gọn trong một chạm";
+    ViewData["Description"] = "Điểm danh qua Zalo, chia tiền sân bằng VietQR, cáp kèo cân trình và tạo thẻ chỉ số cầu thủ chuẩn FIFA. Miễn phí cho CLB bóng đá phủi.";
+}
+
+<section class="lp-hero" aria-labelledby="heroTitle">
+    <div class="lp-stage" aria-hidden="true">
+        <video class="lp-stage__video is-ready" src="/video.mp4" data-src="/video.mp4" autoplay muted loop playsinline preload="metadata" tabindex="-1"></video>
+        <span class="lp-beam lp-beam--l"></span><span class="lp-beam lp-beam--r"></span>
+        <canvas class="lp-dust" id="lpDust"></canvas>
+        <div class="lp-pitchgrid"></div>
     </div>
-</section>
-<form asp-controller="Matchmaking" asp-action="Index" method="get" class="discovery-search" id="tim-doi"><div class="search-field"><label for="discoveryArea">01 / KHU VỰC THI ĐẤU</label><input id="discoveryArea" name="area" placeholder="Bạn muốn đá ở đâu?" /></div><div class="search-field"><label for="discoveryDate">02 / NGÀY RA SÂN</label><input type="date" id="discoveryDate" name="date" aria-label="Ngày ra sân" /></div><button class="btn btn-arena-primary">Tìm trận phù hợp <i class="bi bi-search"></i></button></form>
-<section id="lich-dau-ket-qua">
-    <div class="section-heading"><h2><span class="section-no">01</span>Nhịp sân bóng</h2><span class="eyebrow">LỊCH ĐẤU & KẾT QUẢ</span></div>
-    <ul class="nav nav-pills mb-3" role="tablist"><li role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#new-upcoming" type="button" role="tab" aria-controls="new-upcoming" aria-selected="true">Sắp diễn ra <span class="ms-2">@Model.UpcomingMatches.Count</span></button></li><li role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#new-results" type="button" role="tab" aria-controls="new-results" aria-selected="false">Kết quả gần đây <span class="ms-2">@Model.RecentCompletedMatches.Count</span></button></li></ul>
-    <div class="tab-content">
-    @foreach (var completed in new[]{ false, true }) {
-        var matches = completed ? Model.RecentCompletedMatches : Model.UpcomingMatches;
-        <div id="@(completed ? "new-results" : "new-upcoming")" class="tab-pane fade @(!completed ? "show active" : "")" role="tabpanel">
-        @if(matches.Any()) { <div class="match-strip">
-        @foreach(var match in matches) {
-            <a class="fixture-ticket" asp-controller="Matches" asp-action="Detail" asp-route-id="@match.Id"><div class="fixture-ticket-top"><span>@(match.Category == MatchCategory.Internal ? "NỘI BỘ" : match.Category == MatchCategory.Tournament ? "ĐÁ GIẢI" : "GIAO HỮU")</span><span>@match.MatchDateTime.ToString("dd.MM.yyyy") · @match.MatchDateTime.ToString("HH:mm")</span></div><div class="fixture-opponents"><strong>@(match.Category == MatchCategory.Internal ? match.TeamA.Name + " · A" : match.TeamA.Name)</strong><span>@(completed ? $"{match.ScoreA} : {match.ScoreB}" : "VS")</span><strong>@(match.Category == MatchCategory.Internal ? match.TeamA.Name + " · B" : match.TeamB?.Name ?? match.TeamBExternalName ?? "Chờ đối thủ")</strong></div><div class="fixture-venue"><span><i class="bi bi-geo-alt"></i> @match.PitchName</span><i class="bi bi-arrow-up-right"></i></div></a>
-        }</div> } else { <div class="empty-state"><i class="bi bi-calendar2-week"></i><h3>@(completed ? "Chưa có kết quả mới" : "Trận tiếp theo đang chờ bạn")</h3><p class="mb-0">Kết nối một đội bạn và cùng tạo nên trận cầu tiếp theo.</p></div> }
+    <div class="lp-ticker" role="region" aria-label="Bản tin Matchday">
+        <span class="lp-live"><i></i>LIVE MATCHDAY</span>
+        <div class="lp-ticker__track">
+            <p>⚽ Kèo 19:00 Sân Mỹ Đình đã đủ 14/14 quân <b>•</b> 💸 VietQR chia sân 61k/người <b>•</b> 🏆 Nguyễn Minh vừa nhận thẻ MOTM 88 OVR <b>•</b> </p>
+            <p aria-hidden="true">⚽ Kèo 19:00 Sân Mỹ Đình đã đủ 14/14 quân <b>•</b> 💸 VietQR chia sân 61k/người <b>•</b> 🏆 Nguyễn Minh vừa nhận thẻ MOTM 88 OVR <b>•</b> </p>
         </div>
-    }
+    </div>
+    <div class="lp-container lp-hero__grid">
+        <div class="lp-hero__copy">
+            <span class="lp-badge">⚡ Nền tảng quản lý đội bóng phủi số 1 Việt Nam</span>
+            <h1 id="heroTitle">Quản lý đội bóng gọn trong một chạm. <span class="lp-grad">Hết cảnh giục điểm danh, đau đầu chia tiền sân.</span></h1>
+            <p class="lp-lead">Tự động điểm danh qua Zalo, chia tiền sân bằng VietQR, cáp kèo cân trình và tạo thẻ chỉ số cầu thủ chuẩn FIFA sau mỗi trận đấu.</p>
+            <div class="lp-actions">
+                <a class="lp-btn lp-btn--primary" href="/Account/Register">Tạo đội bóng miễn phí</a>
+                <a class="lp-btn lp-btn--secondary" href="#trai-nghiem">Xem thử sa bàn &amp; thẻ FIFA</a>
+            </div>
+            <ul class="lp-trust">
+                <li>✓ Miễn phí cho CLB</li>
+                <li>✓ Không bắt cả đội cài app</li>
+                <li>✓ Xuất ảnh Zalo/FB 1 chạm</li>
+            </ul>
+        </div>
+
+        <div class="lp-hero__visual" aria-label="Minh họa giao diện AloBall">
+            <article class="lp-float lp-float--att" data-attendance>
+                <header><span class="lp-tag">Kèo tối nay</span><strong>19:00 · Sân Mỹ Đình</strong></header>
+                <div class="lp-toggle" role="group" aria-label="Điểm danh">
+                    <button type="button" class="is-on" data-state="in">Có mặt (<b data-count="in">14</b>)</button>
+                    <button type="button" data-state="out">Xin nghỉ (<b data-count="out">2</b>)</button>
+                </div>
+                <div class="lp-progress" role="progressbar" aria-valuemin="0" aria-valuemax="16" aria-valuenow="14"><i style="width:87.5%"></i></div>
+                <span class="lp-chip">📋 Copy tin nhắn Zalo</span>
+            </article>
+
+            <article class="lp-float lp-float--bill">
+                <header><span class="lp-tag lp-tag--gold">Chia tiền sân VietQR</span></header>
+                <p class="lp-bill">850.000đ ÷ 14 người = <strong>61.000đ/người</strong></p>
+                <button type="button" class="lp-status" data-collect aria-live="polite">● Đã thu <b>12</b>/14</button>
+            </article>
+
+            <article class="lp-float lp-float--card" aria-label="Thẻ cầu thủ mẫu">
+                <div class="lp-fut">
+                    <div class="lp-fut__top"><b>86</b><span>ST</span></div>
+                    <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><circle cx="32" cy="24" r="12" fill="#0F172A" opacity=".85"/><path d="M8 62c2-16 14-22 24-22s22 6 24 22z" fill="#0F172A" opacity=".85"/></svg>
+                    <strong>Minh Hải</strong>
+                    <small>PlayStyle+: Sát thủ vòng cấm</small>
+                    <em>AB Coin +15</em>
+                </div>
+            </article>
+        </div>
     </div>
 </section>
-<div class="discovery-columns">
-    <section id="kham-pha-doi"><div class="section-heading"><h2><span class="section-no">02</span>Gặp gỡ đội bạn</h2><span class="eyebrow">HỒ SƠ CÔNG KHAI</span></div>
-        @if(!Model.PublicTeams.Any()) { <div class="empty-state"><i class="bi bi-shield"></i><h3>Trở thành đội đầu tiên</h3><a asp-controller="Teams" asp-action="Create" class="text-link">Tạo hồ sơ đội →</a></div> }
-        else { <div class="club-directory">@foreach(var team in Model.PublicTeams) { <a class="directory-row" href="/doi/@team.Slug"><div class="club-logo">@if(!string.IsNullOrWhiteSpace(team.LogoUrl)) { <img src="@team.LogoUrl" alt="" loading="lazy" /> } else { @team.Name[..Math.Min(2,team.Name.Length)] }</div><div><h3>@team.Name</h3><p>@(team.ActivityArea ?? "Chưa cập nhật khu vực") · @team.Players.Count cầu thủ</p></div><span class="directory-rating"><i class="bi bi-star-fill"></i> @team.AverageRating.ToString("0.0")</span><i class="bi bi-arrow-up-right"></i></a> }</div> }
-    </section>
-    <section><div class="section-heading"><h2><span class="section-no">03</span>Đang tìm đối</h2><a asp-controller="Matchmaking" asp-action="Index">Xem tất cả <i class="bi bi-arrow-up-right"></i></a></div>
-        @if(!Model.RecentPosts.Any()) { <div class="empty-state"><i class="bi bi-intersect"></i><h3>Mở lời giao lưu</h3><p class="mb-0">Đăng khung giờ của đội để tìm đối thủ phù hợp.</p></div> }
-        @foreach(var post in Model.RecentPosts.Take(4)) { <a class="open-invitation" asp-controller="Matchmaking" asp-action="Details" asp-route-id="@post.Id"><div><span class="eyebrow">@post.MatchDate.ToString("dd.MM") · @post.StartTime.ToString(@"hh\:mm")</span><span>@(post.PitchArrangement == PitchArrangement.HomePitch ? "Sân nhà" : post.PitchArrangement == PitchArrangement.AwayPitch ? "Đi khách" : "Linh hoạt")</span></div><h3>@post.Team.Name <i class="bi bi-arrow-up-right float-end"></i></h3><div><span><i class="bi bi-geo-alt"></i> @post.Area</span><span>@post.PitchType · @post.DesiredLevel</span></div></a> }
-    </section>
-</div>
-<section class="editorial-banner"><div><span class="eyebrow">GIỮ NHỊP ĐAM MÊ</span><h2 class="mt-2">Đội bóng của bạn xứng đáng có một ngôi nhà.</h2><p>Hồ sơ, áo đấu, lịch ra sân và điểm AB — cùng một không gian.</p></div><a asp-controller="Teams" asp-action="Create" class="btn btn-arena-primary">Bắt đầu với đội của bạn <i class="bi bi-arrow-up-right"></i></a></section>
+
+<section class="lp-tunnel" aria-label="Con số nổi bật">
+    <div class="lp-container lp-tunnel__grid">
+        <div class="lp-stat"><b><span data-count-to="30" data-from="90">30</span></b><small>giây tạo kèo Zalo</small></div>
+        <div class="lp-stat"><b><span data-count-to="0" data-from="100">0</span>đ</b><small>sai sót chia tiền sân</small></div>
+        <div class="lp-stat"><b><span data-count-to="37" data-from="0">37</span></b><small>PlayStyles chuẩn FIFA</small></div>
+    </div>
+</section>
+
+<section class="lp-section" id="tinh-nang">
+    <div class="lp-container">
+        <header class="lp-head">
+            <span class="lp-eyebrow">Tính năng</span>
+            <h2>Mọi thứ đội trưởng cần — Đúng chất phủi Việt</h2>
+        </header>
+        <div class="lp-bento" id="he-sinh-thai">
+            <article class="lp-card lp-card--wide">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+                <h3>Điểm danh &amp; Copy Zalo 1 chạm</h3>
+                <p>Mở kèo trong 30 giây, tạo sẵn danh sách đánh số gửi thẳng nhóm chat đội.</p>
+            </article>
+            <article class="lp-card">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z"/></svg>
+                <h3>Chia tiền sân &amp; Quỹ đội VietQR</h3>
+                <p>Tự động tính tiền theo danh sách đá thực tế, tách riêng kèo <em>Tăng 2</em>, nhắc nợ tinh tế.</p>
+            </article>
+            <article class="lp-card lp-card--dark">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.400 9.200 8 11 4.600-1.800 8-6 8-11V5z"/><path d="m9 12 2 2 4-4"/></svg>
+                <h3>Thẻ chỉ số FIFA &amp; 37 PlayStyles</h3>
+                <p>Quy đổi bàn thắng, kiến tạo, chuyên cần thành thẻ chỉ số cá nhân &amp; Poster tỉ số chia sẻ 1 chạm.</p>
+            </article>
+            <article class="lp-card lp-card--wide">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+                <h3>Cáp kèo chuẩn gu &amp; Cảnh báo "Đá rát"</h3>
+                <p>Phân loại rõ <em>Đá dưỡng sinh</em> vs. <em>Đá rát – quyết liệt</em>, ký quỹ <strong>AB Coin</strong> chống bom kèo giờ chót.</p>
+            </article>
+            <article class="lp-card">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.100 7-11a7 7 0 0 0-14 0c0 4.900 7 11 7 11z"/><circle cx="12" cy="10" r="2.500"/></svg>
+                <h3>Đặt sân &amp; Điều phối trọng tài</h3>
+                <p>Tìm sân trống theo khu vực, đặt trọng tài bắt chính minh bạch ngay trên lịch đấu.</p>
+            </article>
+            <article class="lp-card">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.500"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M19 8v6M16 11h6"/></svg>
+                <h3>Sàn đá bù khẩn cấp</h3>
+                <p>Thiếu thủ môn hay hậu vệ sát giờ bóng lăn? Đăng tin tìm người đá lẻ cùng quận ngay lập tức.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="lp-section lp-section--tint" id="trai-nghiem">
+    <div class="lp-container">
+        <header class="lp-head">
+            <span class="lp-eyebrow">Demo</span>
+            <h2>Trải nghiệm thực tế trên điện thoại</h2>
+        </header>
+        <div class="lp-showcase" data-tabs>
+            <div class="lp-tabs" role="tablist" aria-label="Giai đoạn của một trận đấu">
+                <button role="tab" type="button" class="is-active" aria-selected="true" aria-controls="tab-pre" id="t-pre">1. Trước trận: Điểm danh &amp; Chia đội</button>
+                <button role="tab" type="button" aria-selected="false" aria-controls="tab-live" id="t-live" tabindex="-1">2. Trong trận: Matchday Center</button>
+                <button role="tab" type="button" aria-selected="false" aria-controls="tab-post" id="t-post" tabindex="-1">3. Sau trận: Chia tiền &amp; Thẻ FIFA</button>
+            </div>
+            <div class="lp-phone">
+                <div class="lp-phone__notch" aria-hidden="true"></div>
+                <section role="tabpanel" id="tab-pre" aria-labelledby="t-pre" class="lp-screen is-active">
+                    <h3>Kèo thứ Năm · Sân Mỹ Đình</h3>
+                    <ul class="lp-list">
+                        <li><span>1</span>Quang Huy <em class="ok">Có mặt</em></li>
+                        <li><span>2</span>Đức Anh <em class="ok">Có mặt</em></li>
+                        <li><span>3</span>Tuấn Kiệt <em class="no">Xin nghỉ</em></li>
+                        <li><span>4</span>Văn Long <em class="ok">Có mặt</em></li>
+                    </ul>
+                    <div class="lp-split"><div><b>Đội A</b><small>Cân bằng 82 OVR</small></div><div><b>Đội B</b><small>Cân bằng 81 OVR</small></div></div>
+                </section>
+                <section role="tabpanel" id="tab-live" aria-labelledby="t-live" class="lp-screen" hidden>
+                    <h3>Matchday Center</h3>
+                    <div class="lp-score"><b>3</b><span>:</span><b>2</b></div>
+                    <ul class="lp-list">
+                        <li><span>⚽</span>Minh Hải <em>Phút 12</em></li>
+                        <li><span>🅰️</span>Quang Huy <em>Phút 12</em></li>
+                        <li><span>⚽</span>Đức Anh <em>Phút 27</em></li>
+                    </ul>
+                </section>
+                <section role="tabpanel" id="tab-post" aria-labelledby="t-post" class="lp-screen" hidden>
+                    <h3>Chốt kèo &amp; phát thẻ</h3>
+                    <p class="lp-bill">Sân 850.000đ ÷ 14 = <strong>61.000đ</strong></p>
+                    <div class="lp-fut lp-fut--sm"><div class="lp-fut__top"><b>86</b><span>ST</span></div><strong>Minh Hải</strong><small>2 bàn · 1 kiến tạo · MVP</small></div>
+                    <span class="lp-chip">📤 Chia sẻ Poster lên Zalo</span>
+                </section>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="lp-section" id="cach-hoat-dong">
+    <div class="lp-container">
+        <header class="lp-head">
+            <span class="lp-eyebrow">Cách hoạt động</span>
+            <h2>Bắt đầu cùng cả đội chỉ mất 60 giây</h2>
+        </header>
+        <ol class="lp-steps">
+            <li><b>1</b><h3>Tạo CLB</h3><p>Nhập nhanh danh sách tên anh em, không cần chờ cả đội đăng ký.</p></li>
+            <li><b>2</b><h3>Gửi link vào Zalo</h3><p>Gửi link trận đấu vào nhóm Zalo để anh em chấm điểm danh.</p></li>
+            <li><b>3</b><h3>Chốt tỉ số</h3><p>Chốt tỉ số trên Matchday Center — tự động chia tiền sân &amp; phát thẻ chỉ số.</p></li>
+        </ol>
+    </div>
+</section>
+
+<section class="lp-cta">
+    <div class="lp-container">
+        <h2>Sẵn sàng nâng tầm đội bóng của bạn tuần này?</h2>
+        <a class="lp-btn lp-btn--gold lp-btn--lg" href="/Account/Register">Bắt đầu miễn phí ngay</a>
+    </div>
+</section>

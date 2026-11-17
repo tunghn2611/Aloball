@@ -39,7 +39,7 @@ public class ArenaRenderingTests
         using var app = new RequirementsWebFactory();
         await app.Seed();
         using var client = app.Client();
-        var routes = new[] { "/", "/Teams", "/Teams/Create", $"/Teams/Dashboard/{app.TeamA}",
+        var routes = new[] { "/kham-pha", "/Teams", "/Teams/Create", $"/Teams/Dashboard/{app.TeamA}",
             $"/Teams/Players?teamId={app.TeamA}", $"/Teams/PlayerEditor?teamId={app.TeamA}",
             $"/Teams/Edit/{app.TeamA}", "/doi/audit-a", "/Matchmaking",
             $"/Attendance/Sessions?teamId={app.TeamA}", $"/Attendance/Detail/{app.Session}",
@@ -75,5 +75,54 @@ public class ArenaRenderingTests
         Assert.Contains("__RequestVerificationToken", html);
         Assert.True(html.IndexOf("jquery.min.js", StringComparison.Ordinal) < html.IndexOf("jquery.validate.min.js", StringComparison.Ordinal));
         Assert.Contains("jquery.min.js", html);
+    }
+
+    [Fact]
+    public async Task HomePage_UnauthenticatedVisitor_RendersNewLandingPage()
+    {
+        using var app = new RequirementsWebFactory();
+        await app.Seed();
+        using var client = app.Client(null);
+
+        var response = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("ALOBALL", html);
+        Assert.Contains("Quản lý đội bóng gọn trong một chạm", html);
+        Assert.Contains("/css/landing.css", html);
+        Assert.Contains("/js/landing.js", html);
+        Assert.Contains("id=\"main-content\"", html);
+        Assert.Contains("/Account/Login", html);
+        Assert.Contains("/Account/Register", html);
+        Assert.Contains("lp-bento", html);
+        Assert.Contains("lp-phone", html);
+    }
+
+    [Fact]
+    public async Task HomePage_AuthenticatedUser_RedirectsToTeamsDashboard()
+    {
+        using var app = new RequirementsWebFactory();
+        await app.Seed();
+        using var client = app.Client("owner");
+
+        var response = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Teams", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task ExplorePage_RendersPublicDiscoveryScreen()
+    {
+        using var app = new RequirementsWebFactory();
+        await app.Seed();
+        using var client = app.Client(null);
+
+        var response = await client.GetAsync("/kham-pha");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Khám phá sân chơi", html);
+        Assert.Contains("arena-content", html);
     }
 }

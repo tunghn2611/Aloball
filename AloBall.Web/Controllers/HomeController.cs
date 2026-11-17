@@ -26,7 +26,15 @@ public class HomeController : Controller
         _logger = logger;
     }
 
-    public async Task<IActionResult> Index()
+    [HttpGet("/")]
+    public IActionResult Index()
+    {
+        if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "Teams");
+        return View();
+    }
+
+    [HttpGet("kham-pha")]
+    public async Task<IActionResult> Explore()
     {
         // 1. Chỉ lấy các đội bóng đã công khai và đang hoạt động
         var publicTeams = await _db.Teams
@@ -75,7 +83,7 @@ public class HomeController : Controller
             RecentCompletedMatches = recentCompletedMatches
         };
 
-        return View(model);
+        return View("Explore", model);
     }
 
     public IActionResult Privacy()

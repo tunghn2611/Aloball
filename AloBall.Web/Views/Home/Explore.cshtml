@@ -1,0 +1,143 @@
+@model AloBall.Web.Controllers.HomeViewModel
+@using AloBall.Web.Data.Entities
+@{ ViewData["Title"] = "Khám phá sân chơi"; }
+<div class="discovery-kicker"><strong>⚡ HỆ SINH THÁI BÓNG ĐÁ PHỦI VIỆT NAM</strong><span>CÁP KÈO CÂN TRÌNH · ĐIỂM DANH ZALO · THẺ CHỈ SỐ FIFA</span></div>
+<section class="discovery-hero">
+    <div class="hero-copy">
+        <span class="hero-label">⚡ LIVE MATCHDAY DISCOVERY</span>
+        <h1>Hẹn nhau<br />trên <em>sân cỏ.</em></h1>
+        <p>Khám phá các CLB đang hoạt động, nhận lời mời giao hữu đúng trình độ và theo dõi kết quả trực tiếp trên toàn hệ thống AloBall.</p>
+        <div class="hero-links">
+            <a asp-controller="Matchmaking" asp-action="Index" class="btn btn-arena-primary">Tìm đối giao lưu <i class="bi bi-arrow-up-right"></i></a>
+            <a asp-controller="Teams" asp-action="Index" class="text-link">Vào đội của tôi <i class="bi bi-arrow-right"></i></a>
+        </div>
+    </div>
+    <div class="pitch-poster" role="img" aria-label="Minh họa sân bóng chiến thuật và các vị trí cầu thủ AloBall">
+        <div class="poster-grain"></div><span class="poster-label">ALOBALL MATCHDAY / FC 27</span><span class="poster-number">90</span>
+        <div class="pitch-drawing"><div class="pitch-box top"></div><div class="pitch-box bottom"></div><span class="pitch-token one">10</span><span class="pitch-token two">07</span><span class="pitch-token three">09</span><span class="pitch-token four">01</span></div>
+        <span class="poster-stamp">VERIFIED CLUBS</span><div class="poster-caption"><strong>CHUNG MỘT SÂN.<br />CHUNG ĐAM MÊ.</strong><span>ALOBALL STADIUM HUB</span></div>
+    </div>
+</section>
+
+<form asp-controller="Matchmaking" asp-action="Index" method="get" class="discovery-search" id="tim-doi">
+    <div class="search-field">
+        <label for="discoveryArea">01 / KHU VỰC THI ĐẤU</label>
+        <input id="discoveryArea" name="area" placeholder="VD: Cầu Giấy, Mỹ Đình, Thanh Xuân..." />
+    </div>
+    <div class="search-field">
+        <label for="discoveryDate">02 / NGÀY RA SÂN</label>
+        <input type="date" id="discoveryDate" name="date" aria-label="Ngày ra sân" />
+    </div>
+    <button class="btn btn-arena-primary">Tìm kèo phù hợp <i class="bi bi-search"></i></button>
+</form>
+
+<section id="lich-dau-ket-qua">
+    <div class="section-heading">
+        <h2><span class="section-no">01</span>Nhịp đập sân cỏ</h2>
+        <span class="badge bg-success-subtle text-success border border-success-subtle">LỊCH ĐẤU &amp; KẾT QUẢ</span>
+    </div>
+    <ul class="nav nav-pills mb-3" role="tablist">
+        <li role="presentation">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#new-upcoming" type="button" role="tab" aria-controls="new-upcoming" aria-selected="true">
+                Sắp diễn ra <span class="badge bg-success ms-2">@Model.UpcomingMatches.Count</span>
+            </button>
+        </li>
+        <li role="presentation">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#new-results" type="button" role="tab" aria-controls="new-results" aria-selected="false">
+                Kết quả gần đây <span class="badge bg-secondary ms-2">@Model.RecentCompletedMatches.Count</span>
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content">
+    @foreach (var completed in new[]{ false, true }) {
+        var matches = completed ? Model.RecentCompletedMatches : Model.UpcomingMatches;
+        <div id="@(completed ? "new-results" : "new-upcoming")" class="tab-pane fade @(!completed ? "show active" : "")" role="tabpanel">
+        @if(matches.Any()) {
+            <div class="match-strip">
+            @foreach(var match in matches) {
+                <a class="fixture-ticket" asp-controller="Matches" asp-action="Detail" asp-route-id="@match.Id">
+                    <div class="fixture-ticket-top">
+                        <span class="badge bg-success-subtle text-success">@(match.Category == MatchCategory.Internal ? "ĐÁ NỘI BỘ" : match.Category == MatchCategory.Tournament ? "ĐÁ GIẢI" : "GIAO HỮU")</span>
+                        <span class="fw-semibold">@match.MatchDateTime.ToString("dd.MM.yyyy") · @match.MatchDateTime.ToString("HH:mm")</span>
+                    </div>
+                    <div class="fixture-opponents">
+                        <strong>@(match.Category == MatchCategory.Internal ? match.TeamA.Name + " · A" : match.TeamA.Name)</strong>
+                        <span>@(completed ? $"{match.ScoreA} : {match.ScoreB}" : "VS")</span>
+                        <strong>@(match.Category == MatchCategory.Internal ? match.TeamA.Name + " · B" : match.TeamB?.Name ?? match.TeamBExternalName ?? "Chờ đối thủ")</strong>
+                    </div>
+                    <div class="fixture-venue">
+                        <span><i class="bi bi-geo-alt-fill text-success me-1"></i> @match.PitchName</span>
+                        <i class="bi bi-arrow-up-right"></i>
+                    </div>
+                </a>
+            }
+            </div>
+        } else {
+            <div class="empty-state">
+                <i class="bi bi-calendar2-week"></i>
+                <h3>@(completed ? "Chưa có kết quả mới" : "Trận tiếp theo đang chờ bạn")</h3>
+                <p class="mb-0">Kết nối một đội bạn và cùng tạo nên trận cầu tiếp theo.</p>
+            </div>
+        }
+        </div>
+    }
+    </div>
+</section>
+
+<div class="discovery-columns">
+    <section id="kham-pha-doi">
+        <div class="section-heading">
+            <h2><span class="section-no">02</span>Danh bạ CLB tiêu biểu</h2>
+            <span class="eyebrow">HỒ SƠ CÔNG KHAI</span>
+        </div>
+        @if(!Model.PublicTeams.Any()) {
+            <div class="empty-state"><i class="bi bi-shield"></i><h3>Trở thành đội đầu tiên</h3><a asp-controller="Teams" asp-action="Create" class="text-link">Tạo hồ sơ đội →</a></div>
+        } else {
+            <div class="club-directory">
+            @foreach(var team in Model.PublicTeams) {
+                <a class="directory-row" href="/doi/@team.Slug">
+                    <div class="club-logo">@if(!string.IsNullOrWhiteSpace(team.LogoUrl)) { <img src="@team.LogoUrl" alt="" loading="lazy" /> } else { @team.Name[..Math.Min(2,team.Name.Length)] }</div>
+                    <div>
+                        <h3>@team.Name</h3>
+                        <p>@(team.ActivityArea ?? "Chưa cập nhật khu vực") · @team.Players.Count cầu thủ</p>
+                    </div>
+                    <span class="directory-rating badge bg-warning-subtle text-dark border border-warning-subtle"><i class="bi bi-star-fill text-warning me-1"></i>@team.AverageRating.ToString("0.0")</span>
+                    <i class="bi bi-arrow-up-right"></i>
+                </a>
+            }
+            </div>
+        }
+    </section>
+
+    <section>
+        <div class="section-heading">
+            <h2><span class="section-no">03</span>Kèo đang mở tìm đối</h2>
+            <a asp-controller="Matchmaking" asp-action="Index">Xem tất cả <i class="bi bi-arrow-up-right"></i></a>
+        </div>
+        @if(!Model.RecentPosts.Any()) {
+            <div class="empty-state"><i class="bi bi-intersect"></i><h3>Mở lời giao lưu</h3><p class="mb-0">Đăng khung giờ của đội để tìm đối thủ phù hợp.</p></div>
+        }
+        @foreach(var post in Model.RecentPosts.Take(4)) {
+            <a class="open-invitation" asp-controller="Matchmaking" asp-action="Details" asp-route-id="@post.Id">
+                <div>
+                    <span class="eyebrow"><i class="bi bi-clock me-1"></i>@post.MatchDate.ToString("dd.MM") · @post.StartTime.ToString(@"hh\:mm")</span>
+                    <span class="badge bg-light text-dark border">@(post.PitchArrangement == PitchArrangement.HomePitch ? "Sân nhà" : post.PitchArrangement == PitchArrangement.AwayPitch ? "Đi khách" : "Linh hoạt")</span>
+                </div>
+                <h3>@post.Team.Name <i class="bi bi-arrow-up-right float-end text-success"></i></h3>
+                <div>
+                    <span><i class="bi bi-geo-alt-fill text-success"></i> @post.Area</span>
+                    <span class="fw-semibold text-dark">@post.PitchType · @post.DesiredLevel</span>
+                </div>
+            </a>
+        }
+    </section>
+</div>
+
+<section class="editorial-banner">
+    <div>
+        <span class="eyebrow">⚡ GIỮ NHỊP ĐAM MÊ</span>
+        <h2 class="mt-2">Đội bóng của bạn xứng đáng có một ngôi nhà chuyên nghiệp.</h2>
+        <p>Hồ sơ CLB, điểm danh Zalo, chia tiền sân VietQR, thẻ FIFA 27 và quỹ điểm AB Coin — tất cả trong một chạm.</p>
+    </div>
+    <a asp-controller="Teams" asp-action="Create" class="btn btn-arena-primary">Bắt đầu với đội của bạn <i class="bi bi-arrow-up-right"></i></a>
+</section>

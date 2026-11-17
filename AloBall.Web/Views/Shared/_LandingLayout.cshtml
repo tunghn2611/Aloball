@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>@ViewData["Title"] — AloBall</title>
+    <meta name="description" content="@ViewData["Description"]" />
+    <meta name="theme-color" content="#064E3B" />
+    <meta property="og:title" content="@ViewData["Title"] — AloBall" />
+    <meta property="og:description" content="@ViewData["Description"]" />
+    <meta property="og:type" content="website" />
+    <link rel="manifest" href="~/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/landing.css" asp-append-version="true" />
+</head>
+<body class="lp">
+    <a class="lp-skip" href="#main-content">Bỏ qua điều hướng</a>
+    <header class="lp-nav" id="lpNav">
+        <div class="lp-container lp-nav__bar">
+            <a class="lp-brand" asp-controller="Home" asp-action="Index" aria-label="AloBall — trang chủ">
+                <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><path d="M16 2 4 6.5V15c0 7.2 5 12.2 12 15 7-2.800 12-7.800 12-15V6.500z" fill="#064E3B"/><circle cx="16" cy="15.500" r="7" fill="#fff"/><path d="m16 11.500 3.300 2.400-1.300 3.900h-4l-1.300-3.900z" fill="#064E3B"/><path d="M16 11.500V8.800M19.300 13.900l2.600-.9M18 17.800l1.600 2.300M14 17.800l-1.600 2.300M12.700 13.900l-2.600-.9" stroke="#064E3B" stroke-width="1.200" stroke-linecap="round"/></svg>
+                <span>ALOBALL</span>
+            </a>
+            <nav class="lp-nav__links" aria-label="Điều hướng chính">
+                <a href="#tinh-nang">Tính năng</a>
+                <a href="#he-sinh-thai">Hệ sinh thái phủi</a>
+                <a href="#cach-hoat-dong">Cách hoạt động</a>
+            </nav>
+            <div class="lp-nav__cta">
+                <a class="lp-btn lp-btn--ghost" href="/Account/Login">Đăng nhập</a>
+                <a class="lp-btn lp-btn--pill" href="/Account/Register">Tạo đội miễn phí</a>
+            </div>
+            <button class="lp-burger" type="button" aria-controls="lpDrawer" aria-expanded="false" aria-label="Mở menu"><span></span><span></span><span></span></button>
+        </div>
+        <div class="lp-drawer" id="lpDrawer" hidden>
+            <a href="#tinh-nang">Tính năng</a>
+            <a href="#he-sinh-thai">Hệ sinh thái phủi</a>
+            <a href="#cach-hoat-dong">Cách hoạt động</a>
+            <a class="lp-btn lp-btn--ghost" href="/Account/Login">Đăng nhập</a>
+            <a class="lp-btn lp-btn--pill" href="/Account/Register">Tạo đội miễn phí</a>
+        </div>
+    </header>
+
+    <main id="main-content">@RenderBody()</main>
+
+    <footer class="lp-footer">
+        <div class="lp-container lp-footer__grid">
+            <div>
+                <a class="lp-brand lp-brand--light" asp-controller="Home" asp-action="Index"><span>ALOBALL</span></a>
+                <p>Quản lý đội bóng phủi gọn trong một chạm.</p>
+            </div>
+            <nav aria-label="Liên kết nhanh">
+                <a href="#tinh-nang">Tính năng</a>
+                <a asp-controller="Home" asp-action="Explore">Khám phá đội &amp; kèo</a>
+                <a asp-controller="Matchmaking" asp-action="Index">Tìm đối giao lưu</a>
+                <a asp-controller="Contact" asp-action="Index">Liên hệ</a>
+                <a asp-controller="Home" asp-action="Privacy">Quyền riêng tư</a>
+            </nav>
+        </div>
+        <div class="lp-container lp-footer__copy">© @DateTime.Now.Year AloBall. Đam mê trên sân, kết nối ngoài sân.</div>
+    </footer>
+    <script src="~/js/landing.js" asp-append-version="true"></script>
+    <script src="~/js/landing-fx.js" asp-append-version="true" defer></script>
+</body>
+</html>
