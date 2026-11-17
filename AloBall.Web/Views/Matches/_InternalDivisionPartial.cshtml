@@ -748,14 +748,13 @@
     window.fc27CatalogMap = fc27CatalogMap;
 
     function getPlayerPlayStyles(player) {
-        let raw = player.playStyles || player.PlayStyles;
-        if (raw && typeof raw === 'string' && raw.trim().length > 0) return raw.trim();
-        // Smart positional default PlayStyles if not yet assigned by captain
-        const cat = player.category || 'MF';
-        if (cat === 'GK') return 'DEFLECTOR+,GK_AERIAL';
-        if (cat === 'DF') return 'ANTICIPATE+,BRUISER,MAN_MARKER';
-        if (cat === 'FW') return 'POWER_SHOT+,CLINICAL,RAPID';
-        return 'TIKI_TAKA+,INCISIVE,RELENTLESS';
+        if (!player) return '';
+        const seed = myTeamPlayerSeeds.find(s => s.playerId && player.playerId && s.playerId.toLowerCase() === player.playerId.toLowerCase());
+        let raw = player.playStyles || player.PlayStyles || (seed ? seed.playStyles : '');
+        if (raw && typeof raw === 'string' && raw.trim().length > 0) {
+            return raw.trim();
+        }
+        return ''; // Không gán thì không hiển thị
     }
 
     // Lineup In-Memory State
@@ -1463,9 +1462,18 @@
                     const code = t.replace('+', '').toUpperCase();
                     const iconPath = fc27SvgMap[code];
                     const meta = typeof fc27CatalogMap !== 'undefined' ? fc27CatalogMap[code] : null;
-                    const tooltipText = meta ? `${meta.nameVi} · ${meta.nameEn}${isPlus ? ' ★ [PlayStyle+]' : ''}` : `${code}${isPlus ? ' [PlayStyle+]' : ''}`;
+                    const nameVi = meta ? meta.nameVi : code;
+                    const nameEn = meta ? meta.nameEn : '';
+                    const fullTitle = `${nameVi}${nameEn ? ' (' + nameEn + ')' : ''}${isPlus ? ' ★ PlayStyle+' : ''}`;
                     if (iconPath) {
-                        psBadgesHtml += `<span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" title="${escapeHtml(tooltipText)}" data-bs-toggle="tooltip" data-bs-placement="right"><svg viewBox="0 0 24 24" class="fc27-ps-icon" aria-hidden="true"><path d="${iconPath}" fill="currentColor"/></svg></span>`;
+                        psBadgesHtml += `
+                            <div class="fc27-ps-item" title="${escapeHtml(fullTitle)}">
+                                <span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}">
+                                    <svg viewBox="0 0 24 24" class="fc27-ps-icon" aria-hidden="true"><path d="${iconPath}" fill="currentColor"/></svg>
+                                </span>
+                                <div class="fc27-ps-hover-tooltip">${escapeHtml(fullTitle)}</div>
+                            </div>
+                        `;
                     }
                 });
                 psBadgesHtml += '</div>';

@@ -322,10 +322,13 @@
             if (!def) return;
 
             const diamondClass = isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan';
-            const title = `${def.nameVi} · ${def.nameEn}${isPlus ? ' ★ [PlayStyle+]' : ''}`;
+            const title = `${def.nameVi} (${def.nameEn})${isPlus ? ' ★ PlayStyle+' : ''}`;
             html += `
-                <span class="fc27-ps-diamond ${diamondClass}" data-bs-toggle="tooltip" data-bs-placement="top" title="${title}">
-                    <svg viewBox="0 0 24 24" class="fc27-ps-icon"><path d="${def.svgPath}" fill="currentColor" /></svg>
+                <span class="fc27-ps-item" title="${title}">
+                    <span class="fc27-ps-diamond ${diamondClass}">
+                        <svg viewBox="0 0 24 24" class="fc27-ps-icon"><path d="${def.svgPath}" fill="currentColor" /></svg>
+                    </span>
+                    <span class="fc27-ps-hover-tooltip">${title}</span>
                 </span>
             `;
         });

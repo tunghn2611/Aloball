@@ -18,6 +18,79 @@
 }
 
 /* 1. PLAYSTYLE DIAMOND BADGES */
+/* PlayStyle Item with Instant Custom Tooltip */
+.fc27-ps-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.fc27-ps-hover-tooltip {
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%) translateX(4px);
+    background: #090d16;
+    color: #f8fafc;
+    border: 1.5px solid #a3e635;
+    padding: 4px 9px;
+    border-radius: 6px;
+    font-family: var(--fc27-font-text);
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+    z-index: 99999;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.95), 0 0 10px rgba(163, 230, 53, 0.35);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    user-select: none;
+}
+
+.fc27-ps-hover-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent transparent #a3e635;
+}
+
+.fc27-ps-item:hover .fc27-ps-hover-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Tooltip position when inside horizontal clusters (tables / cards) */
+.fc27-ps-cluster .fc27-ps-hover-tooltip,
+.fc-playstyles-row .fc27-ps-hover-tooltip {
+    right: auto;
+    left: 50%;
+    bottom: calc(100% + 7px);
+    top: auto;
+    transform: translateX(-50%) translateY(4px);
+}
+
+.fc27-ps-cluster .fc27-ps-hover-tooltip::after,
+.fc-playstyles-row .fc27-ps-hover-tooltip::after {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-color: #a3e635 transparent transparent transparent;
+}
+
+.fc27-ps-cluster .fc27-ps-item:hover .fc27-ps-hover-tooltip,
+.fc-playstyles-row .fc27-ps-item:hover .fc27-ps-hover-tooltip {
+    transform: translateX(-50%) translateY(0);
+}
+
+
 .fc27-ps-cluster {
     display: inline-flex;
     align-items: center;

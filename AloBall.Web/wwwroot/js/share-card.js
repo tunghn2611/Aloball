@@ -112,7 +112,7 @@
             }
 
             let futPsHtml = '';
-            const futPsRaw = data.playStyles || (data.posCode === 'GK' ? 'DEFLECTOR+,GK_AERIAL' : data.posCode === 'CB' || data.posCode === 'DF' || data.posCode === 'LB' || data.posCode === 'RB' ? 'ANTICIPATE+,BRUISER,MAN_MARKER' : data.posCode === 'ST' || data.posCode === 'FW' ? 'POWER_SHOT+,CLINICAL,RAPID' : 'TIKI_TAKA+,INCISIVE,RELENTLESS');
+            const futPsRaw = (data.playStyles && typeof data.playStyles === 'string') ? data.playStyles.trim() : '';
             if (futPsRaw && window.fc27SvgMap) {
                 const tokens = futPsRaw.split(',').map(t => t.trim()).filter(Boolean).slice(0, 4);
                 if (tokens.length > 0) {
@@ -122,9 +122,11 @@
                         const code = t.replace('+', '').toUpperCase();
                         const iconPath = window.fc27SvgMap[code];
                         const meta = window.fc27CatalogMap ? window.fc27CatalogMap[code] : null;
-                        const title = meta ? `${meta.nameVi} · ${meta.nameEn}${isPlus ? ' ★ [PlayStyle+]' : ''}` : code;
+                        const nameVi = meta ? meta.nameVi : code;
+                        const nameEn = meta ? meta.nameEn : '';
+                        const fullTitle = `${nameVi}${nameEn ? ' (' + nameEn + ')' : ''}${isPlus ? ' ★ PlayStyle+' : ''}`;
                         if (iconPath) {
-                            futPsHtml += `<span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" style="width:22px;height:22px;" title="${title}"><svg viewBox="0 0 24 24" class="fc27-ps-icon" style="width:13px;height:13px;"><path d="${iconPath}" fill="currentColor"/></svg></span>`;
+                            futPsHtml += `<span class="fc27-ps-item" title="${fullTitle}"><span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" style="width:22px;height:22px;"><svg viewBox="0 0 24 24" class="fc27-ps-icon" style="width:13px;height:13px;"><path d="${iconPath}" fill="currentColor"/></svg></span><span class="fc27-ps-hover-tooltip">${fullTitle}</span></span>`;
                         }
                     });
                     futPsHtml += '</div>';
