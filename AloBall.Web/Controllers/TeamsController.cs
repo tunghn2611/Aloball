@@ -336,6 +336,18 @@ public partial class TeamsController : Controller
             return RedirectToAction(nameof(Players), new { teamId });
         }
 
+        if (kitNumber.HasValue)
+        {
+            var conflict = await _db.Players
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.TeamId == teamId && p.IsActive && p.KitNumber == kitNumber.Value);
+            if (conflict != null)
+            {
+                TempData["Error"] = $"Số áo #{kitNumber.Value} đã thuộc về cầu thủ {conflict.FullName}. Vui lòng chọn số áo khác.";
+                return RedirectToAction(nameof(Players), new { teamId });
+            }
+        }
+
         var player = new Player
         {
             TeamId = teamId,

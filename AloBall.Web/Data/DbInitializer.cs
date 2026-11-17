@@ -54,6 +54,14 @@ public static class DbInitializer
 
     public static async Task EnsureDatabaseSchemaAsync(ApplicationDbContext db)
     {
+        if (db.Database.IsNpgsql())
+        {
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Players"" ADD COLUMN IF NOT EXISTS ""PlayStyles"" VARCHAR(120) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""AspNetUsers"" ADD COLUMN IF NOT EXISTS ""PlayStyles"" VARCHAR(120) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""TeamMatchReviews"" ADD COLUMN IF NOT EXISTS ""PlayStyleVibeTags"" VARCHAR(150) NULL;"); } catch { }
+            return;
+        }
+
         if (!db.Database.IsSqlite())
         {
             return;

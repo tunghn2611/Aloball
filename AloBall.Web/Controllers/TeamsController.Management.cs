@@ -95,6 +95,22 @@ public partial class TeamsController
         ViewBag.Team = await _db.Teams.FindAsync(input.TeamId);
         if (ViewBag.Team == null) return NotFound();
         if (!ModelState.IsValid) return View(input);
+
+        if (input.KitNumber.HasValue && input.IsActive)
+        {
+            var conflict = await _db.Players
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.TeamId == input.TeamId 
+                                       && p.IsActive 
+                                       && p.KitNumber == input.KitNumber.Value 
+                                       && (!input.Id.HasValue || p.Id != input.Id.Value));
+            if (conflict != null)
+            {
+                ModelState.AddModelError(nameof(input.KitNumber), $"Số áo #{input.KitNumber.Value} đã thuộc về cầu thủ {conflict.FullName}. Vui lòng chọn số áo khác.");
+                return View(input);
+            }
+        }
+
         var player = input.Id.HasValue ? await _db.Players.FirstOrDefaultAsync(p => p.Id == input.Id && p.TeamId == input.TeamId) : new Player { TeamId = input.TeamId };
         if (player == null) return NotFound();
         player.FullName = input.FullName.Trim(); player.KitNumber = input.KitNumber; player.Position = input.Position?.Trim();

@@ -349,5 +349,91 @@ public class ClubProfileAndRosterViewTests
         Assert.False(CompetitionRules.SafeImageUrl("http://insecure-cdn.com/logo.png"));
         Assert.False(CompetitionRules.SafeImageUrl("javascript:alert(1)"));
     }
+    [Fact]
+    public async Task AddPlayer_DuplicateKitNumber_RejectsWithFriendlyErrorMessage()
+    {
+        using var db = CreateInMemoryDbContext();
+        var userManager = CreateMockUserManager(db);
+        var authService = new TeamAuthorizationService(db);
+
+        var owner = new ApplicationUser { Id = "owner-klb-1", UserName = "owner@klb.vn", Email = "owner@klb.vn" };
+        db.Users.Add(owner);
+
+        var team = new Team { Id = Guid.NewGuid(), Name = "KLB FC", Slug = "klb-fc" };
+        db.Teams.Add(team);
+        db.TeamMembers.Add(new TeamMember { TeamId = team.Id, UserId = owner.Id, Role = TeamRole.Owner });
+
+        var existingPlayer = new Player
+        {
+            Id = Guid.NewGuid(),
+            TeamId = team.Id,
+            FullName = "Nguyễn Văn A",
+            KitNumber = 10,
+            IsActive = true
+        };
+        db.Players.Add(existingPlayer);
+        await db.SaveChangesAsync();
+
+        var controller = new TeamsController(db, userManager, authService);
+        var httpContext = new DefaultHttpContext();
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(httpContext, MockTempDataProvider.Instance);
+        SetUserContext(controller, owner);
+
+        // Thêm cầu thủ mới trùng số áo 10
+        var result = await controller.AddPlayer(team.Id, "Trần Văn B", 10, "FW", null, null, null) as RedirectToActionResult;
+        Assert.NotNull(result);
+        Assert.Equal(nameof(TeamsController.Players), result.ActionName);
+        Assert.Contains("Số áo #10 đã thuộc về", controller.TempData["Error"]?.ToString());
+
+        // Kiểm tra không bị thêm vào DB
+        var totalPlayers = await db.Players.CountAsync(p => p.TeamId == team.Id);
+        Assert.Equal(1, totalPlayers);
+    }
+
+    [Fact]
+    public async Task PlayerEditor_DuplicateKitNumber_AddsModelError()
+    {
+        using var db = CreateInMemoryDbContext();
+        var userManager = CreateMockUserManager(db);
+        var authService = new TeamAuthorizationService(db);
+
+        var owner = new ApplicationUser { Id = "owner-klb-2", UserName = "owner2@klb.vn", Email = "owner2@klb.vn" };
+        db.Users.Add(owner);
+
+        var team = new Team { Id = Guid.NewGuid(), Name = "KLB FC 2", Slug = "klb-fc-2" };
+        db.Teams.Add(team);
+        db.TeamMembers.Add(new TeamMember { TeamId = team.Id, UserId = owner.Id, Role = TeamRole.Owner });
+
+        var player1 = new Player { Id = Guid.NewGuid(), TeamId = team.Id, FullName = "Cầu thủ 1", KitNumber = 7, IsActive = true };
+        var player2 = new Player { Id = Guid.NewGuid(), TeamId = team.Id, FullName = "Cầu thủ 2", KitNumber = 9, IsActive = true };
+        db.Players.AddRange(player1, player2);
+        await db.SaveChangesAsync();
+
+        var controller = new TeamsController(db, userManager, authService);
+        SetUserContext(controller, owner);
+
+        // Chỉnh sửa player2 đổi sang số áo 7 (trùng với player1)
+        var input = new AloBall.Web.Models.PlayerProfileInput
+        {
+            Id = player2.Id,
+            TeamId = team.Id,
+            FullName = "Cầu thủ 2",
+            KitNumber = 7,
+            IsActive = true
+        };
+
+        var result = await controller.PlayerEditor(input) as ViewResult;
+        Assert.NotNull(result);
+        Assert.True(controller.ModelState.ContainsKey(nameof(input.KitNumber)));
+        var error = controller.ModelState[nameof(input.KitNumber)]?.Errors[0].ErrorMessage;
+        Assert.Contains("Số áo #7 đã thuộc về", error);
+    }
 }
 
+public class MockTempDataProvider : Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider
+{
+    public static readonly MockTempDataProvider Instance = new();
+    private readonly Dictionary<string, object> _values = new();
+    public IDictionary<string, object> LoadTempData(HttpContext context) => _values;
+    public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
+}

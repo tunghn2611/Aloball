@@ -198,6 +198,7 @@ using (var scope = app.Services.CreateScope())
                 await db.Database.MigrateAsync();
                 logger?.LogInformation("Đã áp dụng thành công {Count} migration(s).", pending.Count());
             }
+            await DbInitializer.EnsureDatabaseSchemaAsync(db);
         }
         else if (db.Database.IsSqlite())
         {

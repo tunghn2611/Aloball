@@ -312,6 +312,9 @@
         }
 
         try {
+            if (document.fonts && document.fonts.ready) {
+                await document.fonts.ready;
+            }
             const h2i = await ensureHtmlToImage();
             const blob = await h2i.toBlob(target, {
                 pixelRatio: 2,

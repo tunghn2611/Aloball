@@ -62,6 +62,15 @@
         border-color: #34d399 !important;
         box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
     }
+    @@keyframes warningPulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.75); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+    .btn-warning-pulse {
+        animation: warningPulse 1.8s infinite !important;
+        border-color: #ffd700 !important;
+    }
 
     /* Pitch container */
     .smart-pitch-container {
@@ -728,6 +737,41 @@
     let selectedSwapSource = null; // { playerId, side, slotCode, playerName, isBench }
     let draggedTokenData = null;   // { playerId, side, slotCode, playerName, isBench }
     let currentDivisionMode = isInternalMatch ? 'a_vs_b' : 'friendly';
+    let isLineupDirty = false;
+
+    function markLineupDirty() {
+        if (!isManagerRole) return;
+        isLineupDirty = true;
+        const btnSave = document.getElementById('btnSaveLineup');
+        if (btnSave) {
+            btnSave.classList.add('btn-warning-pulse');
+            if (!btnSave.querySelector('.dirty-indicator')) {
+                const dot = document.createElement('span');
+                dot.className = 'dirty-indicator ms-1 badge bg-danger text-white rounded-pill';
+                dot.style.fontSize = '0.7rem';
+                dot.innerText = '● Chưa lưu';
+                btnSave.appendChild(dot);
+            }
+        }
+    }
+
+    function clearLineupDirty() {
+        isLineupDirty = false;
+        const btnSave = document.getElementById('btnSaveLineup');
+        if (btnSave) {
+            btnSave.classList.remove('btn-warning-pulse');
+            const dot = btnSave.querySelector('.dirty-indicator');
+            if (dot) dot.remove();
+        }
+    }
+
+    window.addEventListener('beforeunload', function (e) {
+        if (isLineupDirty) {
+            e.preventDefault();
+            e.returnValue = 'Bạn có thay đổi đội hình/sơ đồ chưa được lưu. Rời đi sẽ làm mất dữ liệu?';
+            return e.returnValue;
+        }
+    });
 
     // Roster Seeds
     const myTeamPlayerSeeds = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(myTeamPlayers.Select(p => new {
@@ -792,6 +836,7 @@
         if (selectEl && selectEl.options.length > 0) {
             activeFormationCode = selectEl.value;
             triggerDivision(currentDivisionMode);
+            markLineupDirty();
         }
     }
 
@@ -825,6 +870,7 @@
         if (selectEl) {
             activeFormationCode = selectEl.value;
             triggerDivision(currentDivisionMode);
+            markLineupDirty();
         }
     }
 
@@ -1628,6 +1674,7 @@
         renderAllTacticalPitches();
         renderBenchTray();
         updateTacticalStats();
+        markLineupDirty();
     }
 
     function movePlayerToSlot(source, targetSlotCode, targetSide) {
@@ -1655,6 +1702,7 @@
         renderAllTacticalPitches();
         renderBenchTray();
         updateTacticalStats();
+        markLineupDirty();
     }
 
     // HTML5 Drag and Drop handlers
@@ -1715,6 +1763,7 @@
             renderAllTacticalPitches();
             renderBenchTray();
             updateTacticalStats();
+            markLineupDirty();
         }
         draggedTokenData = null;
     }
@@ -1760,6 +1809,7 @@
 
             if (res.success) {
                 currentLineupRevision = res.newRevision;
+                clearLineupDirty();
                 alert('Đã lưu sơ đồ và đội hình thi đấu thành công!');
             } else {
                 alert(res.message || 'Lỗi khi lưu đội hình.');
