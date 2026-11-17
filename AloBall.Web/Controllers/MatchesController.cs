@@ -354,6 +354,13 @@ public partial class MatchesController : Controller
         if (match.Status != MatchStatus.Completed || !match.ScoreA.HasValue || !match.ScoreB.HasValue || match.MatchDateTime > CompetitionRules.LocalNow)
             return BadRequest(new { message = "Trận chưa có kết quả hợp lệ để xác nhận." });
 
+        // Idempotent: double-click/retry after this side already confirmed is a no-op (no extra ledger sync)
+        if ((!isManagerA || match.ConfirmedByTeamA) && (!isManagerB || match.ConfirmedByTeamB))
+        {
+            TempData["Success"] = "Tỉ số đã được xác nhận trước đó.";
+            return RedirectToAction(nameof(Detail), new { id = matchId });
+        }
+
         if (isManagerA) match.ConfirmedByTeamA = true;
         if (isManagerB) match.ConfirmedByTeamB = true;
 

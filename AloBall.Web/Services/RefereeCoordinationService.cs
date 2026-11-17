@@ -49,7 +49,7 @@ public class RefereeCoordinationService : IRefereeCoordinationService
         }
 
         // 2. Server-side validations
-        if (request.ServiceDate.Date < DateTime.Today)
+        if (request.ServiceDate.Date < CompetitionRules.LocalNow.Date)
         {
             throw new ArgumentException("Ngày thi đấu không được ở trong quá khứ.");
         }

@@ -171,7 +171,7 @@ public class ContactController : Controller
 
         ViewBag.ManagedTeams = managedTeams;
 
-        if (model.ServiceDate.Date < DateTime.Today)
+        if (model.ServiceDate.Date < CompetitionRules.LocalNow.Date)
             ModelState.AddModelError(nameof(model.ServiceDate), "Ngày thi đấu không được ở trong quá khứ.");
         if (model.EndTime <= model.StartTime)
             ModelState.AddModelError(nameof(model.EndTime), "Giờ kết thúc phải muộn hơn giờ bắt đầu.");
@@ -429,7 +429,7 @@ public class ContactController : Controller
         ViewBag.ManagedTeams = managedTeams;
         ViewBag.ActiveVenues = await _pitchService.GetActiveVenuesAsync();
 
-        if (model.ServiceDate.Date < DateTime.Today)
+        if (model.ServiceDate.Date < CompetitionRules.LocalNow.Date)
             ModelState.AddModelError(nameof(model.ServiceDate), "Ngày đặt sân không được ở trong quá khứ.");
         if (model.EndTime <= model.StartTime)
             ModelState.AddModelError(nameof(model.EndTime), "Giờ kết thúc phải muộn hơn giờ bắt đầu.");

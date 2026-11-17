@@ -227,7 +227,7 @@ public class PitchBookingService : IPitchBookingService
         }
 
         // 2. Server-side validations
-        if (request.ServiceDate.Date < DateTime.Today)
+        if (request.ServiceDate.Date < CompetitionRules.LocalNow.Date)
         {
             throw new ArgumentException("Ngày đặt sân không được ở trong quá khứ.");
         }

@@ -35,7 +35,8 @@ else
 
 if (isProduction && string.IsNullOrWhiteSpace(pgConnection))
 {
-    Console.WriteLine("THÔNG BÁO: Môi trường Production chưa cấu hình PostgreSQL qua biến môi trường. Tự động chuyển sang SQLite dự phòng để website luôn hoạt động bình thường.");
+    throw new InvalidOperationException(
+        "CRITICAL: Production environment requires a valid PostgreSQL connection string via 'ConnectionStrings:PostgreSqlConnection', 'POSTGRES_CONNECTION', 'POSTGRES_URL', or 'DATABASE_URL'. Ephemeral SQLite fallback is strictly prohibited in Production to protect data persistence.");
 }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
