@@ -122,8 +122,8 @@
                         const code = t.replace('+', '').toUpperCase();
                         const iconPath = window.fc27SvgMap[code];
                         const meta = window.fc27CatalogMap ? window.fc27CatalogMap[code] : null;
-                        const nameVi = meta ? meta.nameVi : code;
-                        const nameEn = meta ? meta.nameEn : '';
+                        const nameVi = meta ? (meta.nameVi || meta.NameVi || code) : code;
+                        const nameEn = meta ? (meta.nameEn || meta.NameEn || '') : '';
                         const fullTitle = `${nameVi}${nameEn ? ' (' + nameEn + ')' : ''}${isPlus ? ' ★ PlayStyle+' : ''}`;
                         if (iconPath) {
                             futPsHtml += `<span class="fc27-ps-item" title="${fullTitle}"><span class="fc27-ps-diamond ${isPlus ? 'fc27-ps-gold' : 'fc27-ps-cyan'}" style="width:22px;height:22px;"><svg viewBox="0 0 24 24" class="fc27-ps-icon" style="width:13px;height:13px;"><path d="${iconPath}" fill="currentColor"/></svg></span><span class="fc27-ps-hover-tooltip">${fullTitle}</span></span>`;

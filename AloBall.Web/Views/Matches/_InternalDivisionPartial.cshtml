@@ -743,7 +743,7 @@
 
     // FC 27 PlayStyle SVG Map & Catalog
     const fc27SvgMap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AloBall.Web.Models.PlayStyleCatalog.All.ToDictionary(s => s.Code, s => s.SvgPath)));
-    const fc27CatalogMap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AloBall.Web.Models.PlayStyleCatalog.All.ToDictionary(s => s.Code, s => new { s.NameVi, s.NameEn, s.Category })));
+    const fc27CatalogMap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(AloBall.Web.Models.PlayStyleCatalog.All.ToDictionary(s => s.Code, s => new { code = s.Code, nameVi = s.NameVi, nameEn = s.NameEn, category = s.Category })));
     window.fc27SvgMap = fc27SvgMap;
     window.fc27CatalogMap = fc27CatalogMap;
 
@@ -1462,8 +1462,8 @@
                     const code = t.replace('+', '').toUpperCase();
                     const iconPath = fc27SvgMap[code];
                     const meta = typeof fc27CatalogMap !== 'undefined' ? fc27CatalogMap[code] : null;
-                    const nameVi = meta ? meta.nameVi : code;
-                    const nameEn = meta ? meta.nameEn : '';
+                    const nameVi = meta ? (meta.nameVi || meta.NameVi || code) : code;
+                    const nameEn = meta ? (meta.nameEn || meta.NameEn || '') : '';
                     const fullTitle = `${nameVi}${nameEn ? ' (' + nameEn + ')' : ''}${isPlus ? ' ★ PlayStyle+' : ''}`;
                     if (iconPath) {
                         psBadgesHtml += `
