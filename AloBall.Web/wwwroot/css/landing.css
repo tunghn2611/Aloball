@@ -154,6 +154,8 @@ body.lp{margin:0;background:var(--bg);color:var(--slate);font:400 1rem/1.6 "Be V
 .lp-hero h1{color:#fff;font-family:"Barlow Condensed","Be Vietnam Pro",sans-serif;font-weight:800;font-size:clamp(2.4rem,9.5vw,4.4rem);line-height:1.02;letter-spacing:.005em;text-shadow:0 4px 30px rgba(0,0,0,.4)}
 .lp-grad{background:linear-gradient(90deg,#34D399 0%,#FDE68A 55%,#F59E0B 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
 .lp-hero .lp-lead{color:#CBD5E1}
+.lp-hero__summary{margin:0 0 12px;font-size:1.05rem;line-height:1.6;color:#E2E8F0;max-width:56ch}
+.lp-hero__features{margin:0 0 12px;font-size:.95rem;font-weight:700;line-height:1.5;color:#6EE7B7;letter-spacing:.01em;max-width:56ch}
 .lp-hero .lp-badge{background:rgba(16,185,129,.14);color:#6EE7B7;border-color:rgba(52,211,153,.4)}
 .lp-hero .lp-trust{color:#A7F3D0}
 .lp-hero .lp-btn--primary{background:linear-gradient(135deg,#10B981,#059669);box-shadow:0 0 0 1px rgba(255,255,255,.18) inset,0 10px 30px rgba(16,185,129,.45)}

@@ -216,16 +216,21 @@ public class PartnerPortalService : IPartnerPortalService
             vm.CreateDealInput.OriginalPriceVnd = pickedVenue.IndicativePricePerHour ?? 650_000m;
             vm.CreateDealInput.DealPriceVnd = Math.Round(vm.CreateDealInput.OriginalPriceVnd * 0.65m / 10000m, 0) * 10000m;
 
-            var bookings = await _db.PitchBookingRequests
+            // SQLite does not support ordering by TimeSpan in SQL; sort secondary StartTime in memory.
+            var bookingsRaw = await _db.PitchBookingRequests
                 .AsNoTracking()
                 .Include(r => r.PitchVenue)
                 .Include(r => r.Team)
                 .Include(r => r.Offers)
                 .Where(r => venueIds.Contains(r.PitchVenueId))
                 .OrderByDescending(r => r.ServiceDate)
-                .ThenBy(r => r.StartTime)
                 .Take(40)
                 .ToListAsync();
+
+            var bookings = bookingsRaw
+                .OrderByDescending(r => r.ServiceDate)
+                .ThenBy(r => r.StartTime)
+                .ToList();
 
             var weekAgo = localNow.Date.AddDays(-7);
             var weekAhead = localNow.Date.AddDays(7);
