@@ -1,4 +1,4 @@
-﻿@model AloBall.Web.Data.Entities.MatchmakingPost
+@model AloBall.Web.Data.Entities.MatchmakingPost
 @{
     bool isDirectChallenge = Model.PostType == AloBall.Web.Data.Entities.MatchmakingPostType.DirectChallenge;
     ViewData["Title"] = isDirectChallenge ? $"Lời Mời Thách Đấu: {Model.Team.Name} vs {Model.TargetTeam?.Name}" : $"Kèo Giao Hữu: {Model.Team.Name}";
@@ -152,39 +152,57 @@
                 }
                 else if (managedTeams.Any())
                 {
-                    <div class="border-top pt-3">
-                        <h6 class="fw-bold text-dark mb-2">Gửi đề nghị thách đấu / giao lưu</h6>
-                        <form asp-action="SendProposal" method="post">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="postId" value="@Model.Id" />
-                            <div class="row g-2 mb-2">
-                                <div class="col-12 col-md-6">
-                                    <label class="small text-muted">Chọn đội của bạn:</label>
-                                    <select name="challengingTeamId" class="form-select" required>
-                                        @foreach (var t in managedTeams)
-                                        {
-                                            <option value="@t.Id">@t.Name (@t.AverageRating ⭐)</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="small text-muted">Lời nhắn:</label>
-                                    <input type="text" name="message" class="form-control" placeholder="Bên em nhận kèo giao lưu nhé..." />
-                                </div>
-                            </div>
-                            @if (ViewBag.ShowVibeWarning == true)
-                            {
-                                <div class="fc27-vibe-warning-alert mb-2">
-                                    <div class="warning-icon">⚠️</div>
-                                    <div>
-                                        <div class="warning-title">Lưu ý cho đội Đá dưỡng sinh</div>
-                                        <p class="warning-desc">Đối thủ có tỷ lệ đánh giá <strong>Đá rát – quyết liệt</strong> cao (@(((AloBall.Web.Models.TeamVibeAnalysis?)ViewBag.HostVibe)?.HardTacklePercentage ?? 0)%). Hãy trao đổi trước khi gửi thách đấu.</p>
+                    var pendingTeamIds = Model.Proposals
+                        .Where(p => p.Status == AloBall.Web.Data.Entities.ProposalStatus.Pending)
+                        .Select(p => p.ChallengingTeamId)
+                        .ToHashSet();
+                    var eligibleTeams = managedTeams.Where(t => !pendingTeamIds.Contains(t.Id)).ToList();
+
+                    if (eligibleTeams.Any())
+                    {
+                        <div class="border-top pt-3">
+                            <h6 class="fw-bold text-dark mb-2">Gửi đề nghị thách đấu / giao lưu</h6>
+                            <form asp-action="SendProposal" method="post" onsubmit="const btn=this.querySelector('button[type=submit]');if(btn){if(btn.dataset.submitted==='1')return false;btn.dataset.submitted='1';btn.disabled=true;btn.innerText='Đang gửi đề nghị...';}">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="postId" value="@Model.Id" />
+                                <div class="row g-2 mb-2">
+                                    <div class="col-12 col-md-6">
+                                        <label class="small text-muted">Chọn đội của bạn:</label>
+                                        <select name="challengingTeamId" class="form-select" required>
+                                            @foreach (var t in eligibleTeams)
+                                            {
+                                                <option value="@t.Id">@t.Name (@t.AverageRating ⭐)</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="small text-muted">Lời nhắn:</label>
+                                        <input type="text" name="message" class="form-control" placeholder="Bên em nhận kèo giao lưu nhé..." />
                                     </div>
                                 </div>
-                            }
-                            <button type="submit" class="btn btn-arena-primary w-100" style="min-height: 44px;">Gửi Thách Đấu</button>
-                        </form>
-                    </div>
+                                @if (ViewBag.ShowVibeWarning == true)
+                                {
+                                    <div class="fc27-vibe-warning-alert mb-2">
+                                        <div class="warning-icon">⚠️</div>
+                                        <div>
+                                            <div class="warning-title">Lưu ý cho đội Đá dưỡng sinh</div>
+                                            <p class="warning-desc">Đối thủ có tỷ lệ đánh giá <strong>Đá rát – quyết liệt</strong> cao (@(((AloBall.Web.Models.TeamVibeAnalysis?)ViewBag.HostVibe)?.HardTacklePercentage ?? 0)%). Hãy trao đổi trước khi gửi thách đấu.</p>
+                                        </div>
+                                    </div>
+                                }
+                                <button type="submit" class="btn btn-arena-primary w-100" style="min-height: 44px;">Gửi Thách Đấu</button>
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="border-top pt-3">
+                            <div class="alert alert-success border-success-subtle py-2 px-3 small mb-0 d-flex align-items-center gap-2">
+                                <i class="bi bi-check-circle-fill fs-5"></i>
+                                <span>Đội của bạn đã gửi đề nghị thách đấu cho kèo này và đang chờ chủ kèo phản hồi.</span>
+                            </div>
+                        </div>
+                    }
                 }
                 else
                 {

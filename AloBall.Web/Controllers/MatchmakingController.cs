@@ -1,4 +1,4 @@
-﻿using AloBall.Web.Data;
+using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -214,6 +214,30 @@ public class MatchmakingController : Controller
         return RedirectToAction(nameof(Details), new { id = post.Id });
     }
 
+    private bool WantsJsonResponse() =>
+        string.Equals(Request?.Headers["X-Requested-With"].ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
+        || (Request?.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase) == true
+            && Request.Headers.Accept.ToString().Contains("text/html", StringComparison.OrdinalIgnoreCase) == false);
+
+    private IActionResult ValidationFailure(string message, string? action = null, object? routeValues = null, string? redirectUrl = null)
+    {
+        if (WantsJsonResponse())
+            return BadRequest(new { message });
+
+        TempData["Error"] = message;
+        if (!string.IsNullOrEmpty(redirectUrl) && (Url == null || Url.IsLocalUrl(redirectUrl)))
+            return Redirect(redirectUrl);
+        return action != null ? RedirectToAction(action, routeValues) : RedirectToAction(nameof(Index));
+    }
+
+    // Fallback an toàn nếu người dùng F5 lại đường dẫn /Matchmaking/SendProposal
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult SendProposal(Guid? postId = null) =>
+        postId.HasValue && postId.Value != Guid.Empty
+            ? RedirectToAction(nameof(Details), new { id = postId.Value })
+            : RedirectToAction(nameof(Index));
+
     // 4. Gửi đề nghị giao lưu (Thách đấu)
     [HttpPost]
     [Authorize]
@@ -228,21 +252,20 @@ public class MatchmakingController : Controller
 
         var team = await _db.Teams.FindAsync(challengingTeamId);
         if (team == null || team.IsRestrictedFromMatchmaking)
-        {
-            TempData["Error"] = "Đội của bạn đang bị hạn chế bắt đối hoặc không hợp lệ.";
-            return RedirectToAction(nameof(Details), new { id = postId });
-        }
+            return ValidationFailure("Đội của bạn đang bị hạn chế bắt đối hoặc không hợp lệ.", nameof(Details), new { id = postId });
 
         var post = await _db.MatchmakingPosts.FindAsync(postId);
         if (post == null || post.Status != MatchmakingStatus.Open)
-        {
-            TempData["Error"] = "Tin tìm đối này không còn mở.";
-            return RedirectToAction(nameof(Index));
-        }
+            return ValidationFailure("Tin tìm đối này không còn mở.", nameof(Index));
 
-        if (post.PostType != MatchmakingPostType.Public || post.TeamId == challengingTeamId ||
-            await _db.MatchmakingProposals.AnyAsync(p => p.PostId == postId && p.ChallengingTeamId == challengingTeamId && p.Status == ProposalStatus.Pending))
-            return BadRequest(new { message = "Đề nghị không hợp lệ hoặc đã được gửi." });
+        if (post.PostType != MatchmakingPostType.Public)
+            return ValidationFailure("Kèo này là lời mời riêng tư, không thể gửi thách đấu công khai.", nameof(Details), new { id = postId });
+
+        if (post.TeamId == challengingTeamId)
+            return ValidationFailure("Không thể gửi đề nghị giao lưu tới chính đội đang đăng kèo.", nameof(Details), new { id = postId });
+
+        if (await _db.MatchmakingProposals.AnyAsync(p => p.PostId == postId && p.ChallengingTeamId == challengingTeamId && p.Status == ProposalStatus.Pending))
+            return ValidationFailure("Đội của bạn đã gửi đề nghị giao lưu cho kèo này và đang chờ phản hồi.", nameof(Details), new { id = postId });
 
         var proposal = new MatchmakingProposal
         {
@@ -331,7 +354,8 @@ public class MatchmakingController : Controller
 
         if (pitchArrangement == PitchArrangement.HomePitch && string.IsNullOrWhiteSpace(pitchName)) pitchName = challenger.HomePitch;
         if (!Enum.IsDefined(pitchArrangement) || matchDate.Date.Add(startTime) <= CompetitionRules.LocalNow || startTime < TimeSpan.Zero || endTime > TimeSpan.FromDays(1) || endTime <= startTime || string.IsNullOrWhiteSpace(area) ||
-            (pitchArrangement == PitchArrangement.HomePitch && string.IsNullOrWhiteSpace(pitchName))) return BadRequest(new { message = "Kiểm tra ngày giờ, khu vực và sân thi đấu." });
+            (pitchArrangement == PitchArrangement.HomePitch && string.IsNullOrWhiteSpace(pitchName)))
+            return ValidationFailure("Kiểm tra lại ngày giờ thi đấu (phải sau hiện tại, giờ kết thúc sau giờ bắt đầu), khu vực và tên sân.", redirectUrl: $"/doi/{Uri.EscapeDataString((targetSlug ?? string.Empty).Trim('/'))}");
 
         // Tạo bài đăng thách đấu trực tiếp (KHÔNG đưa lên sàn tìm đối công khai)
         var post = new MatchmakingPost
