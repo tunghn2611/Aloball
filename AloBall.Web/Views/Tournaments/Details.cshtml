@@ -1,0 +1,430 @@
+@model AloBall.Web.Models.TournamentDetailsViewModel
+@using AloBall.Web.Data.Entities
+@{
+    ViewData["Title"] = Model.Tournament.Name;
+    var t = Model.Tournament;
+    bool hasFixtures = Model.FixtureRounds.Any();
+}
+
+<style>
+    .th-hero {
+        background: linear-gradient(135deg, #064E3B 0%, #0F172A 100%);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        border-radius: 18px;
+        padding: 1.5rem;
+        color: #F8FAFC;
+        margin-bottom: 1.15rem;
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.22);
+    }
+    .th-btn {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+    }
+    .th-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        background: #0F172A;
+        padding: 0.4rem;
+        border-radius: 14px;
+        margin-bottom: 1.25rem;
+    }
+    .th-tab {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: #CBD5E1;
+        text-decoration: none;
+        padding: 0.45rem 0.6rem;
+        text-align: center;
+    }
+    .th-tab:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.08); }
+    .th-tab.active {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: #FFFFFF;
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+    .th-rank-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        background: #F1F5F9;
+        color: #0F172A;
+    }
+    .th-rank-1 { background: #F59E0B; color: #0F172A; }
+    .th-rank-2 { background: #CBD5E1; color: #0F172A; }
+    .th-rank-3 { background: #D97706; color: #FFFFFF; }
+    @@media (max-width: 767px) {
+        .th-tabs { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="mb-2">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary" style="min-height:40px;"><i class="bi bi-arrow-left me-1"></i>Danh sách giải đấu</a>
+</div>
+
+<section class="th-hero">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <span class="badge bg-warning text-dark fw-bold">@Model.StatusLabel</span>
+                <span class="badge bg-success-subtle text-success border border-success">@Model.FormatLabel</span>
+                <button type="button" class="badge bg-dark text-warning border border-warning" style="cursor:pointer;" onclick="copyInviteCode()" title="Bấm để copy mã mời">
+                    <i class="bi bi-key-fill me-1"></i>Mã mời: @t.InviteCode
+                </button>
+            </div>
+            <h1 class="h2 fw-bold text-white mb-1">@t.Name</h1>
+            <p class="small text-white-50 mb-0">
+                <i class="bi bi-geo-alt-fill text-warning me-1"></i>@t.PitchVenue · @t.Region &nbsp;|&nbsp;
+                <i class="bi bi-calendar3 text-warning me-1"></i>Khai mạc: @t.StartDate.ToString("dd/MM/yyyy") &nbsp;|&nbsp;
+                <i class="bi bi-cash-coin text-warning me-1"></i>@(t.EntryFeeVnd <= 0 ? "Miễn phí" : $"{t.EntryFeeVnd:N0}đ/đội") &nbsp;|&nbsp;
+                <i class="bi bi-person-badge text-warning me-1"></i>BTC: @Model.OrganizerName
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" id="copyZaloBtn" class="btn btn-warning text-dark th-btn shadow-sm" onclick="copyZaloStandings()">
+                <i class="bi bi-chat-dots-fill"></i> Copy BXH chuẩn Zalo
+            </button>
+            @if (Model.IsOrganizer && t.Status == TournamentStatus.Ongoing)
+            {
+                <form asp-action="CompleteTournament" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tournamentId" value="@t.Id" />
+                    <button type="submit" class="btn btn-outline-light th-btn" onclick="return confirm('Đánh dấu giải đấu đã kết thúc?');">
+                        <i class="bi bi-flag-fill"></i> Kết thúc giải
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+</section>
+
+@if (Model.IsOrganizer || (Model.MyEligibleTeams.Any() && t.Status == TournamentStatus.Registration && !hasFixtures))
+{
+    <section class="arena-card p-3 mb-3 bg-white">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="h6 fw-bold text-dark mb-0">
+                <i class="bi bi-people-fill text-success me-1"></i>Đội tham dự (@Model.ParticipatingTeams.Count đội)
+            </h2>
+            @if (Model.CanGenerateFixtures)
+            {
+                <form asp-action="GenerateFixtures" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tournamentId" value="@t.Id" />
+                    <button type="submit" class="btn btn-arena-primary th-btn shadow-sm">
+                        <i class="bi bi-magic"></i> Sinh lịch thi đấu 1 chạm
+                    </button>
+                </form>
+            }
+            else if (Model.CanGenerateNextRound && !string.IsNullOrEmpty(Model.NextRoundButtonLabel))
+            {
+                <form asp-action="GenerateNextRound" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tournamentId" value="@t.Id" />
+                    <button type="submit" class="btn btn-warning text-dark th-btn shadow-sm">
+                        <i class="bi bi-diagram-3-fill"></i> @Model.NextRoundButtonLabel
+                    </button>
+                </form>
+            }
+        </div>
+
+        @if (Model.ParticipatingTeams.Any())
+        {
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                @foreach (var pt in Model.ParticipatingTeams)
+                {
+                    <div class="badge bg-light text-dark border d-inline-flex align-items-center gap-2 px-3 py-2" style="font-size:0.82rem;">
+                        <span>
+                            @(string.IsNullOrWhiteSpace(pt.GroupName) ? "" : $"[{pt.GroupName}] ")<strong>@pt.TeamName</strong>
+                        </span>
+                        @if (Model.IsOrganizer && !hasFixtures)
+                        {
+                            <form asp-action="RemoveTeam" method="post" class="d-inline m-0">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="tournamentId" value="@t.Id" />
+                                <input type="hidden" name="teamId" value="@pt.TeamId" />
+                                <button type="submit" class="btn-close" style="font-size:0.6rem;" aria-label="Gỡ đội @pt.TeamName"></button>
+                            </form>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.IsOrganizer && !hasFixtures && Model.AvailablePublicTeams.Any())
+        {
+            <form asp-action="AddTeam" method="post" class="row g-2 align-items-end pt-2 border-top">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="tournamentId" value="@t.Id" />
+                <div class="col-12 col-md-5">
+                    <label class="form-label mb-1">Thêm CLB vào giải</label>
+                    <select name="teamId" class="form-select" style="min-height:48px;" required>
+                        @foreach (var cand in Model.AvailablePublicTeams)
+                        {
+                            <option value="@cand.Id">@cand.Name (@(cand.ActivityArea ?? "Tự do"))</option>
+                        }
+                    </select>
+                </div>
+                @if (t.Format == TournamentFormat.GroupPlusKnockout)
+                {
+                    <div class="col-12 col-md-4">
+                        <label class="form-label mb-1">Bảng đấu</label>
+                        <select name="groupName" class="form-select" style="min-height:48px;">
+                            <option value="">Tự động chia đều A / B</option>
+                            <option value="Bảng A">Bảng A</option>
+                            <option value="Bảng B">Bảng B</option>
+                        </select>
+                    </div>
+                }
+                <div class="col-12 col-md-3">
+                    <button type="submit" class="btn btn-outline-success th-btn w-100"><i class="bi bi-plus-lg"></i> Thêm đội</button>
+                </div>
+            </form>
+        }
+        else if (Model.MyEligibleTeams.Any() && t.Status == TournamentStatus.Registration && !hasFixtures)
+        {
+            <form asp-action="JoinByCode" method="post" class="row g-2 align-items-end pt-2 border-top">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="inviteCode" value="@t.InviteCode" />
+                <div class="col-12 col-md-8">
+                    <label class="form-label mb-1">Đăng ký nhanh bằng đội của bạn</label>
+                    <select name="teamId" class="form-select" style="min-height:48px;" required>
+                        @foreach (var myTeam in Model.MyEligibleTeams)
+                        {
+                            <option value="@myTeam.Id">@myTeam.Name (@(myTeam.ActivityArea ?? "Chưa rõ KV"))</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <button type="submit" class="btn btn-arena-primary th-btn w-100"><i class="bi bi-check2-circle"></i> Tham gia giải</button>
+                </div>
+            </form>
+        }
+    </section>
+}
+
+<nav class="th-tabs" aria-label="Điều hướng giải đấu">
+    <a class="th-tab @(Model.ActiveTab == "standings" ? "active" : "")" asp-action="Details" asp-route-id="@t.Id" asp-route-tab="standings">
+        <i class="bi bi-table"></i> Bảng xếp hạng
+    </a>
+    <a class="th-tab @(Model.ActiveTab == "fixtures" ? "active" : "")" asp-action="Details" asp-route-id="@t.Id" asp-route-tab="fixtures">
+        <i class="bi bi-calendar2-week"></i> Lịch thi đấu &amp; Kết quả (@Model.FixtureRounds.Sum(r => r.Matches.Count))
+    </a>
+    <a class="th-tab @(Model.ActiveTab == "scorers" ? "active" : "")" asp-action="Details" asp-route-id="@t.Id" asp-route-tab="scorers">
+        <i class="bi bi-award-fill"></i> Vua phá lưới &amp; Thẻ (@Model.Scorers.Count)
+    </a>
+</nav>
+
+@if (Model.ActiveTab == "standings")
+{
+    if (!Model.StandingGroups.Any(g => g.Rows.Any()))
+    {
+        <div class="empty-state">
+            <i class="bi bi-table"></i>
+            <h3>Chưa có đội nào trong bảng xếp hạng</h3>
+            <p>Hãy thêm ít nhất @(t.Format == TournamentFormat.GroupPlusKnockout ? 4 : 2) đội bóng và bấm <strong>Sinh lịch thi đấu 1 chạm</strong>.</p>
+        </div>
+    }
+    else
+    {
+        foreach (var grp in Model.StandingGroups)
+        {
+            <div class="arena-card p-3 mb-3 bg-white">
+                <h2 class="h5 fw-bold text-dark mb-3"><i class="bi bi-trophy-fill text-warning me-2"></i>@grp.Title</h2>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Đội bóng</th>
+                                <th class="text-center">Trận</th>
+                                <th class="text-center">T</th>
+                                <th class="text-center">H</th>
+                                <th class="text-center">B</th>
+                                <th class="text-center">BT:BB</th>
+                                <th class="text-center">HS</th>
+                                <th class="text-center">Thẻ</th>
+                                <th class="text-center">Điểm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in grp.Rows)
+                            {
+                                string rankCls = r.Rank switch { 1 => "th-rank-1", 2 => "th-rank-2", 3 => "th-rank-3", _ => "" };
+                                string signGd = r.GoalDiff > 0 ? $"+{r.GoalDiff}" : r.GoalDiff.ToString();
+                                <tr>
+                                    <td><span class="th-rank-pill @rankCls">@r.Rank</span></td>
+                                    <td>
+                                        <a asp-controller="Teams" asp-action="PublicProfile" asp-route-slug="@r.TeamSlug" class="fw-bold text-dark text-decoration-none">
+                                            @r.TeamName
+                                        </a>
+                                    </td>
+                                    <td class="text-center">@r.Played</td>
+                                    <td class="text-center text-success fw-bold">@r.Wins</td>
+                                    <td class="text-center">@r.Draws</td>
+                                    <td class="text-center text-danger">@r.Losses</td>
+                                    <td class="text-center">@r.GoalsFor:@r.GoalsAgainst</td>
+                                    <td class="text-center fw-bold">@signGd</td>
+                                    <td class="text-center small">
+                                        @if (r.YellowCards > 0 || r.RedCards > 0)
+                                        {
+                                            <span>🟨@r.YellowCards · 🟥@r.RedCards</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">0</span>
+                                        }
+                                    </td>
+                                    <td class="text-center"><span class="badge bg-success fs-6 px-2">@r.Points</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+}
+else if (Model.ActiveTab == "fixtures")
+{
+    if (!Model.FixtureRounds.Any())
+    {
+        <div class="empty-state">
+            <i class="bi bi-calendar2-week"></i>
+            <h3>Lịch thi đấu chưa được khởi tạo</h3>
+            <p>Khi giải đủ số đội tối thiểu, Ban tổ chức có thể bấm <strong>Sinh lịch thi đấu 1 chạm</strong> ở phía trên.</p>
+        </div>
+    }
+    else
+    {
+        foreach (var round in Model.FixtureRounds)
+        {
+            <section class="arena-card p-3 mb-3 bg-white">
+                <h2 class="h6 fw-bold text-success text-uppercase mb-3"><i class="bi bi-calendar-event me-2"></i>@round.RoundLabel</h2>
+                <div class="row g-2">
+                    @foreach (var fx in round.Matches)
+                    {
+                        <div class="col-12 col-lg-6">
+                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-between gap-2">
+                                <div class="d-flex justify-content-between align-items-center small text-muted">
+                                    <span><i class="bi bi-clock me-1"></i>@fx.MatchDateTime.ToString("HH:mm · dd/MM/yyyy")</span>
+                                    @if (fx.IsConfirmedResult)
+                                    {
+                                        <span class="badge bg-success">Đã chốt</span>
+                                    }
+                                    else if (fx.Status == MatchStatus.Completed)
+                                    {
+                                        <span class="badge bg-warning text-dark">Chờ 2 đội xác nhận</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-dark border">Sắp đá</span>
+                                    }
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center gap-2 my-1">
+                                    <strong class="text-dark flex-fill text-end">@fx.TeamAName</strong>
+                                    <span class="score-pill text-center">
+                                        @(fx.ScoreA.HasValue && fx.ScoreB.HasValue ? $"{fx.ScoreA} - {fx.ScoreB}" : "VS")
+                                    </span>
+                                    <strong class="text-dark flex-fill text-start">@fx.TeamBName</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center gap-2 pt-2 border-top small">
+                                    <span class="text-muted text-truncate"><i class="bi bi-geo-alt me-1"></i>@fx.PitchName</span>
+                                    <a asp-controller="Matches" asp-action="Detail" asp-route-id="@fx.MatchId" class="btn btn-sm btn-arena-primary" style="min-height:40px;">
+                                        Matchday Center <i class="bi bi-arrow-up-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    }
+}
+else
+{
+    if (!Model.Scorers.Any())
+    {
+        <div class="empty-state">
+            <i class="bi bi-award"></i>
+            <h3>Chưa có thống kê bàn thắng / thẻ phạt</h3>
+            <p>Khi trận đấu giải được cập nhật bàn thắng, kiến tạo hoặc thẻ phạt và xác nhận trên <strong>Matchday Center</strong>, bảng Vua phá lưới sẽ tự động hiển thị.</p>
+        </div>
+    }
+    else
+    {
+        <div class="arena-card p-3 bg-white">
+            <h2 class="h5 fw-bold text-dark mb-3"><i class="bi bi-award-fill text-warning me-2"></i>Vua phá lưới, Kiến tạo &amp; Kỷ luật</h2>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cầu thủ</th>
+                            <th>Đội bóng</th>
+                            <th class="text-center">Bàn thắng</th>
+                            <th class="text-center">Kiến tạo</th>
+                            <th class="text-center">G+A</th>
+                            <th class="text-center">🟨 Vàng</th>
+                            <th class="text-center">🟥 Đỏ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Scorers)
+                        {
+                            string rankCls = s.Rank switch { 1 => "th-rank-1", 2 => "th-rank-2", 3 => "th-rank-3", _ => "" };
+                            <tr>
+                                <td><span class="th-rank-pill @rankCls">@s.Rank</span></td>
+                                <td><strong>#@(s.KitNumber?.ToString() ?? "-") @s.PlayerName</strong></td>
+                                <td class="small text-muted">@s.TeamName</td>
+                                <td class="text-center"><span class="badge bg-success px-2">@s.Goals</span></td>
+                                <td class="text-center fw-bold">@s.Assists</td>
+                                <td class="text-center fw-bold text-primary">@s.GoalContributions</td>
+                                <td class="text-center">@s.YellowCards</td>
+                                <td class="text-center text-danger fw-bold">@s.RedCards</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+<textarea id="zaloStandingsSource" class="d-none" readonly>@Model.ZaloStandingsSummary</textarea>
+
+@section Scripts {
+    <script>
+        function copyZaloStandings() {
+            const text = document.getElementById('zaloStandingsSource')?.value || '';
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyZaloBtn');
+                if (btn) {
+                    const prev = btn.innerHTML;
+                    btn.innerHTML = '<i class="bi bi-check2-all"></i> Đã copy BXH Zalo!';
+                    setTimeout(() => { btn.innerHTML = prev; }, 2000);
+                }
+            });
+        }
+        function copyInviteCode() {
+            navigator.clipboard.writeText('@t.InviteCode');
+        }
+    </script>
+}

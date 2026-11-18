@@ -143,6 +143,7 @@ builder.Services.AddScoped<IMatchSplitBillService, MatchSplitBillService>();
 builder.Services.AddScoped<ILoanMarketService, LoanMarketService>();
 builder.Services.AddScoped<IAloballStarsService, AloballStarsService>();
 builder.Services.AddScoped<IMatchConciergeService, MatchConciergeService>();
+builder.Services.AddScoped<ITournamentService, TournamentService>();
 builder.Services.AddScoped<AloBall.Web.Services.TeamDivision.ITeamDivisionEngine, AloBall.Web.Services.TeamDivision.TeamDivisionEngine>();
 builder.Services.AddHttpClient();
 

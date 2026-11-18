@@ -606,6 +606,9 @@ h1, h2, h3, h4, h5, h6 {
 .ab-mobile-bottom-nav { display: none; }
 
 @media (max-width: 768px) {
+    .arena-sidebar .primary-nav a {
+        min-height: 48px;
+    }
     .mobile-more-label {
         display: inline;
         font-size: 11px;

@@ -1,0 +1,97 @@
+@model AloBall.Web.Models.CreateTournamentInput
+@using AloBall.Web.Data.Entities
+@{
+    ViewData["Title"] = "Tạo Giải Đấu Phủi Mini";
+}
+
+<div class="creation-layout">
+    <aside class="creation-story">
+        <span class="eyebrow"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>30-SECOND WIZARD</span>
+        <h2>Mở giải phủi chuyên nghiệp trong 30 giây.</h2>
+        <p>Tạo mã mời cho các đội trưởng đăng ký, sinh lịch vòng tròn hoặc chia bảng + Knockout chỉ với 1 chạm.</p>
+        <div class="creation-step">
+            <span>01</span>
+            <div>
+                <h3>Tạo giải &amp; phát Mã mời</h3>
+                <p>Hệ thống cấp Invite Code ngắn gọn để các CLB tham gia ngay.</p>
+            </div>
+        </div>
+        <div class="creation-step">
+            <span>02</span>
+            <div>
+                <h3>Sinh lịch 1 chạm</h3>
+                <p>Thuật toán Berger xếp cặp cân bằng kèm giờ bóng lăn Việt Nam.</p>
+            </div>
+        </div>
+        <div class="creation-step">
+            <span>03</span>
+            <div>
+                <h3>Tự động BXH &amp; Zalo</h3>
+                <p>Chốt tỉ số trên Matchday Center tự động cập nhật BXH, Vua phá lưới &amp; Thẻ phạt.</p>
+            </div>
+        </div>
+    </aside>
+
+    <section class="arena-card editor-panel">
+        <div class="editor-section">
+            <h1 class="h3 fw-bold mb-1">Khởi tạo Giải đấu mới</h1>
+            <p class="mb-4">Điền thông tin cơ bản để mở cổng đăng ký đội bóng.</p>
+
+            <form asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3"></div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label asp-for="Name" class="form-label">Tên giải đấu *</label>
+                        <input asp-for="Name" class="form-control" style="min-height:48px;" placeholder="VD: Cúp Phủi Cầu Giấy Mùa Thu 2026" required />
+                        <span asp-validation-for="Name" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Format" class="form-label">Thể thức thi đấu *</label>
+                        <select asp-for="Format" class="form-select" style="min-height:48px;">
+                            <option value="@((int)TournamentFormat.RoundRobinLeague)">Vòng tròn tính điểm (League)</option>
+                            <option value="@((int)TournamentFormat.KnockoutCup)">Loại trực tiếp (Knockout Cup)</option>
+                            <option value="@((int)TournamentFormat.GroupPlusKnockout)">Chia bảng (Bảng A/B) + Bán kết/Chung kết</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label asp-for="StartDate" class="form-label">Ngày khai mạc *</label>
+                        <input asp-for="StartDate" type="date" class="form-control" style="min-height:48px;" value="@Model.StartDate.ToString("yyyy-MM-dd")" required />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Region" class="form-label">Khu vực *</label>
+                        <input asp-for="Region" class="form-control" style="min-height:48px;" placeholder="VD: Cầu Giấy, Hà Nội hoặc Quận 7, TP.HCM" required />
+                        <span asp-validation-for="Region" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label asp-for="PitchVenue" class="form-label">Cụm sân đăng cai *</label>
+                        <input asp-for="PitchVenue" class="form-control" style="min-height:48px;" placeholder="VD: Sân bóng Thành Phát" required />
+                        <span asp-validation-for="PitchVenue" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="EntryFeeVnd" class="form-label">Lệ phí tham dự / đội (VNĐ)</label>
+                        <input asp-for="EntryFeeVnd" type="number" min="0" max="100000000" step="50000" class="form-control" style="min-height:48px;" placeholder="0 = Giao hữu miễn phí" />
+                        <span class="form-text">Nhập 0 nếu miễn lệ phí hoặc tự chia tiền sân mỗi trận.</span>
+                    </div>
+                </div>
+
+                <div class="editor-footer">
+                    <a asp-action="Index" class="btn btn-arena-outline" style="min-height:48px;">Hủy bỏ</a>
+                    <button type="submit" class="btn btn-arena-primary" style="min-height:48px;">
+                        <i class="bi bi-trophy-fill"></i> Tạo giải &amp; Lấy mã mời
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

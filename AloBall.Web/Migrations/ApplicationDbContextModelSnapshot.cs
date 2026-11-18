@@ -621,6 +621,10 @@ b.Property<bool>("IsPublic")
                     b.Property<int>("Revision")
                         .HasColumnType("integer");
 
+                    b.Property<string>("RoundLabel")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
                     b.Property<int?>("ScoreA")
                         .HasColumnType("integer");
 
@@ -645,11 +649,16 @@ b.Property<bool>("IsPublic")
                     b.Property<Guid?>("TeamBId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("TournamentId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TeamAId");
 
                     b.HasIndex("TeamBId");
+
+                    b.HasIndex("TournamentId", "RoundLabel");
 
                     b.ToTable("Matches");
                 });
@@ -1238,6 +1247,197 @@ b.Property<bool>("IsPublic")
 
                     b.ToTable("MatchConciergeOrders");
                 });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchCardEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CardType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("Minute")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MatchId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("MatchCardEvents");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.Tournament", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EntryFeeVnd")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("Format")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("InviteCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("OrganizerUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PitchVenue")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Region")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizerUserId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Tournaments");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.TournamentStanding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Draws")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GoalDiff")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GoalsAgainst")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GoalsFor")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GroupName")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("Losses")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Played")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RedCards")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TournamentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Wins")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("YellowCards")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("TournamentId", "TeamId")
+                        .IsUnique();
+
+                    b.ToTable("TournamentStandings");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.TournamentTeam", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("GroupName")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SeedOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TournamentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("TournamentId", "TeamId")
+                        .IsUnique();
+
+                    b.ToTable("TournamentTeams");
+                });
+
             modelBuilder.Entity("AloBall.Web.Data.Entities.MonthlyFireAward", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2639,9 +2839,92 @@ b.Property<double?>("HeightCm")
                         .HasForeignKey("TeamBId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("AloBall.Web.Data.Entities.Tournament", "Tournament")
+                        .WithMany("Matches")
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("TeamA");
 
                     b.Navigation("TeamB");
+
+                    b.Navigation("Tournament");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchCardEvent", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.MatchGame", "Match")
+                        .WithMany("CardEvents")
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AloBall.Web.Data.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AloBall.Web.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Match");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.Tournament", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.ApplicationUser", "OrganizerUser")
+                        .WithMany()
+                        .HasForeignKey("OrganizerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OrganizerUser");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.TournamentStanding", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AloBall.Web.Data.Entities.Tournament", "Tournament")
+                        .WithMany("Standings")
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+
+                    b.Navigation("Tournament");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.TournamentTeam", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AloBall.Web.Data.Entities.Tournament", "Tournament")
+                        .WithMany("Teams")
+                        .HasForeignKey("TournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+
+                    b.Navigation("Tournament");
                 });
 
             modelBuilder.Entity("AloBall.Web.Data.Entities.MatchGoalEvent", b =>
@@ -3235,6 +3518,8 @@ b.Property<double?>("HeightCm")
 
             modelBuilder.Entity("AloBall.Web.Data.Entities.MatchGame", b =>
                 {
+                    b.Navigation("CardEvents");
+
                     b.Navigation("GoalEvents");
 
                     b.Navigation("Lineups");
@@ -3312,6 +3597,15 @@ b.Property<double?>("HeightCm")
                     b.Navigation("Players");
 
                     b.Navigation("Regulations");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.Tournament", b =>
+                {
+                    b.Navigation("Matches");
+
+                    b.Navigation("Standings");
+
+                    b.Navigation("Teams");
                 });
 #pragma warning restore 612, 618
         }

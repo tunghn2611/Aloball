@@ -1,4 +1,4 @@
-﻿@model AloBall.Web.Data.Entities.MatchGame
+@model AloBall.Web.Data.Entities.MatchGame
 @{
     ViewData["Title"] = $"Matchday Center - {Model.PitchName}";
     bool isManagerA = ViewBag.IsManagerA ?? false;
@@ -155,6 +155,12 @@
                 <a href="#smartTacticalBoard" class="btn btn-sm btn-success fw-bold px-3 shadow-sm d-none d-sm-inline-flex align-items-center" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: 1.5px solid #34d399;">
                     <i class="bi bi-diagram-3-fill me-1 text-warning"></i> Sắp xếp đội hình (Sa bàn FIFA)
                 </a>
+                @if (Model.Tournament != null)
+                {
+                    <a asp-controller="Tournaments" asp-action="Details" asp-route-id="@Model.TournamentId" class="badge bg-warning text-dark text-decoration-none px-3 py-2">
+                        <i class="bi bi-trophy-fill me-1"></i>@Model.Tournament.Name @(!string.IsNullOrWhiteSpace(Model.RoundLabel) ? $"· {Model.RoundLabel}" : "")
+                    </a>
+                }
                 <span class="badge bg-dark px-3 py-2">
                     @(Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal ? "Đá nội bộ" : Model.Category == AloBall.Web.Data.Entities.MatchCategory.Tournament ? "Đá giải" : "Giao hữu")
                 </span>
@@ -1125,6 +1131,82 @@
                             </div>
                         </form>
                     </div>
+                }
+
+                <hr class="my-3" />
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold small text-dark"><i class="bi bi-card-heading text-warning me-1"></i>Thẻ phạt (Vàng / Đỏ):</span>
+                </div>
+                @if (!Model.CardEvents.Any())
+                {
+                    <p class="small text-muted mb-2 fst-italic">Chưa có thẻ phạt nào trong trận.</p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush mb-2">
+                        @foreach (var ce in Model.CardEvents.OrderBy(c => c.Minute ?? 999))
+                        {
+                            <div class="list-group-item px-0 py-1 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge @(ce.CardType == AloBall.Web.Data.Entities.MatchCardType.Red ? "bg-danger" : "bg-warning text-dark") me-1">
+                                        @(ce.CardType == AloBall.Web.Data.Entities.MatchCardType.Red ? "🟥 Thẻ đỏ" : "🟨 Thẻ vàng")
+                                    </span>
+                                    <strong>@ce.Player.FullName</strong>
+                                    @if (ce.Minute.HasValue) { <span class="small text-muted ms-1">(@ce.Minute')</span> }
+                                </div>
+                                @if ((isManagerA && ce.TeamId == Model.TeamAId) || (isManagerB && ce.TeamId == Model.TeamBId))
+                                {
+                                    <form asp-action="DeleteCardEvent" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="cardId" value="@ce.Id" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-2">Xóa</button>
+                                    </form>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                @if (isManagerA || (isManagerB && Model.TeamB != null))
+                {
+                    <form asp-action="AddCardEvent" method="post" class="row g-2 align-items-end p-2 bg-white border rounded-2 mt-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="matchId" value="@Model.Id" />
+                        <div class="col-12 col-md-4">
+                            <label class="small text-muted fw-semibold">Cầu thủ nhận thẻ</label>
+                            <select name="playerId" id="cardPlayerSelect" class="form-select form-select-sm" required style="min-height: 40px;" onchange="document.getElementById('cardTeamId').value = this.options[this.selectedIndex].dataset.team || '@Model.TeamAId';">
+                                <option value="">-- Chọn cầu thủ --</option>
+                                @if (isManagerA)
+                                {
+                                    foreach (var p in (Model.TeamA?.Players ?? Enumerable.Empty<AloBall.Web.Data.Entities.Player>()).Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                    {
+                                        <option value="@p.Id" data-team="@Model.TeamAId">[@Model.TeamA.Name] #@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
+                                    }
+                                }
+                                @if (isManagerB && Model.TeamB != null)
+                                {
+                                    foreach (var p in Model.TeamB.Players.Where(p => p.IsActive).OrderBy(p => p.KitNumber ?? 999))
+                                    {
+                                        <option value="@p.Id" data-team="@Model.TeamBId">[@Model.TeamB.Name] #@(p.KitNumber?.ToString() ?? "-") @p.FullName</option>
+                                    }
+                                }
+                            </select>
+                            <input type="hidden" name="teamId" id="cardTeamId" value="@(isManagerA ? Model.TeamAId : Model.TeamBId!.Value)" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="small text-muted fw-semibold">Loại thẻ</label>
+                            <select name="cardType" class="form-select form-select-sm" style="min-height: 40px;">
+                                <option value="1">🟨 Thẻ vàng</option>
+                                <option value="2">🟥 Thẻ đỏ</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="small text-muted fw-semibold">Phút</label>
+                            <input type="number" name="minute" min="1" max="180" class="form-control form-control-sm" placeholder="Phút" style="min-height: 40px;" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <button type="submit" class="btn btn-outline-warning text-dark btn-sm w-100 fw-bold" style="min-height: 40px;">+ Ghi thẻ phạt</button>
+                        </div>
+                    </form>
                 }
             </div>
         </div>

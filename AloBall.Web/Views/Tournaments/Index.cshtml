@@ -1,0 +1,161 @@
+@model AloBall.Web.Models.TournamentIndexViewModel
+@using AloBall.Web.Data.Entities
+@{
+    ViewData["Title"] = "Giải Đấu Phủi Mini";
+}
+
+<style>
+    .tr-hero {
+        background: linear-gradient(135deg, #064E3B 0%, #0F172A 100%);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        border-radius: 18px;
+        padding: 1.5rem;
+        color: #F8FAFC;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.22);
+    }
+    .tr-btn {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 0.55rem 1.15rem;
+    }
+    .tr-control {
+        min-height: 48px;
+    }
+    .tr-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 1.25rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .tr-card:hover {
+        transform: translateY(-2px);
+        border-color: #10B981;
+        box-shadow: var(--ab-shadow);
+    }
+</style>
+
+<section class="tr-hero">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-warning text-dark fw-bold mb-2">PHASE 4A · LEAGUE &amp; CUP GENERATOR</span>
+            <h1 class="h2 fw-bold text-white mb-1"><i class="bi bi-diagram-3-fill text-warning me-2"></i>Giải Đấu Phủi Mini</h1>
+            <p class="text-white-50 mb-0 small">Tạo giải League / Cup trong 30 giây, sinh lịch tự động và đồng bộ BXH + Vua phá lưới từ Matchday Center.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-warning text-dark tr-btn shadow-sm">
+            <i class="bi bi-plus-circle-fill"></i> Tạo giải đấu mới (30s)
+        </a>
+    </div>
+</section>
+
+@if (Model.ManagedTeams.Any())
+{
+    <section class="arena-card p-3 mb-3 border-start border-4 border-success bg-white">
+        <form asp-action="JoinByCode" method="post" class="row g-2 align-items-end">
+            @Html.AntiForgeryToken()
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-bold text-dark mb-1"><i class="bi bi-key-fill text-success me-1"></i>Tham gia giải bằng Mã mời</label>
+                <input type="text" name="inviteCode" class="form-control tr-control text-uppercase" placeholder="VD: AB7X9K2M" maxlength="16" required />
+            </div>
+            <div class="col-12 col-md-5">
+                <label class="form-label fw-bold text-dark mb-1">Chọn CLB của bạn</label>
+                <select name="teamId" class="form-select tr-control" required>
+                    @foreach (var t in Model.ManagedTeams)
+                    {
+                        <option value="@t.Id">@t.Name (@(t.ActivityArea ?? "Chưa rõ KV"))</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-arena-primary tr-btn w-100">
+                    <i class="bi bi-box-arrow-in-right"></i> Đăng ký dự giải
+                </button>
+            </div>
+        </form>
+    </section>
+}
+
+<section class="arena-card p-3 mb-4 bg-white">
+    <form asp-action="Index" method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-5">
+            <label class="form-label fw-bold mb-1">Khu vực</label>
+            <select name="region" class="form-select tr-control">
+                <option value="">Tất cả khu vực</option>
+                @foreach (var r in Model.Regions)
+                {
+                    <option value="@r" selected="@(string.Equals(Model.RegionFilter, r, StringComparison.OrdinalIgnoreCase))">@r</option>
+                }
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label fw-bold mb-1">Trạng thái</label>
+            <select name="status" class="form-select tr-control">
+                <option value="">Tất cả trạng thái</option>
+                <option value="0" selected="@(Model.StatusFilter == TournamentStatus.Registration)">Đang mở đăng ký</option>
+                <option value="1" selected="@(Model.StatusFilter == TournamentStatus.Ongoing)">Đang thi đấu</option>
+                <option value="2" selected="@(Model.StatusFilter == TournamentStatus.Completed)">Đã kết thúc</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-arena-primary tr-btn flex-grow-1"><i class="bi bi-funnel-fill"></i> Lọc giải</button>
+            <a asp-action="Index" class="btn btn-outline-secondary tr-btn">Xóa lọc</a>
+        </div>
+    </form>
+</section>
+
+@if (!Model.Tournaments.Any())
+{
+    <div class="empty-state">
+        <i class="bi bi-trophy"></i>
+        <h3>Chưa có giải đấu nào phù hợp</h3>
+        <p class="mb-3">Khởi tạo giải phủi đầu tiên cho cộng đồng khu vực của bạn chỉ trong 30 giây.</p>
+        <a asp-action="Create" class="btn btn-arena-primary tr-btn"><i class="bi bi-plus-lg"></i> Tạo giải đấu ngay</a>
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var item in Model.Tournaments)
+        {
+            string badgeClass = item.Status switch
+            {
+                TournamentStatus.Ongoing => "bg-success text-white",
+                TournamentStatus.Completed => "bg-secondary text-white",
+                _ => "bg-warning text-dark"
+            };
+            <div class="col-12 col-md-6 col-xl-4">
+                <article class="tr-card">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <span class="badge @badgeClass">@item.StatusLabel</span>
+                            <span class="badge bg-light text-dark border fw-bold">Mã: @item.InviteCode</span>
+                        </div>
+                        <h2 class="h5 fw-bold text-dark mb-1">@item.Name</h2>
+                        <div class="small text-success fw-semibold mb-2">
+                            <i class="bi bi-diagram-2-fill me-1"></i>@item.FormatLabel
+                        </div>
+                        <ul class="list-unstyled small text-muted mb-3 d-grid gap-1">
+                            <li><i class="bi bi-geo-alt-fill text-success me-1"></i>@item.PitchVenue · @item.Region</li>
+                            <li><i class="bi bi-calendar3 text-success me-1"></i>Khai mạc: <strong>@item.StartDate.ToString("dd/MM/yyyy")</strong></li>
+                            <li><i class="bi bi-cash-coin text-success me-1"></i>Lệ phí: <strong>@(item.EntryFeeVnd <= 0 ? "Miễn phí" : $"{item.EntryFeeVnd:N0}đ")</strong></li>
+                            <li><i class="bi bi-people-fill text-success me-1"></i>@item.TeamCount đội · @item.CompletedMatchCount/@item.MatchCount trận xong</li>
+                        </ul>
+                    </div>
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-arena-primary tr-btn w-100">
+                        Mở Trung tâm Giải đấu <i class="bi bi-arrow-right"></i>
+                    </a>
+                </article>
+            </div>
+        }
+    </div>
+}

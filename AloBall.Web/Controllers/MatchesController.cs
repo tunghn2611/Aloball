@@ -21,6 +21,7 @@ public partial class MatchesController : Controller
     private readonly IAttendanceCalculationEngine? _calcEngine;
     private readonly IMatchSplitBillService _splitBill;
     private readonly ILoanMarketService _loanMarket;
+    private readonly ITournamentService _tournament;
 
     public MatchesController(
         ApplicationDbContext db,
@@ -32,7 +33,8 @@ public partial class MatchesController : Controller
         ITeamMessagingService? teamMessaging = null,
         IAttendanceCalculationEngine? calcEngine = null,
         IMatchSplitBillService? splitBill = null,
-        ILoanMarketService? loanMarket = null)
+        ILoanMarketService? loanMarket = null,
+        ITournamentService? tournament = null)
     {
         _db = db;
         _userManager = userManager;
@@ -44,6 +46,7 @@ public partial class MatchesController : Controller
         _calcEngine = calcEngine;
         _splitBill = splitBill ?? new MatchSplitBillService(db, auth);
         _loanMarket = loanMarket ?? new LoanMarketService(db, auth);
+        _tournament = tournament ?? new TournamentService(db, auth);
     }
 
     // 1. Chi tiết trận đấu & Đội hình 2 bên (Matchday Center)
@@ -54,10 +57,12 @@ public partial class MatchesController : Controller
         var match = await _db.Matches
             .Include(m => m.TeamA).ThenInclude(t => t.Players)
             .Include(m => m.TeamB).ThenInclude(t => t!.Players)
+            .Include(m => m.Tournament)
             .Include(m => m.Lineups).ThenInclude(l => l.Player)
             .Include(m => m.PositionExceptions).ThenInclude(e => e.Player)
             .Include(m => m.GoalEvents).ThenInclude(g => g.Scorer)
             .Include(m => m.GoalEvents).ThenInclude(g => g.Assist)
+            .Include(m => m.CardEvents).ThenInclude(c => c.Player)
             .Include(m => m.Reviews).ThenInclude(r => r.ReviewerTeam)
             .FirstOrDefaultAsync(m => m.Id == id);
 
@@ -94,8 +99,10 @@ public partial class MatchesController : Controller
         bool memberA = user != null && await _auth.HasMemberAccessAsync(match.TeamAId, user.Id);
         bool memberB = user != null && match.TeamBId.HasValue && await _auth.HasMemberAccessAsync(match.TeamBId.Value, user.Id);
 
-        ViewBag.IsManagerA = isManagerA;
-        ViewBag.IsManagerB = isManagerB;
+        bool isTournamentOrganizer = user != null && match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
+        ViewBag.IsManagerA = isManagerA || isTournamentOrganizer;
+        ViewBag.IsManagerB = isManagerB || (isTournamentOrganizer && match.TeamBId.HasValue);
+        ViewBag.IsTournamentOrganizer = isTournamentOrganizer;
         ViewBag.MemberA = memberA;
         ViewBag.MemberB = memberB;
         ViewBag.CanReview = (isManagerA || isManagerB) && match.Status == MatchStatus.Completed && match.TeamBId.HasValue && match.ConfirmedByTeamA && match.ConfirmedByTeamB && match.MatchDateTime <= CompetitionRules.LocalNow;
@@ -318,13 +325,14 @@ public partial class MatchesController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        var match = await _db.Matches.FindAsync(matchId);
+        var match = await _db.Matches.Include(m => m.Tournament).FirstOrDefaultAsync(m => m.Id == matchId);
         if (match == null) return NotFound();
 
         bool isManagerA = await _auth.HasManagerAccessAsync(match.TeamAId, user.Id);
         bool isManagerB = match.TeamBId.HasValue && await _auth.HasManagerAccessAsync(match.TeamBId.Value, user.Id);
+        bool isTournamentOrganizer = match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
 
-        if (!isManagerA && !isManagerB) return Forbid();
+        if (!isManagerA && !isManagerB && !isTournamentOrganizer) return Forbid();
 
         if (await CompetitionRules.IsMatchClosedAsync(_db, match)) return Conflict(new { message = "Kỳ đã chốt. Hãy mở lại kỳ trong Giữ Lửa trước khi sửa." });
         if (scoreA < 0 || scoreB < 0 || scoreA > 99 || scoreB > 99 || match.MatchDateTime > CompetitionRules.LocalNow)
@@ -334,7 +342,12 @@ public partial class MatchesController : Controller
         match.ScoreB = scoreB;
         match.Status = MatchStatus.Completed;
 
-        if (isManagerA)
+        if (isTournamentOrganizer)
+        {
+            match.ConfirmedByTeamA = true;
+            match.ConfirmedByTeamB = true;
+        }
+        else if (isManagerA)
         {
             match.ConfirmedByTeamA = true;
             match.ConfirmedByTeamB = !match.TeamBId.HasValue; // Nếu là đối ngoài thì tự chốt
@@ -361,8 +374,9 @@ public partial class MatchesController : Controller
 
         await _db.SaveChangesAsync();
 
-        // Đồng bộ điểm thưởng thắng / bàn thắng vào sổ AB
+        // Đồng bộ điểm thưởng thắng / bàn thắng vào sổ AB & BXH Giải đấu
         await _fireKeeping.SyncMatchPointsAsync(match.Id, user.Id);
+        await _tournament.SyncTournamentForMatchAsync(match.Id);
 
         TempData["Success"] = "Đã cập nhật tỉ số và đồng bộ điểm AB thi đua thành công!";
         return RedirectToAction(nameof(Detail), new { id = matchId });
@@ -377,27 +391,38 @@ public partial class MatchesController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        var match = await _db.Matches.FindAsync(matchId);
+        var match = await _db.Matches.Include(m => m.Tournament).FirstOrDefaultAsync(m => m.Id == matchId);
         if (match == null) return NotFound();
 
         bool isManagerA = await _auth.HasManagerAccessAsync(match.TeamAId, user.Id);
         bool isManagerB = match.TeamBId.HasValue && await _auth.HasManagerAccessAsync(match.TeamBId.Value, user.Id);
+        bool isTournamentOrganizer = match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
 
-        if (!isManagerA && !isManagerB) return Forbid();
+        if (!isManagerA && !isManagerB && !isTournamentOrganizer) return Forbid();
 
         if (await CompetitionRules.IsMatchClosedAsync(_db, match)) return Conflict(new { message = "Kỳ đã chốt. Hãy mở lại kỳ trước khi xác nhận." });
         if (match.Status != MatchStatus.Completed || !match.ScoreA.HasValue || !match.ScoreB.HasValue || match.MatchDateTime > CompetitionRules.LocalNow)
             return BadRequest(new { message = "Trận chưa có kết quả hợp lệ để xác nhận." });
 
         // Idempotent: double-click/retry after this side already confirmed is a no-op (no extra ledger sync)
-        if ((!isManagerA || match.ConfirmedByTeamA) && (!isManagerB || match.ConfirmedByTeamB))
+        if (isTournamentOrganizer
+            ? (match.ConfirmedByTeamA && match.ConfirmedByTeamB)
+            : ((!isManagerA || match.ConfirmedByTeamA) && (!isManagerB || match.ConfirmedByTeamB)))
         {
             TempData["Success"] = "Tỉ số đã được xác nhận trước đó.";
             return RedirectToAction(nameof(Detail), new { id = matchId });
         }
 
-        if (isManagerA) match.ConfirmedByTeamA = true;
-        if (isManagerB) match.ConfirmedByTeamB = true;
+        if (isTournamentOrganizer)
+        {
+            match.ConfirmedByTeamA = true;
+            match.ConfirmedByTeamB = true;
+        }
+        else
+        {
+            if (isManagerA) match.ConfirmedByTeamA = true;
+            if (isManagerB) match.ConfirmedByTeamB = true;
+        }
 
         if (match.ConfirmedByTeamA && (match.ConfirmedByTeamB || !match.TeamBId.HasValue))
         {
@@ -407,6 +432,7 @@ public partial class MatchesController : Controller
 
         await _db.SaveChangesAsync();
         await _fireKeeping.SyncMatchPointsAsync(match.Id, user.Id);
+        await _tournament.SyncTournamentForMatchAsync(match.Id);
 
         TempData["Success"] = "Đã xác nhận tỉ số trận đấu thành công!";
         return RedirectToAction(nameof(Detail), new { id = matchId });
@@ -1196,10 +1222,11 @@ public partial class MatchesController : Controller
         var user = await _userManager.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        var match = await _db.Matches.FindAsync(matchId);
+        var match = await _db.Matches.Include(m => m.Tournament).FirstOrDefaultAsync(m => m.Id == matchId);
         if (match == null) return NotFound();
 
-        if (!await _auth.HasManagerAccessAsync(teamId, user.Id))
+        bool isTournamentOrganizer = match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
+        if (!isTournamentOrganizer && !await _auth.HasManagerAccessAsync(teamId, user.Id))
             return Forbid();
 
         if (teamId != match.TeamAId && teamId != match.TeamBId) return BadRequest();
@@ -1223,8 +1250,9 @@ public partial class MatchesController : Controller
         _db.MatchGoalEvents.Add(goal);
         await _db.SaveChangesAsync();
 
-        // Đồng bộ điểm bàn thắng/kiến tạo vào sổ AB
+        // Đồng bộ điểm bàn thắng/kiến tạo vào sổ AB & BXH Vua phá lưới giải
         await _fireKeeping.SyncMatchPointsAsync(matchId, user.Id);
+        await _tournament.SyncTournamentForMatchAsync(matchId);
 
         TempData["Success"] = "Đã ghi nhận bàn thắng và cộng điểm AB tương ứng!";
         return RedirectToAction(nameof(Detail), new { id = matchId });
@@ -1242,21 +1270,90 @@ public partial class MatchesController : Controller
         var goal = await _db.MatchGoalEvents.FindAsync(goalId);
         if (goal == null) return NotFound();
 
-        if (!await _auth.HasManagerAccessAsync(goal.TeamId, user.Id))
+        var match = await _db.Matches.Include(m => m.Tournament).FirstOrDefaultAsync(m => m.Id == goal.MatchId);
+        if (match == null || (goal.TeamId != match.TeamAId && goal.TeamId != match.TeamBId)) return BadRequest();
+
+        bool isTournamentOrganizer = match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
+        if (!isTournamentOrganizer && !await _auth.HasManagerAccessAsync(goal.TeamId, user.Id))
             return Forbid();
 
-        var match = await _db.Matches.FindAsync(goal.MatchId);
-        if (match == null || (goal.TeamId != match.TeamAId && goal.TeamId != match.TeamBId)) return BadRequest();
         if (await CompetitionRules.IsMatchClosedAsync(_db, match)) return Conflict(new { message = "Kỳ đã chốt. Hãy mở lại kỳ trước khi xóa bàn thắng." });
 
         Guid matchId = goal.MatchId;
         _db.MatchGoalEvents.Remove(goal);
         await _db.SaveChangesAsync();
 
-        // Đồng bộ sổ AB (sẽ đảo điểm của bàn thắng này)
+        // Đồng bộ sổ AB & giải đấu
         await _fireKeeping.SyncMatchPointsAsync(matchId, user.Id);
+        await _tournament.SyncTournamentForMatchAsync(matchId);
 
         TempData["Success"] = "Đã xóa bàn thắng và thu hồi điểm AB tương ứng.";
+        return RedirectToAction(nameof(Detail), new { id = matchId });
+    }
+
+    // 2.4. Ghi nhận & xóa thẻ phạt (Vàng / Đỏ) đồng bộ Kỷ luật Giải đấu
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddCardEvent(Guid matchId, Guid teamId, Guid playerId, MatchCardType cardType, int? minute, string? notes)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var match = await _db.Matches.Include(m => m.Tournament).FirstOrDefaultAsync(m => m.Id == matchId);
+        if (match == null) return NotFound();
+
+        bool isTournamentOrganizer = match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
+        if (!isTournamentOrganizer && !await _auth.HasManagerAccessAsync(teamId, user.Id))
+            return Forbid();
+
+        if (teamId != match.TeamAId && teamId != match.TeamBId) return BadRequest();
+        if (match.Status == MatchStatus.Cancelled || minute is < 0 or > 180 || !Enum.IsDefined(typeof(MatchCardType), cardType))
+            return BadRequest();
+        if (!await _db.Players.AnyAsync(p => p.Id == playerId && p.TeamId == teamId && p.IsActive))
+            return BadRequest(new { message = "Cầu thủ nhận thẻ phải thuộc đội thi đấu." });
+
+        _db.MatchCardEvents.Add(new MatchCardEvent
+        {
+            MatchId = matchId,
+            TeamId = teamId,
+            PlayerId = playerId,
+            CardType = cardType,
+            Minute = minute,
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+        await _tournament.SyncTournamentForMatchAsync(matchId);
+
+        TempData["Success"] = cardType == MatchCardType.Red ? "Đã ghi nhận thẻ đỏ!" : "Đã ghi nhận thẻ vàng!";
+        return RedirectToAction(nameof(Detail), new { id = matchId });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCardEvent(Guid cardId)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var card = await _db.MatchCardEvents.FindAsync(cardId);
+        if (card == null) return NotFound();
+
+        var match = await _db.Matches.Include(m => m.Tournament).FirstOrDefaultAsync(m => m.Id == card.MatchId);
+        if (match == null) return NotFound();
+
+        bool isTournamentOrganizer = match.Tournament != null && match.Tournament.OrganizerUserId == user.Id;
+        if (!isTournamentOrganizer && !await _auth.HasManagerAccessAsync(card.TeamId, user.Id))
+            return Forbid();
+
+        Guid matchId = card.MatchId;
+        _db.MatchCardEvents.Remove(card);
+        await _db.SaveChangesAsync();
+        await _tournament.SyncTournamentForMatchAsync(matchId);
+
+        TempData["Success"] = "Đã xóa thẻ phạt.";
         return RedirectToAction(nameof(Detail), new { id = matchId });
     }
 

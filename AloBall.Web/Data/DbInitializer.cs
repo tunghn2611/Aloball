@@ -144,6 +144,68 @@ public static class DbInitializer
                         ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
                     );
                     CREATE INDEX IF NOT EXISTS ""IX_MatchConciergeOrders_TeamId_Status"" ON ""MatchConciergeOrders"" (""TeamId"", ""Status"");
+
+                    CREATE TABLE IF NOT EXISTS ""Tournaments"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""Name"" VARCHAR(150) NOT NULL,
+                        ""OrganizerUserId"" text NOT NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE RESTRICT,
+                        ""Region"" VARCHAR(100) NOT NULL DEFAULT '',
+                        ""Format"" integer NOT NULL DEFAULT 0,
+                        ""StartDate"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""PitchVenue"" VARCHAR(200) NOT NULL DEFAULT '',
+                        ""EntryFeeVnd"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""Status"" integer NOT NULL DEFAULT 0,
+                        ""InviteCode"" VARCHAR(16) NOT NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Tournaments_InviteCode"" ON ""Tournaments"" (""InviteCode"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Tournaments_Status"" ON ""Tournaments"" (""Status"");
+
+                    CREATE TABLE IF NOT EXISTS ""TournamentTeams"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TournamentId"" uuid NOT NULL REFERENCES ""Tournaments""(""Id"") ON DELETE CASCADE,
+                        ""TeamId"" uuid NOT NULL REFERENCES ""Teams""(""Id"") ON DELETE RESTRICT,
+                        ""GroupName"" VARCHAR(40) NULL,
+                        ""SeedOrder"" integer NOT NULL DEFAULT 0,
+                        ""JoinedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TournamentTeams_TournamentId_TeamId"" ON ""TournamentTeams"" (""TournamentId"", ""TeamId"");
+
+                    CREATE TABLE IF NOT EXISTS ""TournamentStandings"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TournamentId"" uuid NOT NULL REFERENCES ""Tournaments""(""Id"") ON DELETE CASCADE,
+                        ""TeamId"" uuid NOT NULL REFERENCES ""Teams""(""Id"") ON DELETE RESTRICT,
+                        ""GroupName"" VARCHAR(40) NULL,
+                        ""Rank"" integer NOT NULL DEFAULT 1,
+                        ""Played"" integer NOT NULL DEFAULT 0,
+                        ""Wins"" integer NOT NULL DEFAULT 0,
+                        ""Draws"" integer NOT NULL DEFAULT 0,
+                        ""Losses"" integer NOT NULL DEFAULT 0,
+                        ""GoalsFor"" integer NOT NULL DEFAULT 0,
+                        ""GoalsAgainst"" integer NOT NULL DEFAULT 0,
+                        ""GoalDiff"" integer NOT NULL DEFAULT 0,
+                        ""Points"" integer NOT NULL DEFAULT 0,
+                        ""YellowCards"" integer NOT NULL DEFAULT 0,
+                        ""RedCards"" integer NOT NULL DEFAULT 0,
+                        ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TournamentStandings_TournamentId_TeamId"" ON ""TournamentStandings"" (""TournamentId"", ""TeamId"");
+
+                    ALTER TABLE ""Matches"" ADD COLUMN IF NOT EXISTS ""TournamentId"" uuid NULL REFERENCES ""Tournaments""(""Id"") ON DELETE SET NULL;
+                    ALTER TABLE ""Matches"" ADD COLUMN IF NOT EXISTS ""RoundLabel"" VARCHAR(60) NULL;
+                    CREATE INDEX IF NOT EXISTS ""IX_Matches_TournamentId_RoundLabel"" ON ""Matches"" (""TournamentId"", ""RoundLabel"");
+
+                    CREATE TABLE IF NOT EXISTS ""MatchCardEvents"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""MatchId"" uuid NOT NULL REFERENCES ""Matches""(""Id"") ON DELETE CASCADE,
+                        ""TeamId"" uuid NOT NULL REFERENCES ""Teams""(""Id"") ON DELETE RESTRICT,
+                        ""PlayerId"" uuid NOT NULL REFERENCES ""Players""(""Id"") ON DELETE RESTRICT,
+                        ""CardType"" integer NOT NULL DEFAULT 1,
+                        ""Minute"" integer NULL,
+                        ""Notes"" VARCHAR(200) NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_MatchCardEvents_MatchId"" ON ""MatchCardEvents"" (""MatchId"");
                     CREATE TABLE IF NOT EXISTS ""PlayerLoanListings"" (
                         ""Id"" uuid NOT NULL PRIMARY KEY,
                         ""ListingType"" integer NOT NULL DEFAULT 0,
@@ -641,12 +703,72 @@ public static class DbInitializer
                     ""CreatedAt"" TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS ""IX_MatchConciergeOrders_TeamId_Status"" ON ""MatchConciergeOrders"" (""TeamId"", ""Status"");
+
+                CREATE TABLE IF NOT EXISTS ""Tournaments"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""Name"" TEXT NOT NULL,
+                    ""OrganizerUserId"" TEXT NOT NULL,
+                    ""Region"" TEXT NOT NULL DEFAULT '',
+                    ""Format"" INTEGER NOT NULL DEFAULT 0,
+                    ""StartDate"" TEXT NOT NULL,
+                    ""PitchVenue"" TEXT NOT NULL DEFAULT '',
+                    ""EntryFeeVnd"" TEXT NOT NULL DEFAULT '0',
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""InviteCode"" TEXT NOT NULL,
+                    ""CreatedAt"" TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Tournaments_InviteCode"" ON ""Tournaments"" (""InviteCode"");
+
+                CREATE TABLE IF NOT EXISTS ""TournamentTeams"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""TournamentId"" TEXT NOT NULL,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""GroupName"" TEXT NULL,
+                    ""SeedOrder"" INTEGER NOT NULL DEFAULT 0,
+                    ""JoinedAt"" TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TournamentTeams_TournamentId_TeamId"" ON ""TournamentTeams"" (""TournamentId"", ""TeamId"");
+
+                CREATE TABLE IF NOT EXISTS ""TournamentStandings"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""TournamentId"" TEXT NOT NULL,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""GroupName"" TEXT NULL,
+                    ""Rank"" INTEGER NOT NULL DEFAULT 1,
+                    ""Played"" INTEGER NOT NULL DEFAULT 0,
+                    ""Wins"" INTEGER NOT NULL DEFAULT 0,
+                    ""Draws"" INTEGER NOT NULL DEFAULT 0,
+                    ""Losses"" INTEGER NOT NULL DEFAULT 0,
+                    ""GoalsFor"" INTEGER NOT NULL DEFAULT 0,
+                    ""GoalsAgainst"" INTEGER NOT NULL DEFAULT 0,
+                    ""GoalDiff"" INTEGER NOT NULL DEFAULT 0,
+                    ""Points"" INTEGER NOT NULL DEFAULT 0,
+                    ""YellowCards"" INTEGER NOT NULL DEFAULT 0,
+                    ""RedCards"" INTEGER NOT NULL DEFAULT 0,
+                    ""UpdatedAt"" TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TournamentStandings_TournamentId_TeamId"" ON ""TournamentStandings"" (""TournamentId"", ""TeamId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchCardEvents"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""MatchId"" TEXT NOT NULL,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""PlayerId"" TEXT NOT NULL,
+                    ""CardType"" INTEGER NOT NULL DEFAULT 1,
+                    ""Minute"" INTEGER NULL,
+                    ""Notes"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_MatchCardEvents_MatchId"" ON ""MatchCardEvents"" (""MatchId"");
             ");
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Error migrating Finance tables: {ex.Message}");
         }
+
+        try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Matches"" ADD COLUMN ""TournamentId"" TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Matches"" ADD COLUMN ""RoundLabel"" TEXT NULL;"); } catch { }
     }
 
 

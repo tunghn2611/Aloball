@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AloBall.Web.Data.Entities;
@@ -66,12 +66,19 @@ public class MatchGame
     [MaxLength(20)]
     public string? FormationCode { get; set; }
 
+    // Giải đấu Phủi Mini (Phase 4A)
+    public Guid? TournamentId { get; set; }
+    public Tournament? Tournament { get; set; }
+    [MaxLength(60)]
+    public string? RoundLabel { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
     public ICollection<MatchPlayerLineup> Lineups { get; set; } = new List<MatchPlayerLineup>();
     public ICollection<MatchPositionException> PositionExceptions { get; set; } = new List<MatchPositionException>();
     public ICollection<MatchGoalEvent> GoalEvents { get; set; } = new List<MatchGoalEvent>();
+    public ICollection<MatchCardEvent> CardEvents { get; set; } = new List<MatchCardEvent>();
     public ICollection<TeamMatchReview> Reviews { get; set; } = new List<TeamMatchReview>();
 }
 

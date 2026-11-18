@@ -66,6 +66,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
     public DbSet<TeamRecurringSchedule> TeamRecurringSchedules => Set<TeamRecurringSchedule>();
     public DbSet<MatchConciergeOrder> MatchConciergeOrders => Set<MatchConciergeOrder>();
 
+    // Phase 4A: Grassroots Mini-Tournament Generator
+    public DbSet<Tournament> Tournaments => Set<Tournament>();
+    public DbSet<TournamentTeam> TournamentTeams => Set<TournamentTeam>();
+    public DbSet<TournamentStanding> TournamentStandings => Set<TournamentStanding>();
+    public DbSet<MatchCardEvent> MatchCardEvents => Set<MatchCardEvent>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -437,6 +443,46 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
             entity.HasOne(o => o.Team).WithMany().HasForeignKey(o => o.TeamId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(o => o.MatchedOpponentTeam).WithMany().HasForeignKey(o => o.MatchedOpponentTeamId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(o => new { o.TeamId, o.Status });
+        });
+
+        // Phase 4A: Grassroots Mini-Tournament Generator & Match Card Events
+        builder.Entity<Tournament>(entity =>
+        {
+            entity.HasIndex(t => t.InviteCode).IsUnique();
+            entity.HasIndex(t => t.Status);
+            entity.HasOne(t => t.OrganizerUser).WithMany().HasForeignKey(t => t.OrganizerUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<TournamentTeam>(entity =>
+        {
+            entity.HasIndex(tt => new { tt.TournamentId, tt.TeamId }).IsUnique();
+            entity.HasOne(tt => tt.Tournament).WithMany(t => t.Teams).HasForeignKey(tt => tt.TournamentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(tt => tt.Team).WithMany().HasForeignKey(tt => tt.TeamId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<TournamentStanding>(entity =>
+        {
+            entity.HasIndex(ts => new { ts.TournamentId, ts.TeamId }).IsUnique();
+            entity.HasOne(ts => ts.Tournament).WithMany(t => t.Standings).HasForeignKey(ts => ts.TournamentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(ts => ts.Team).WithMany().HasForeignKey(ts => ts.TeamId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<MatchGame>()
+            .HasOne(m => m.Tournament)
+            .WithMany(t => t.Matches)
+            .HasForeignKey(m => m.TournamentId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<MatchGame>()
+            .HasIndex(m => new { m.TournamentId, m.RoundLabel });
+
+        builder.Entity<MatchCardEvent>(entity =>
+        {
+            entity.HasOne(c => c.Match).WithMany(m => m.CardEvents).HasForeignKey(c => c.MatchId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(c => c.Team).WithMany().HasForeignKey(c => c.TeamId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(c => c.Player).WithMany().HasForeignKey(c => c.PlayerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(c => c.MatchId);
         });
     }
 }
