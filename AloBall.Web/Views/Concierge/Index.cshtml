@@ -1,0 +1,607 @@
+@model AloBall.Web.Models.ConciergeWorkspaceViewModel
+@using AloBall.Web.Data.Entities
+@{
+    ViewData["Title"] = "Thi Đấu Trọn Gói & Xếp Cặp Tự Động";
+    bool isAutoPairTab = string.Equals(Model.ActiveTab, "autopair", StringComparison.OrdinalIgnoreCase);
+    var team = Model.SelectedTeam;
+    bool hasPaidPlan = team?.IsPaidPlanActive == true;
+    int mask = Model.ScheduleInput.DaysOfWeekMask;
+    var days = new (int DayInt, string Label)[]
+    {
+        (1, "T2"), (2, "T3"), (3, "T4"), (4, "T5"), (5, "T6"), (6, "T7"), (0, "CN")
+    };
+}
+
+<style>
+    .cg-hero {
+        background: linear-gradient(135deg, #064E3B 0%, #0F172A 100%);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 18px;
+        padding: 1.4rem;
+        color: #F8FAFC;
+        margin-bottom: 1.15rem;
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.2);
+    }
+    .cg-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+        background: #0F172A;
+        padding: 0.4rem;
+        border-radius: 14px;
+        margin-bottom: 1.25rem;
+    }
+    .cg-tab-link {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 10px;
+        font-weight: 700;
+        color: #CBD5E1;
+        text-decoration: none;
+        padding: 0.5rem 0.9rem;
+        transition: all 0.16s ease;
+    }
+    .cg-tab-link:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.06); }
+    .cg-tab-link.active {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: #FFFFFF;
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+    .cg-btn {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        font-weight: 700;
+        border-radius: 11px;
+        padding: 0.55rem 1.1rem;
+    }
+    .cg-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: var(--ab-shadow-sm);
+    }
+    .cg-day-pill input { display: none; }
+    .cg-day-pill label {
+        min-height: 48px;
+        min-width: 52px;
+        padding: 0 0.9rem;
+        border-radius: 10px;
+        border: 1px solid #CBD5E1;
+        background: #F8FAFC;
+        color: #0F172A;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        user-select: none;
+    }
+    .cg-day-pill input:checked + label {
+        background: #064E3B;
+        color: #ECFDF5;
+        border-color: #10B981;
+    }
+    .cg-mode-option input { display: none; }
+    .cg-mode-option label {
+        display: block;
+        min-height: 76px;
+        padding: 0.85rem 1rem;
+        border-radius: 12px;
+        border: 2px solid #E2E8F0;
+        background: #F8FAFC;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .cg-mode-option input:checked + label {
+        border-color: #10B981;
+        background: #ECFDF5;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.14);
+    }
+    .cg-tracker {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+        margin: 0.85rem 0;
+    }
+    @@media (max-width: 767px) {
+        .cg-tracker { grid-template-columns: repeat(2, 1fr); }
+        .cg-tabs { grid-template-columns: 1fr; }
+    }
+    .cg-step {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    .cg-step.done {
+        background: #ECFDF5;
+        border-color: #10B981;
+    }
+    .cg-step.skipped {
+        background: #F1F5F9;
+        color: #64748B;
+    }
+    .cg-upgrade-banner {
+        background: linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%);
+        border: 1px solid #F59E0B;
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+</style>
+
+<div class="container-fluid py-3">
+    <div class="cg-hero">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-2" style="background: rgba(245,158,11,0.18); border: 1px solid rgba(245,158,11,0.45); color: #FDE68A; font-size: 0.78rem; font-weight: 700;">
+                    <i class="bi bi-stars"></i> ALOBALL CLUB PLUS / PRO
+                </div>
+                <h1 class="h3 fw-bold text-white mb-1">Thi Đấu Trọn Gói A–Z &amp; Xếp Cặp Tự Động</h1>
+                <p class="mb-0 text-white-50 small">Ghép đối đúng trình độ Sao Aloball &amp; độ thân thiện · Tự giữ sân trống · Điều phối trọng tài Pro · Khởi tạo Matchday &amp; Chia tiền VietQR.</p>
+            </div>
+
+            @if (Model.IsAuthenticated && Model.ManagedTeams.Any() && team != null)
+            {
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <form method="get" asp-controller="Concierge" asp-action="Index" class="d-flex align-items-center gap-2">
+                        <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                        <select name="teamId" class="form-select" style="min-height: 48px;" onchange="this.form.submit()">
+                            @foreach (var t in Model.ManagedTeams)
+                            {
+                                <option value="@t.Id" selected="@(t.Id == team.Id)">CLB: @t.Name (@t.PlanTier)</option>
+                            }
+                        </select>
+                    </form>
+                    <div class="px-3 py-2 rounded-3" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);">
+                        <span class="small text-warning fw-bold">@Model.SelectedTeamStars ⭐ Aloball</span>
+                        <span class="mx-1 text-white-50">·</span>
+                        <span class="small text-white">@team.AverageRating.ToString("0.0")★</span>
+                        <span class="mx-1 text-white-50">·</span>
+                        @if (hasPaidPlan)
+                        {
+                            <span class="badge bg-success">@team.PlanTier @(team.PlanExpiresAt.HasValue ? $"(đến {team.PlanExpiresAt.Value:dd/MM})" : "")</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Free</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (!Model.IsAuthenticated)
+    {
+        <div class="cg-card text-center py-5">
+            <i class="bi bi-shield-lock display-5 text-success"></i>
+            <h2 class="h5 fw-bold mt-3">Đăng nhập tài khoản Đội trưởng để đặt Thi đấu trọn gói</h2>
+            <p class="text-muted small mb-3">Hệ thống chỉ cho phép Chủ đội hoặc Lãnh đội cấu hình lịch tự động và đặt kèo trọn gói cho CLB.</p>
+            <a asp-controller="Account" asp-action="Login" class="btn btn-success cg-btn">Đăng nhập ngay</a>
+        </div>
+    }
+    else if (team == null)
+    {
+        <div class="cg-card text-center py-5">
+            <i class="bi bi-people display-5 text-success"></i>
+            <h2 class="h5 fw-bold mt-3">Bạn chưa làm Đội trưởng / Quản lý CLB nào</h2>
+            <p class="text-muted small mb-3">Hãy tạo đội bóng mới để trải nghiệm tự động ghép cặp và đặt sân trọng tài trọn gói A–Z.</p>
+            <a asp-controller="Teams" asp-action="Create" class="btn btn-success cg-btn">Tạo đội bóng ngay</a>
+        </div>
+    }
+    else
+    {
+        @if (!hasPaidPlan)
+        {
+            <div class="cg-upgrade-banner d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <div class="fw-bold text-dark fs-6 mb-1"><i class="bi bi-gem text-warning me-2"></i>CLB <strong>@team.Name</strong> đang ở gói Free</div>
+                    <div class="small text-secondary">Kích hoạt dùng thử <strong>Club Plus 14 ngày miễn phí</strong> để mở khóa ngay tính năng Xếp cặp tự động lịch cố định &amp; Thi đấu trọn gói A–Z (bao gồm cả chế độ Chuyên nghiệp có trọng tài).</div>
+                </div>
+                <form method="post" asp-controller="Concierge" asp-action="ActivateTrial" class="d-flex flex-wrap gap-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team.Id" />
+                    <input type="hidden" name="tier" value="@PlanTier.Plus" />
+                    <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                    <button type="submit" class="btn btn-warning text-dark cg-btn px-4">
+                        <i class="bi bi-lightning-charge-fill"></i> Kích hoạt dùng thử Plus 14 ngày
+                    </button>
+                </form>
+            </div>
+        }
+
+        <nav class="cg-tabs" aria-label="Chế độ Thi đấu trọn gói">
+            <a class="cg-tab-link @(!isAutoPairTab ? "active" : "")"
+               asp-controller="Concierge" asp-action="Index" asp-route-teamId="@team.Id" asp-route-tab="concierge">
+                <i class="bi bi-trophy-fill"></i>
+                <span>Thi đấu trọn gói A–Z</span>
+            </a>
+            <a class="cg-tab-link @(isAutoPairTab ? "active" : "")"
+               asp-controller="Concierge" asp-action="Index" asp-route-teamId="@team.Id" asp-route-tab="autopair">
+                <i class="bi bi-calendar2-week-fill"></i>
+                <span>Xếp cặp tự động lịch cố định</span>
+            </a>
+        </nav>
+
+        @if (!isAutoPairTab)
+        {
+            <!-- TAB 1: THI ĐẤU TRỌN GÓI A-Z -->
+            <div class="row g-4">
+                <div class="col-12 col-lg-5">
+                    <div class="cg-card">
+                        <h2 class="h5 fw-bold mb-1"><i class="bi bi-magic text-success me-2"></i>Đặt kèo trọn gói 1 chạm</h2>
+                        <p class="small text-muted mb-3">Hệ thống tự tìm đối xứng tầm, giữ sân trống và điều phối trọng tài (nếu chọn Chuyên nghiệp).</p>
+
+                        <form method="post" asp-controller="Concierge" asp-action="CreateConciergeOrder">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TeamId" value="@team.Id" />
+
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Ngày đá</label>
+                                    <input type="date" name="PlayDate" class="form-control" style="min-height: 48px;"
+                                           value="@Model.OrderInput.PlayDate.ToString("yyyy-MM-dd")" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Giờ bóng lăn (Giờ VN)</label>
+                                    <input type="time" name="KickoffTime" class="form-control" style="min-height: 48px;"
+                                           value="@Model.OrderInput.KickoffTime.ToString(@"hh\:mm")" required />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Khu vực thi đấu</label>
+                                    <input type="text" name="Region" list="regionList" class="form-control" style="min-height: 48px;"
+                                           value="@Model.OrderInput.Region" placeholder="VD: Cầu Giấy, Đống Đa, Hai Bà Trưng..." required />
+                                    <datalist id="regionList">
+                                        @foreach (var r in Model.SuggestedRegions)
+                                        {
+                                            <option value="@r"></option>
+                                        }
+                                    </datalist>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Sao Aloball tối thiểu</label>
+                                    <input type="number" name="MinStars" step="1" min="0" max="500" class="form-control" style="min-height: 48px;"
+                                           value="@Model.OrderInput.MinStars" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Sao Aloball tối đa</label>
+                                    <input type="number" name="MaxStars" step="1" min="0" max="500" class="form-control" style="min-height: 48px;"
+                                           value="@Model.OrderInput.MaxStars" required />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Độ thân thiện đối thủ</label>
+                                    <select name="MinFriendlyRating" class="form-select" style="min-height: 48px;">
+                                        <option value="4.0" selected="@(Model.OrderInput.MinFriendlyRating >= 4.0)">&ge; 4.0★ (Rất thân thiện)</option>
+                                        <option value="3.5" selected="@(Model.OrderInput.MinFriendlyRating >= 3.5 && Model.OrderInput.MinFriendlyRating < 4.0)">&ge; 3.5★ (Thân thiện)</option>
+                                        <option value="3.0" selected="@(Model.OrderInput.MinFriendlyRating < 3.5)">&ge; 3.0★ (Mở rộng)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="AvoidHardTackle" value="true" id="chkConciergeAvoid" checked="@Model.OrderInput.AvoidHardTackle" />
+                                        <input type="hidden" name="AvoidHardTackle" value="false" />
+                                        <label class="form-check-label small fw-semibold" for="chkConciergeAvoid">Tránh đội có &ge; 35% đánh giá “Đá rát – quyết liệt”</label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold d-block">Chế độ thi đấu</label>
+                                    <div class="row g-2">
+                                        <div class="col-6 cg-mode-option">
+                                            <input type="radio" name="IsProWithReferee" value="false" id="modeAmateur" checked="@(!Model.OrderInput.IsProWithReferee)" />
+                                            <label for="modeAmateur">
+                                                <div class="fw-bold small text-dark"><i class="bi bi-people-fill text-success me-1"></i>Nghiệp dư</div>
+                                                <div class="text-muted" style="font-size: 0.74rem;">Tìm đối + Giữ sân, không trọng tài</div>
+                                            </label>
+                                        </div>
+                                        <div class="col-6 cg-mode-option">
+                                            <input type="radio" name="IsProWithReferee" value="true" id="modePro" checked="@Model.OrderInput.IsProWithReferee" />
+                                            <label for="modePro">
+                                                <div class="fw-bold small text-dark"><i class="bi bi-whistle-fill text-warning me-1"></i>Chuyên nghiệp</div>
+                                                <div class="text-muted" style="font-size: 0.74rem;">Tìm đối + Giữ sân + Có trọng tài</div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 pt-1">
+                                    <button type="submit" class="btn btn-success w-100 cg-btn" disabled="@(!hasPaidPlan)">
+                                        <i class="bi bi-rocket-takeoff-fill"></i> Tự động ghép đối, đặt sân &amp; tạo Matchday
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h2 class="h5 fw-bold mb-0"><i class="bi bi-list-check text-success me-2"></i>Kèo trọn gói đã khởi tạo (@Model.ConciergeOrders.Count)</h2>
+                    </div>
+
+                    @if (!Model.ConciergeOrders.Any())
+                    {
+                        <div class="cg-card text-center py-5">
+                            <i class="bi bi-calendar2-check display-6 text-secondary"></i>
+                            <p class="mt-2 mb-0 text-muted small">Chưa có kèo trọn gói nào. Hãy chọn ngày giờ &amp; khu vực ở biểu mẫu bên cạnh để hệ thống lo từ A–Z!</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var o in Model.ConciergeOrders)
+                            {
+                                <div class="cg-card">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div class="fw-bold fs-6 text-dark">
+                                                @o.TeamName <span class="text-success">vs</span> @(o.MatchedOpponentName ?? "Đang tìm đối")
+                                            </div>
+                                            <div class="small text-muted">
+                                                <i class="bi bi-clock me-1"></i>@o.KickoffAt.ToString("HH:mm dd/MM/yyyy") (Giờ VN)
+                                                · <i class="bi bi-geo-alt-fill text-danger me-1"></i>@o.Region
+                                            </div>
+                                        </div>
+                                        <span class="badge @(o.IsProWithReferee ? "bg-warning text-dark" : "bg-success-subtle text-success border border-success-subtle") px-2 py-1">
+                                            @(o.IsProWithReferee ? "Chuyên nghiệp · Có trọng tài" : "Nghiệp dư · Không trọng tài")
+                                        </span>
+                                    </div>
+
+                                    <!-- Live 4-step Tracker -->
+                                    <div class="cg-tracker">
+                                        <div class="cg-step @(o.MatchedOpponentTeamId.HasValue ? "done" : "")">
+                                            <div class="fw-bold"><i class="bi bi-1-circle-fill text-success me-1"></i>Đối thủ</div>
+                                            <div class="text-truncate">@(o.MatchedOpponentName ?? "Chưa có")</div>
+                                            <div class="text-muted">@o.MatchedOpponentStars⭐ · @o.MatchedOpponentRating.ToString("0.0")★</div>
+                                        </div>
+                                        <div class="cg-step @(o.BookedPitchSlotId.HasValue ? "done" : "")">
+                                            <div class="fw-bold"><i class="bi bi-2-circle-fill text-success me-1"></i>Sân bóng</div>
+                                            <div class="text-truncate">@(o.BookedPitchName ?? "Chưa đặt")</div>
+                                            <div class="text-muted">@(o.BookedFieldCode ?? "") · @(o.PitchFeeVnd > 0 ? $"{o.PitchFeeVnd:N0}đ" : "")</div>
+                                        </div>
+                                        <div class="cg-step @(o.AssignedRefereeId.HasValue ? "done" : "skipped")">
+                                            <div class="fw-bold"><i class="bi bi-3-circle-fill @(o.AssignedRefereeId.HasValue ? "text-success" : "text-secondary") me-1"></i>Trọng tài</div>
+                                            <div class="text-truncate">@(o.AssignedRefereeName ?? "Bỏ qua (Nghiệp dư)")</div>
+                                            <div class="text-muted">@(o.RefereeFeeVnd > 0 ? $"{o.RefereeFeeVnd:N0}đ" : "0đ")</div>
+                                        </div>
+                                        <div class="cg-step @(o.ResultMatchId.HasValue ? "done" : "")">
+                                            <div class="fw-bold"><i class="bi bi-4-circle-fill text-success me-1"></i>Matchday &amp; Bill</div>
+                                            <div>Tổng: <strong>@o.EstimatedTotalFee.ToString("N0")đ</strong></div>
+                                            <div class="text-muted">Chia sẵn 50-50</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                                        <button type="button" class="btn btn-outline-success cg-btn js-copy-concierge-zalo"
+                                                data-zalo-text="@o.ZaloSummaryMessage">
+                                            <i class="bi bi-clipboard-check"></i> Copy thông báo kèo trọn gói Zalo
+                                        </button>
+
+                                        @if (o.ResultMatchId.HasValue)
+                                        {
+                                            <a asp-controller="Matches" asp-action="Detail" asp-route-id="@o.ResultMatchId.Value"
+                                               class="btn btn-dark cg-btn">
+                                                <i class="bi bi-box-arrow-up-right"></i> Mở phòng Matchday &amp; Chia tiền
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- TAB 2: XẾP CẶP TỰ ĐỘNG LỊCH CỐ ĐỊNH -->
+            <div class="row g-4">
+                <div class="col-12 col-lg-5">
+                    <div class="cg-card">
+                        <h2 class="h5 fw-bold mb-1"><i class="bi bi-sliders text-success me-2"></i>Cấu hình lịch đá cố định hàng tuần</h2>
+                        <p class="small text-muted mb-3">Hệ thống tự quét các CLB Plus/Pro trùng ngày, khu vực, Sao Aloball và uy tín để đề xuất cặp đấu.</p>
+
+                        <form method="post" asp-controller="Concierge" asp-action="SaveRecurringSchedule">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="TeamId" value="@team.Id" />
+
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="IsAutoPairingEnabled" value="true" id="chkEnableAuto" checked="@Model.ScheduleInput.IsAutoPairingEnabled" />
+                                <input type="hidden" name="IsAutoPairingEnabled" value="false" />
+                                <label class="form-check-label fw-bold" for="chkEnableAuto">Bật tự động tìm &amp; ghép cặp hàng tuần</label>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold d-block">Ngày cố định trong tuần (T2–CN)</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var d in days)
+                                    {
+                                        bool isChecked = (mask & (1 << d.DayInt)) != 0;
+                                        <div class="cg-day-pill">
+                                            <input type="checkbox" name="SelectedDays" value="@d.DayInt" id="day_@d.DayInt" checked="@isChecked" />
+                                            <label for="day_@d.DayInt">@d.Label</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Giờ đá (Giờ VN)</label>
+                                    <input type="time" name="PreferredKickoffTime" class="form-control" style="min-height: 48px;"
+                                           value="@Model.ScheduleInput.PreferredKickoffTime.ToString(@"hh\:mm")" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Khu vực</label>
+                                    <input type="text" name="Region" list="regionList2" class="form-control" style="min-height: 48px;"
+                                           value="@Model.ScheduleInput.Region" required />
+                                    <datalist id="regionList2">
+                                        @foreach (var r in Model.SuggestedRegions)
+                                        {
+                                            <option value="@r"></option>
+                                        }
+                                    </datalist>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Sao Aloball Min</label>
+                                    <input type="number" name="MinAloballStars" min="0" max="500" class="form-control" style="min-height: 48px;"
+                                           value="@Model.ScheduleInput.MinAloballStars" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold">Sao Aloball Max</label>
+                                    <input type="number" name="MaxAloballStars" min="0" max="500" class="form-control" style="min-height: 48px;"
+                                           value="@Model.ScheduleInput.MaxAloballStars" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Độ thân thiện tối thiểu</label>
+                                    <select name="MinFriendlyRating" class="form-select" style="min-height: 48px;">
+                                        <option value="4.0" selected="@(Model.ScheduleInput.MinFriendlyRating >= 4.0)">&ge; 4.0★ (Rất thân thiện)</option>
+                                        <option value="3.5" selected="@(Model.ScheduleInput.MinFriendlyRating >= 3.5 && Model.ScheduleInput.MinFriendlyRating < 4.0)">&ge; 3.5★ (Thân thiện)</option>
+                                        <option value="3.0" selected="@(Model.ScheduleInput.MinFriendlyRating < 3.5)">&ge; 3.0★</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="AvoidHardTackle" value="true" id="chkSchedAvoid" checked="@Model.ScheduleInput.AvoidHardTackle" />
+                                        <input type="hidden" name="AvoidHardTackle" value="false" />
+                                        <label class="form-check-label small fw-semibold" for="chkSchedAvoid">Tránh đối thủ có &ge; 35% đánh giá “Đá rát”</label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-dark w-100 cg-btn" disabled="@(!hasPaidPlan)">
+                                        <i class="bi bi-save-fill"></i> Lưu lịch cố định
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <div class="cg-card mb-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <h2 class="h5 fw-bold mb-0"><i class="bi bi-radar text-success me-2"></i>Kèo xếp cặp tự động</h2>
+                            <div class="small text-muted">Quét nhanh các CLB Plus/Pro khác có lịch khớp với @team.Name.</div>
+                        </div>
+                        <form method="post" asp-controller="Concierge" asp-action="RunAutoPairing">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="teamId" value="@team.Id" />
+                            <button type="submit" class="btn btn-success cg-btn px-4" disabled="@(!hasPaidPlan)">
+                                <i class="bi bi-search-heart-fill"></i> Quét &amp; Ghép cặp ngay
+                            </button>
+                        </form>
+                    </div>
+
+                    @if (!Model.AutoPairingOrders.Any())
+                    {
+                        <div class="cg-card text-center py-5">
+                            <i class="bi bi-calendar2-heart display-6 text-secondary"></i>
+                            <p class="mt-2 mb-0 text-muted small">Chưa có kèo ghép cặp tự động nào. Hãy lưu lịch cố định bên trái rồi nhấn <strong>“Quét &amp; Ghép cặp ngay”</strong>.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var p in Model.AutoPairingOrders)
+                            {
+                                <div class="cg-card">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                        <div>
+                                            <div class="fw-bold fs-6 text-dark">
+                                                @p.TeamName <span class="text-success">vs</span> @(p.MatchedOpponentName ?? "CLB đối tác")
+                                            </div>
+                                            <div class="small text-muted">
+                                                <i class="bi bi-calendar-event me-1"></i>@p.KickoffAt.ToString("HH:mm dd/MM/yyyy") (Giờ VN)
+                                                · <i class="bi bi-geo-alt-fill text-danger me-1"></i>@p.Region
+                                            </div>
+                                            <div class="small mt-1">
+                                                <span class="badge bg-warning text-dark me-1">@p.MatchedOpponentStars ⭐ Aloball</span>
+                                                <span class="badge bg-light text-dark border me-1">Uy tín @p.MatchedOpponentRating.ToString("0.0")★</span>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">Đá rát: @p.MatchedOpponentHardTacklePct%</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            @if (p.Status == ConciergeOrderStatus.Proposed)
+                                            {
+                                                <span class="badge bg-warning text-dark px-2 py-1">Chờ xác nhận</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Đã tạo Matchday</span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                                        <button type="button" class="btn btn-outline-success cg-btn js-copy-concierge-zalo"
+                                                data-zalo-text="@p.ZaloSummaryMessage">
+                                            <i class="bi bi-clipboard-check"></i> Copy tin nhắn Zalo
+                                        </button>
+
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @if (p.Status == ConciergeOrderStatus.Proposed)
+                                            {
+                                                <form method="post" asp-controller="Concierge" asp-action="ConfirmAutoPairing">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="orderId" value="@p.Id" />
+                                                    <input type="hidden" name="teamId" value="@team.Id" />
+                                                    <button type="submit" class="btn btn-success cg-btn">
+                                                        <i class="bi bi-check2-circle"></i> Chốt kèo &amp; Tạo phòng Matchday
+                                                    </button>
+                                                </form>
+                                                <form method="post" asp-controller="Concierge" asp-action="CancelOrder">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="orderId" value="@p.Id" />
+                                                    <input type="hidden" name="teamId" value="@team.Id" />
+                                                    <input type="hidden" name="tab" value="autopair" />
+                                                    <button type="submit" class="btn btn-outline-danger cg-btn">Bỏ qua</button>
+                                                </form>
+                                            }
+                                            else if (p.ResultMatchId.HasValue)
+                                            {
+                                                <a asp-controller="Matches" asp-action="Detail" asp-route-id="@p.ResultMatchId.Value" class="btn btn-dark cg-btn">
+                                                    <i class="bi bi-box-arrow-up-right"></i> Mở phòng Matchday
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.js-copy-concierge-zalo').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var txt = btn.getAttribute('data-zalo-text') || '';
+                    if (!txt) return;
+                    navigator.clipboard.writeText(txt).then(function () {
+                        var oldHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="bi bi-check2-all"></i> Đã copy tin nhắn Zalo!';
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-success');
+                        setTimeout(function () {
+                            btn.innerHTML = oldHtml;
+                            btn.classList.remove('btn-success');
+                            btn.classList.add('btn-outline-success');
+                        }, 2200);
+                    });
+                });
+            });
+        });
+    </script>
+}

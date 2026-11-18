@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Identity;
 
@@ -67,6 +67,10 @@ public class Team
 
     public bool IsPublic { get; set; } = true;
     public bool IsDraft { get; set; } = false;
+    public PlanTier PlanTier { get; set; } = PlanTier.Free; // Gói CLB (Phase 3B)
+    public DateTime? PlanExpiresAt { get; set; } // UTC, null = không hết hạn
+    [NotMapped]
+    public bool IsPaidPlanActive => PlanTier != PlanTier.Free && (!PlanExpiresAt.HasValue || PlanExpiresAt.Value > DateTime.UtcNow);
 
     // Bắt đối & Đánh giá
     public bool IsRestrictedFromMatchmaking { get; set; } = false;

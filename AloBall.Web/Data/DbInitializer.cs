@@ -1,4 +1,4 @@
-﻿using AloBall.Web.Data;
+using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services.TeamDivision;
 using Microsoft.AspNetCore.Identity;
@@ -102,6 +102,83 @@ public static class DbInitializer
                         ""MarkedByUserId"" text NULL
                     );
                     CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchExpenseShares_MatchExpenseId_PlayerId"" ON ""MatchExpenseShares"" (""MatchExpenseId"", ""PlayerId"");
+                    ALTER TABLE ""Teams"" ADD COLUMN IF NOT EXISTS ""PlanTier"" integer NOT NULL DEFAULT 0;
+                    ALTER TABLE ""Teams"" ADD COLUMN IF NOT EXISTS ""PlanExpiresAt"" timestamp with time zone NULL;
+                    CREATE TABLE IF NOT EXISTS ""TeamRecurringSchedules"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""TeamId"" uuid NOT NULL REFERENCES ""Teams""(""Id"") ON DELETE CASCADE,
+                        ""IsAutoPairingEnabled"" boolean NOT NULL DEFAULT FALSE,
+                        ""DaysOfWeekMask"" integer NOT NULL DEFAULT 0,
+                        ""PreferredKickoffTime"" interval NOT NULL DEFAULT '19:00:00',
+                        ""Region"" VARCHAR(100) NOT NULL DEFAULT '',
+                        ""MinAloballStars"" double precision NOT NULL DEFAULT 0,
+                        ""MaxAloballStars"" double precision NOT NULL DEFAULT 100,
+                        ""MinFriendlyRating"" double precision NOT NULL DEFAULT 3.5,
+                        ""AvoidHardTackle"" boolean NOT NULL DEFAULT TRUE,
+                        ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TeamRecurringSchedules_TeamId"" ON ""TeamRecurringSchedules"" (""TeamId"");
+                    CREATE TABLE IF NOT EXISTS ""MatchConciergeOrders"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""Source"" integer NOT NULL DEFAULT 0,
+                        ""TeamId"" uuid NOT NULL REFERENCES ""Teams""(""Id"") ON DELETE CASCADE,
+                        ""Region"" VARCHAR(100) NOT NULL DEFAULT '',
+                        ""KickoffAt"" timestamp with time zone NOT NULL,
+                        ""MinStars"" double precision NOT NULL DEFAULT 0,
+                        ""MaxStars"" double precision NOT NULL DEFAULT 100,
+                        ""MinFriendlyRating"" double precision NOT NULL DEFAULT 3.5,
+                        ""IsProWithReferee"" boolean NOT NULL DEFAULT FALSE,
+                        ""MatchedOpponentTeamId"" uuid NULL REFERENCES ""Teams""(""Id"") ON DELETE RESTRICT,
+                        ""BookedPitchSlotId"" uuid NULL,
+                        ""AssignedRefereeId"" uuid NULL,
+                        ""ResultMatchId"" uuid NULL,
+                        ""EstimatedTotalFee"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""Status"" integer NOT NULL DEFAULT 0,
+                        ""FailureReason"" VARCHAR(500) NULL,
+                        ""CreatedByUserId"" text NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_MatchConciergeOrders_TeamId_Status"" ON ""MatchConciergeOrders"" (""TeamId"", ""Status"");
+                    CREATE TABLE IF NOT EXISTS ""PlayerLoanListings"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""ListingType"" integer NOT NULL DEFAULT 0,
+                        ""UserId"" text NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE RESTRICT,
+                        ""PlayerId"" uuid NULL REFERENCES ""Players""(""Id"") ON DELETE SET NULL,
+                        ""TeamId"" uuid NULL REFERENCES ""Teams""(""Id"") ON DELETE SET NULL,
+                        ""MatchId"" uuid NULL REFERENCES ""Matches""(""Id"") ON DELETE SET NULL,
+                        ""Region"" VARCHAR(100) NOT NULL DEFAULT '',
+                        ""PitchName"" VARCHAR(150) NULL,
+                        ""PlayDate"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""TimeSlot"" VARCHAR(50) NOT NULL DEFAULT '19:00 - 20:30',
+                        ""PositionsNeeded"" VARCHAR(50) NOT NULL DEFAULT 'MID',
+                        ""FeeType"" integer NOT NULL DEFAULT 0,
+                        ""LoanFeeAmount"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""EscrowAbCoin"" integer NOT NULL DEFAULT 0,
+                        ""EscrowJournalEntryId"" uuid NULL,
+                        ""IsEscrowReleased"" boolean NOT NULL DEFAULT FALSE,
+                        ""Notes"" VARCHAR(500) NULL,
+                        ""Status"" integer NOT NULL DEFAULT 0,
+                        ""AcceptedApplicationId"" uuid NULL,
+                        ""LoanedGuestPlayerId"" uuid NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""MatchedAt"" timestamp with time zone NULL,
+                        ""CompletedAt"" timestamp with time zone NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_PlayerLoanListings_ListingType_Status_PlayDate"" ON ""PlayerLoanListings"" (""ListingType"", ""Status"", ""PlayDate"");
+                    CREATE TABLE IF NOT EXISTS ""PlayerLoanApplications"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""ListingId"" uuid NOT NULL REFERENCES ""PlayerLoanListings""(""Id"") ON DELETE CASCADE,
+                        ""ApplicantUserId"" text NOT NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE RESTRICT,
+                        ""ApplicantPlayerId"" uuid NULL REFERENCES ""Players""(""Id"") ON DELETE SET NULL,
+                        ""ApplicantTeamId"" uuid NULL REFERENCES ""Teams""(""Id"") ON DELETE SET NULL,
+                        ""TargetMatchId"" uuid NULL REFERENCES ""Matches""(""Id"") ON DELETE SET NULL,
+                        ""Position"" VARCHAR(50) NOT NULL DEFAULT 'MID',
+                        ""Message"" VARCHAR(500) NULL,
+                        ""Status"" integer NOT NULL DEFAULT 0,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""RespondedAt"" timestamp with time zone NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_PlayerLoanApplications_ListingId_Status"" ON ""PlayerLoanApplications"" (""ListingId"", ""Status"");
                 ");
             }
             catch { }
@@ -139,6 +216,8 @@ public static class DbInitializer
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN BankCode TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN AccountNumber TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN AccountHolderName TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN PlanTier INTEGER NOT NULL DEFAULT 0;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN PlanExpiresAt TEXT NULL;"); } catch { }
 
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN PreferredFoot TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN Experience TEXT NULL;"); } catch { }
@@ -478,6 +557,85 @@ public static class DbInitializer
                     ""MarkedByUserId"" TEXT NULL
                 );
                 CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchExpenseShares_MatchExpenseId_PlayerId"" ON ""MatchExpenseShares"" (""MatchExpenseId"", ""PlayerId"");
+
+                CREATE TABLE IF NOT EXISTS ""PlayerLoanListings"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""ListingType"" INTEGER NOT NULL DEFAULT 0,
+                    ""UserId"" TEXT NULL,
+                    ""PlayerId"" TEXT NULL,
+                    ""TeamId"" TEXT NULL,
+                    ""MatchId"" TEXT NULL,
+                    ""Region"" TEXT NOT NULL DEFAULT '',
+                    ""PitchName"" TEXT NULL,
+                    ""PlayDate"" TEXT NOT NULL,
+                    ""TimeSlot"" TEXT NOT NULL DEFAULT '19:00 - 20:30',
+                    ""PositionsNeeded"" TEXT NOT NULL DEFAULT 'MID',
+                    ""FeeType"" INTEGER NOT NULL DEFAULT 0,
+                    ""LoanFeeAmount"" TEXT NOT NULL DEFAULT '0',
+                    ""EscrowAbCoin"" INTEGER NOT NULL DEFAULT 0,
+                    ""EscrowJournalEntryId"" TEXT NULL,
+                    ""IsEscrowReleased"" INTEGER NOT NULL DEFAULT 0,
+                    ""Notes"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""AcceptedApplicationId"" TEXT NULL,
+                    ""LoanedGuestPlayerId"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""MatchedAt"" TEXT NULL,
+                    ""CompletedAt"" TEXT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PlayerLoanListings_ListingType_Status_PlayDate"" ON ""PlayerLoanListings"" (""ListingType"", ""Status"", ""PlayDate"");
+
+                CREATE TABLE IF NOT EXISTS ""PlayerLoanApplications"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""ListingId"" TEXT NOT NULL,
+                    ""ApplicantUserId"" TEXT NOT NULL,
+                    ""ApplicantPlayerId"" TEXT NULL,
+                    ""ApplicantTeamId"" TEXT NULL,
+                    ""TargetMatchId"" TEXT NULL,
+                    ""Position"" TEXT NOT NULL DEFAULT 'MID',
+                    ""Message"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""RespondedAt"" TEXT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_PlayerLoanApplications_ListingId_Status"" ON ""PlayerLoanApplications"" (""ListingId"", ""Status"");
+
+                CREATE TABLE IF NOT EXISTS ""TeamRecurringSchedules"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""IsAutoPairingEnabled"" INTEGER NOT NULL DEFAULT 0,
+                    ""DaysOfWeekMask"" INTEGER NOT NULL DEFAULT 0,
+                    ""PreferredKickoffTime"" TEXT NOT NULL DEFAULT '19:00:00',
+                    ""Region"" TEXT NOT NULL DEFAULT '',
+                    ""MinAloballStars"" REAL NOT NULL DEFAULT 0,
+                    ""MaxAloballStars"" REAL NOT NULL DEFAULT 100,
+                    ""MinFriendlyRating"" REAL NOT NULL DEFAULT 3.5,
+                    ""AvoidHardTackle"" INTEGER NOT NULL DEFAULT 1,
+                    ""UpdatedAt"" TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TeamRecurringSchedules_TeamId"" ON ""TeamRecurringSchedules"" (""TeamId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchConciergeOrders"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""Source"" INTEGER NOT NULL DEFAULT 0,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""Region"" TEXT NOT NULL DEFAULT '',
+                    ""KickoffAt"" TEXT NOT NULL,
+                    ""MinStars"" REAL NOT NULL DEFAULT 0,
+                    ""MaxStars"" REAL NOT NULL DEFAULT 100,
+                    ""MinFriendlyRating"" REAL NOT NULL DEFAULT 3.5,
+                    ""IsProWithReferee"" INTEGER NOT NULL DEFAULT 0,
+                    ""MatchedOpponentTeamId"" TEXT NULL,
+                    ""BookedPitchSlotId"" TEXT NULL,
+                    ""AssignedRefereeId"" TEXT NULL,
+                    ""ResultMatchId"" TEXT NULL,
+                    ""EstimatedTotalFee"" TEXT NOT NULL DEFAULT '0',
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""FailureReason"" TEXT NULL,
+                    ""CreatedByUserId"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_MatchConciergeOrders_TeamId_Status"" ON ""MatchConciergeOrders"" (""TeamId"", ""Status"");
             ");
         }
         catch (Exception ex)

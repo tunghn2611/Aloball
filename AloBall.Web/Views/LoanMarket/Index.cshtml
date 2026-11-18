@@ -1,0 +1,1010 @@
+@model AloBall.Web.Models.LoanMarketIndexViewModel
+@using AloBall.Web.Data.Entities
+@using AloBall.Web.Models
+@{
+    ViewData["Title"] = "Chợ Mượn Cầu Thủ & Đá Bù 2 Chiều";
+    bool isAuth = User.Identity?.IsAuthenticated == true;
+    bool isPlayersTab = string.Equals(Model.ActiveTab, "players", StringComparison.OrdinalIgnoreCase);
+}
+
+<style>
+    .loan-hero {
+        background: linear-gradient(135deg, rgba(6, 78, 59, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%);
+        border: 1px solid rgba(16, 185, 129, 0.28);
+        border-radius: 18px;
+        padding: 1.5rem;
+        color: #f8fafc;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.22);
+    }
+    .loan-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+        background: #0f172a;
+        padding: 0.45rem;
+        border-radius: 14px;
+        margin-bottom: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .loan-tab-btn {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #cbd5e1;
+        text-decoration: none;
+        border: none;
+        background: transparent;
+        transition: all 0.18s ease;
+        padding: 0.5rem 1rem;
+    }
+    .loan-tab-btn:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.06);
+    }
+    .loan-tab-btn.active {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff;
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+    .loan-filter-bar {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    }
+    .loan-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+        transition: transform 0.16s ease, box-shadow 0.16s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .loan-card.status-matched {
+        border-color: #10b981;
+        background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+    }
+    .loan-card.status-completed {
+        border-color: #94a3b8;
+        background: #f8fafc;
+    }
+    .scout-strip {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(245, 158, 11, 0.32);
+        border-radius: 12px;
+        padding: 0.75rem 0.9rem;
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .ovr-shield {
+        min-width: 52px;
+        height: 56px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Barlow Condensed', sans-serif;
+        line-height: 1;
+        border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+    .ovr-shield.tier-gold {
+        background: linear-gradient(145deg, #fbbf24 0%, #b45309 100%);
+        color: #0f172a;
+        border-color: #fde68a;
+    }
+    .ovr-shield.tier-motm {
+        background: linear-gradient(145deg, #064e3b 0%, #10b981 55%, #f59e0b 100%);
+        color: #ffffff;
+        border-color: #fcd34d;
+    }
+    .ovr-shield.tier-silver {
+        background: linear-gradient(145deg, #e2e8f0 0%, #64748b 100%);
+        color: #0f172a;
+        border-color: #f1f5f9;
+    }
+    .ovr-shield.tier-bronze {
+        background: linear-gradient(145deg, #d97706 0%, #78350f 100%);
+        color: #ffffff;
+        border-color: #fcd34d;
+    }
+    .ovr-shield .ovr-num {
+        font-size: 1.45rem;
+        font-weight: 800;
+    }
+    .ovr-shield .ovr-pos {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+    .scout-meta-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.35rem;
+    }
+    .scout-meta-pill {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #e2e8f0;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .scout-meta-pill.rep-pill {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fde68a;
+        border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+    .loan-action-btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        font-weight: 700;
+        border-radius: 10px;
+    }
+    .pos-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.22rem 0.65rem;
+        border-radius: 6px;
+        font-weight: 800;
+        font-size: 0.76rem;
+        letter-spacing: 0.04em;
+        background: #064e3b;
+        color: #ecfdf5;
+    }
+    .fee-badge-split {
+        background: #dcfce7;
+        color: #065f46;
+        border: 1px solid #86efac;
+        padding: 0.28rem 0.65rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .fee-badge-paid {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        padding: 0.28rem 0.65rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .escrow-badge {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        padding: 0.26rem 0.6rem;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.78rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+</style>
+
+<div class="container-fluid py-3">
+    <!-- Hero Header -->
+    <div class="loan-hero">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-2" style="background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.4); font-size: 0.78rem; font-weight: 700; color: #6ee7b7;">
+                    <i class="bi bi-arrow-left-right"></i> SÀN MƯỢN CẦU THỦ &amp; ĐÁ BÙ 2 CHIỀU
+                </div>
+                <h1 class="h3 fw-bold mb-1">Chợ Cầu Thủ Tăng Cường (Mercenary Market)</h1>
+                <p class="mb-0 text-white-50 small">
+                    Đội thiếu người tuyển nhanh ngoại binh · Cầu thủ rảnh lịch đi đá ké/đá thuê · Chốt kèo tự động thêm vào danh sách điểm danh &amp; chia tiền sân VietQR.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                @if (isAuth)
+                {
+                    <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16);">
+                        <i class="bi bi-coin text-warning"></i>
+                        <span class="small">Số dư khả dụng: <strong class="text-warning">@Model.CurrentUserAbCoin AB Coin</strong></span>
+                    </div>
+                    @if (Model.ManagedTeams.Any())
+                    {
+                        <button type="button" class="btn btn-success loan-action-btn" data-bs-toggle="modal" data-bs-target="#postTeamRecruitModal">
+                            <i class="bi bi-megaphone-fill"></i> Đội đăng tìm người
+                        </button>
+                    }
+                    <button type="button" class="btn btn-warning text-dark loan-action-btn" data-bs-toggle="modal" data-bs-target="#postPlayerAvailableModal">
+                        <i class="bi bi-person-raised-hand"></i> Đăng lịch đi đá ké/thuê
+                    </button>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-success loan-action-btn">
+                        <i class="bi bi-box-arrow-in-right"></i> Đăng nhập để đăng tin &amp; nhận kèo
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Two Clean Tabs (min-height: 48px >= 44px) -->
+    <div class="loan-tabs" role="tablist" aria-label="Chuyển đổi tab Chợ cầu thủ">
+        <a class="loan-tab-btn @(!isPlayersTab ? "active" : "")"
+           asp-controller="LoanMarket"
+           asp-action="Index"
+           asp-route-tab="teams"
+           asp-route-region="@Model.Region"
+           asp-route-playDate="@(Model.PlayDate?.ToString("yyyy-MM-dd"))"
+           asp-route-position="@Model.Position"
+           asp-route-feeFilter="@Model.FeeFilter"
+           role="tab"
+           aria-selected="@(!isPlayersTab ? "true" : "false")">
+            <i class="bi bi-shield-fill-plus"></i>
+            <span>Đội đang tìm người (@Model.TeamRecruitingListings.Count)</span>
+        </a>
+        <a class="loan-tab-btn @(isPlayersTab ? "active" : "")"
+           asp-controller="LoanMarket"
+           asp-action="Index"
+           asp-route-tab="players"
+           asp-route-region="@Model.Region"
+           asp-route-playDate="@(Model.PlayDate?.ToString("yyyy-MM-dd"))"
+           asp-route-position="@Model.Position"
+           asp-route-feeFilter="@Model.FeeFilter"
+           role="tab"
+           aria-selected="@(isPlayersTab ? "true" : "false")">
+            <i class="bi bi-person-badge-fill"></i>
+            <span>Cầu thủ sẵn sàng đá (@Model.PlayerAvailableListings.Count)</span>
+        </a>
+    </div>
+
+    <!-- Smart Filter Bar -->
+    <form method="get" asp-controller="LoanMarket" asp-action="Index" class="loan-filter-bar">
+        <input type="hidden" name="tab" value="@Model.ActiveTab" />
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold text-secondary mb-1"><i class="bi bi-geo-alt me-1"></i>Khu vực (Region)</label>
+                <input type="text" name="region" value="@Model.Region" class="form-control" placeholder="VD: Cầu Giấy, Đống Đa, Thanh Xuân..." />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary mb-1"><i class="bi bi-calendar-event me-1"></i>Ngày đá</label>
+                <input type="date" name="playDate" value="@(Model.PlayDate?.ToString("yyyy-MM-dd"))" class="form-control" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary mb-1"><i class="bi bi-diagram-3 me-1"></i>Vị trí</label>
+                <select name="position" class="form-select">
+                    <option value="" selected="@(string.IsNullOrEmpty(Model.Position))">Tất cả vị trí</option>
+                    <option value="GK" selected="@(Model.Position == "GK")">Thủ môn (GK)</option>
+                    <option value="DEF" selected="@(Model.Position == "DEF")">Hậu vệ (DEF)</option>
+                    <option value="MID" selected="@(Model.Position == "MID")">Tiền vệ (MID)</option>
+                    <option value="FWD" selected="@(Model.Position == "FWD")">Tiền đạo (FWD)</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold text-secondary mb-1"><i class="bi bi-cash-coin me-1"></i>Mức phí</label>
+                <select name="feeFilter" class="form-select">
+                    <option value="all" selected="@(Model.FeeFilter == "all")">Tất cả</option>
+                    <option value="split" selected="@(Model.FeeFilter == "split")">Share tiền sân (0đ)</option>
+                    <option value="paid" selected="@(Model.FeeFilter == "paid")">Có phí tăng cường</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-dark w-100 loan-action-btn">
+                    <i class="bi bi-funnel-fill"></i> Lọc kèo
+                </button>
+                <a asp-controller="LoanMarket" asp-action="Index" asp-route-tab="@Model.ActiveTab" class="btn btn-outline-secondary loan-action-btn" title="Xóa bộ lọc">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- TAB 1: ĐỘI ĐANG TÌM NGƯỜI (TeamRecruiting) -->
+    @if (!isPlayersTab)
+    {
+        @if (!Model.TeamRecruitingListings.Any())
+        {
+            <div class="text-center py-5 bg-white rounded-4 border">
+                <i class="bi bi-shield-plus display-5 text-secondary"></i>
+                <h3 class="h5 fw-bold mt-3">Chưa có đội bóng nào đăng tìm người theo bộ lọc hiện tại</h3>
+                <p class="text-muted small mb-3">Hãy mở rộng bộ lọc hoặc nếu bạn là Đội trưởng thiếu quân, hãy đăng tin ngay chỉ trong 15 giây.</p>
+                @if (isAuth && Model.ManagedTeams.Any())
+                {
+                    <button type="button" class="btn btn-success loan-action-btn" data-bs-toggle="modal" data-bs-target="#postTeamRecruitModal">
+                        <i class="bi bi-megaphone-fill"></i> Đăng tin tìm cầu thủ ngay
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                @foreach (var item in Model.TeamRecruitingListings)
+                {
+                    var statusClass = item.Status == LoanListingStatus.Matched ? "status-matched" : item.Status == LoanListingStatus.Completed ? "status-completed" : "";
+                    <div class="col-12 col-lg-6">
+                        <div class="loan-card @statusClass">
+                            <div>
+                                <!-- Header: Team & Status -->
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold" style="width: 42px; height: 42px; flex-shrink: 0;">
+                                            @(string.IsNullOrEmpty(item.TeamName) ? "FC" : item.TeamName[..1].ToUpperInvariant())
+                                        </div>
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                @if (!string.IsNullOrEmpty(item.TeamSlug))
+                                                {
+                                                    <a href="/doi-bong/@item.TeamSlug" class="fw-bold text-dark text-decoration-none">@item.TeamName</a>
+                                                }
+                                                else
+                                                {
+                                                    <span class="fw-bold text-dark">@item.TeamName</span>
+                                                }
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>@item.TeamRating.ToString("0.0")</span>
+                                            </div>
+                                            <div class="small text-muted">
+                                                <i class="bi bi-geo-alt-fill text-danger me-1"></i>@item.Region
+                                                @if (!string.IsNullOrEmpty(item.PitchName))
+                                                {
+                                                    <span>· @item.PitchName</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        @if (item.Status == LoanListingStatus.Open)
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Đang tuyển người</span>
+                                        }
+                                        else if (item.Status == LoanListingStatus.Matched)
+                                        {
+                                            <span class="badge bg-success text-white px-2 py-1"><i class="bi bi-check2-circle me-1"></i>Đã chốt kèo</span>
+                                        }
+                                        else if (item.Status == LoanListingStatus.Completed)
+                                        {
+                                            <span class="badge bg-secondary text-white px-2 py-1"><i class="bi bi-flag-fill me-1"></i>Đã hoàn thành</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <!-- Schedule, Positions & Fee -->
+                                <div class="d-flex flex-wrap align-items-center gap-2 my-3">
+                                    <span class="badge bg-light text-dark border px-2 py-1">
+                                        <i class="bi bi-calendar3 me-1 text-primary"></i>@item.PlayDate.ToString("dd/MM/yyyy") · @item.TimeSlot
+                                    </span>
+                                    @foreach (var pos in item.PositionBadges)
+                                    {
+                                        <span class="pos-pill">@pos</span>
+                                    }
+                                    @if (item.FeeType == LoanFeeType.SplitPitch)
+                                    {
+                                        <span class="fee-badge-split"><i class="bi bi-people-fill me-1"></i>Share tiền sân (0đ)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fee-badge-paid"><i class="bi bi-cash-stack me-1"></i>Phí mượn: @item.LoanFeeAmount.ToString("N0")đ</span>
+                                    }
+                                    @if (item.EscrowAbCoin > 0)
+                                    {
+                                        <span class="escrow-badge">
+                                            <i class="bi bi-shield-lock-fill"></i>
+                                            Cọc @item.EscrowAbCoin AB Coin
+                                            @if (item.IsEscrowReleased)
+                                            {
+                                                <span class="text-success">(Đã hoàn cọc)</span>
+                                            }
+                                            else if (item.IsEscrowHeld)
+                                            {
+                                                <span class="text-primary">(Đã khóa cọc)</span>
+                                            }
+                                        </span>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(item.Notes))
+                                {
+                                    <p class="small text-secondary mb-3 bg-light p-2 rounded-3 border-start border-3 border-success">
+                                        @item.Notes
+                                    </p>
+                                }
+
+                                @if (item.EffectiveMatchId.HasValue)
+                                {
+                                    <div class="small mb-3">
+                                        <a asp-controller="Matches" asp-action="Detail" asp-route-id="@item.EffectiveMatchId.Value" class="text-decoration-none fw-semibold text-success">
+                                            <i class="bi bi-link-45deg"></i> Liên kết trực tiếp Matchday &amp; Chia tiền sân VietQR (@(item.MatchLabel ?? "Xem trận đấu"))
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Matched Player Scout Spotlight -->
+                                @if (item.MatchedPlayerScout != null && (item.Status == LoanListingStatus.Matched || item.Status == LoanListingStatus.Completed))
+                                {
+                                    var sc = item.MatchedPlayerScout;
+                                    <div class="scout-strip mb-3">
+                                        <div class="d-flex align-items-center gap-3">
+                                            <div class="ovr-shield tier-@sc.Tier">
+                                                <span class="ovr-num">@sc.Ovr</span>
+                                                <span class="ovr-pos">@sc.PrimaryPosition</span>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-white d-flex align-items-center gap-2">
+                                                    <span>@sc.FullName</span>
+                                                    <span class="badge bg-success">Ngoại binh đã chốt</span>
+                                                </div>
+                                                <div class="scout-meta-pills">
+                                                    <span class="scout-meta-pill"><i class="bi bi-universal-access"></i>Chân @sc.PreferredFoot</span>
+                                                    <span class="scout-meta-pill rep-pill"><i class="bi bi-star-fill"></i>Uy tín @sc.ReputationStars.ToString("0.0")★ (@sc.RepStat REP)</span>
+                                                    <span class="scout-meta-pill"><i class="bi bi-award"></i>@sc.Experience</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @if (sc.PlayStyles.Any())
+                                        {
+                                            <div class="d-flex align-items-center gap-1">
+                                                @foreach (var ps in sc.PlayStyles)
+                                                {
+                                                    <span class="ps-diamond @(ps.IsPlus ? "ps-plus" : "ps-base")" title="@ps.Definition.NameVi (@ps.Definition.NameEn)">
+                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="@ps.Definition.SvgPath" /></svg>
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                <!-- Candidate Applications with OVR, PlayStyles, PreferredFoot, Reputation -->
+                                @if (item.Applications.Any() && item.Status == LoanListingStatus.Open)
+                                {
+                                    <div class="border-top pt-3 mt-2 mb-3">
+                                        <div class="small fw-bold text-uppercase text-secondary mb-2">
+                                            <i class="bi bi-people me-1"></i>Ứng viên đăng ký (@item.Applications.Count)
+                                        </div>
+                                        <div class="d-flex flex-column gap-2">
+                                            @foreach (var app in item.Applications)
+                                            {
+                                                var sc = app.Scout;
+                                                <div class="scout-strip">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <div class="ovr-shield tier-@sc.Tier">
+                                                            <span class="ovr-num">@sc.Ovr</span>
+                                                            <span class="ovr-pos">@app.Position</span>
+                                                        </div>
+                                                        <div>
+                                                            <div class="fw-bold text-white">@sc.FullName</div>
+                                                            <div class="scout-meta-pills">
+                                                                <span class="scout-meta-pill">Chân @sc.PreferredFoot</span>
+                                                                <span class="scout-meta-pill rep-pill"><i class="bi bi-star-fill"></i>@sc.ReputationStars.ToString("0.0")★ (@sc.RepStat REP)</span>
+                                                                @if (sc.PlayStyles.Any())
+                                                                {
+                                                                    @foreach (var ps in sc.PlayStyles)
+                                                                    {
+                                                                        <span class="scout-meta-pill @(ps.IsPlus ? "border border-warning text-warning" : "")" title="@ps.Definition.NameVi">
+                                                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="@ps.Definition.SvgPath" /></svg>
+                                                                            @ps.Definition.NameVi
+                                                                        </span>
+                                                                    }
+                                                                }
+                                                            </div>
+                                                            @if (!string.IsNullOrEmpty(app.Message))
+                                                            {
+                                                                <div class="small text-white-50 mt-1">“@app.Message”</div>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    @if (item.CanManage && app.Status == LoanApplicationStatus.Pending)
+                                                    {
+                                                        <form method="post" asp-controller="LoanMarket" asp-action="AcceptApplication">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="listingId" value="@item.Id" />
+                                                            <input type="hidden" name="applicationId" value="@app.Id" />
+                                                            <input type="hidden" name="returnTab" value="teams" />
+                                                            <button type="submit" class="btn btn-sm btn-success loan-action-btn px-3">
+                                                                <i class="bi bi-check2-circle"></i> Chốt mượn
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Card Footer Actions -->
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top mt-2">
+                                <button type="button"
+                                        class="btn btn-outline-success btn-sm loan-action-btn js-copy-zalo-loan"
+                                        data-zalo-text="@item.ZaloShareMessage">
+                                    <i class="bi bi-clipboard-check"></i> Copy tin nhắn chốt kèo mượn Zalo
+                                </button>
+
+                                <div class="d-flex flex-wrap gap-2">
+                                    @if (item.Status == LoanListingStatus.Open && isAuth && !item.CanManage && !item.HasApplied)
+                                    {
+                                        <form method="post" asp-controller="LoanMarket" asp-action="Apply" class="d-flex gap-1 align-items-center">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="ListingId" value="@item.Id" />
+                                            <input type="hidden" name="returnTab" value="teams" />
+                                            <select name="Position" class="form-select form-select-sm" style="width: auto; min-height: 44px;">
+                                                @foreach (var pos in item.PositionBadges)
+                                                {
+                                                    <option value="@pos">@pos</option>
+                                                }
+                                            </select>
+                                            <button type="submit" class="btn btn-primary btn-sm loan-action-btn px-3">
+                                                <i class="bi bi-lightning-charge-fill"></i> Ứng tuyển đá ngay
+                                            </button>
+                                        </form>
+                                    }
+                                    else if (item.HasApplied && item.Status == LoanListingStatus.Open)
+                                    {
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle d-inline-flex align-items-center px-3" style="min-height: 44px;">
+                                            <i class="bi bi-hourglass-split me-1"></i>Đã gửi ứng tuyển
+                                        </span>
+                                    }
+
+                                    @if (item.CanManage && item.Status == LoanListingStatus.Matched)
+                                    {
+                                        <form method="post" asp-controller="LoanMarket" asp-action="Complete">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="listingId" value="@item.Id" />
+                                            <input type="hidden" name="returnTab" value="teams" />
+                                            <button type="submit" class="btn btn-success btn-sm loan-action-btn">
+                                                <i class="bi bi-shield-check"></i> Hoàn tất &amp; Mở cọc AB Coin
+                                            </button>
+                                        </form>
+                                    }
+
+                                    @if (item.CanManage && item.Status == LoanListingStatus.Open)
+                                    {
+                                        <form method="post" asp-controller="LoanMarket" asp-action="Cancel">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="listingId" value="@item.Id" />
+                                            <input type="hidden" name="returnTab" value="teams" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm loan-action-btn">
+                                                <i class="bi bi-x-circle"></i> Hủy
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <!-- TAB 2: CẦU THỦ SẴN SÀNG ĐÁ (PlayerAvailable) -->
+        @if (!Model.PlayerAvailableListings.Any())
+        {
+            <div class="text-center py-5 bg-white rounded-4 border">
+                <i class="bi bi-person-bounding-box display-5 text-secondary"></i>
+                <h3 class="h5 fw-bold mt-3">Chưa có cầu thủ nào đăng lịch rảnh trong khung lọc này</h3>
+                <p class="text-muted small mb-3">Bạn muốn ra sân rèn thể lực khi đội nhà nghỉ? Đăng lịch rảnh để các Đội trưởng mời đá ngay!</p>
+                @if (isAuth)
+                {
+                    <button type="button" class="btn btn-warning text-dark loan-action-btn" data-bs-toggle="modal" data-bs-target="#postPlayerAvailableModal">
+                        <i class="bi bi-person-raised-hand"></i> Đăng lịch rảnh của tôi
+                    </button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                @foreach (var item in Model.PlayerAvailableListings)
+                {
+                    var sc = item.PlayerScout ?? new PlayerScoutProfileDto { FullName = "Cầu thủ AloBall", PrimaryPosition = item.PositionBadges.FirstOrDefault() ?? "MID" };
+                    var statusClass = item.Status == LoanListingStatus.Matched ? "status-matched" : item.Status == LoanListingStatus.Completed ? "status-completed" : "";
+                    <div class="col-12 col-lg-6">
+                        <div class="loan-card @statusClass">
+                            <div>
+                                <!-- Player EA FC 27 Scout Strip -->
+                                <div class="scout-strip mb-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="ovr-shield tier-@sc.Tier">
+                                            <span class="ovr-num">@sc.Ovr</span>
+                                            <span class="ovr-pos">@sc.PrimaryPosition</span>
+                                        </div>
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <span class="fw-bold fs-6 text-white">@sc.FullName</span>
+                                                @if (!string.IsNullOrEmpty(sc.HomeTeamName))
+                                                {
+                                                    <span class="badge bg-secondary">CLB: @sc.HomeTeamName</span>
+                                                }
+                                            </div>
+                                            <div class="scout-meta-pills">
+                                                <span class="scout-meta-pill"><i class="bi bi-universal-access"></i>Chân @sc.PreferredFoot</span>
+                                                <span class="scout-meta-pill rep-pill"><i class="bi bi-star-fill"></i>Uy tín @sc.ReputationStars.ToString("0.0")★ (@sc.RepStat REP)</span>
+                                                <span class="scout-meta-pill"><i class="bi bi-lightning-fill text-warning"></i>@sc.Experience</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-column align-items-end gap-1">
+                                        @if (item.Status == LoanListingStatus.Open)
+                                        {
+                                            <span class="badge bg-success">Sẵn sàng ra sân</span>
+                                        }
+                                        else if (item.Status == LoanListingStatus.Matched)
+                                        {
+                                            <span class="badge bg-warning text-dark">Đã chốt với @item.MatchedTeamName</span>
+                                        }
+                                        else if (item.Status == LoanListingStatus.Completed)
+                                        {
+                                            <span class="badge bg-secondary">Đã hoàn tất trận</span>
+                                        }
+
+                                        @if (sc.PlayStyles.Any())
+                                        {
+                                            <div class="d-flex align-items-center gap-1 mt-1">
+                                                @foreach (var ps in sc.PlayStyles)
+                                                {
+                                                    <span class="scout-meta-pill @(ps.IsPlus ? "border border-warning text-warning" : "")" title="@ps.Definition.NameVi (@ps.Definition.NameEn)">
+                                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="@ps.Definition.SvgPath" /></svg>
+                                                        <span>@ps.Definition.NameVi@(ps.IsPlus ? "+" : "")</span>
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                <!-- Availability Details -->
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                                    <span class="badge bg-light text-dark border px-2 py-1">
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>@item.Region
+                                    </span>
+                                    <span class="badge bg-light text-dark border px-2 py-1">
+                                        <i class="bi bi-calendar3 text-primary me-1"></i>@item.PlayDate.ToString("dd/MM/yyyy") · @item.TimeSlot
+                                    </span>
+                                    @foreach (var pos in item.PositionBadges)
+                                    {
+                                        <span class="pos-pill">@pos</span>
+                                    }
+                                    @if (item.FeeType == LoanFeeType.SplitPitch)
+                                    {
+                                        <span class="fee-badge-split"><i class="bi bi-people-fill me-1"></i>Share tiền sân (0đ)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fee-badge-paid"><i class="bi bi-cash-stack me-1"></i>Phí mượn: @item.LoanFeeAmount.ToString("N0")đ</span>
+                                    }
+                                    @if (item.EscrowAbCoin > 0)
+                                    {
+                                        <span class="escrow-badge">
+                                            <i class="bi bi-shield-lock-fill"></i>
+                                            Cam kết cọc @item.EscrowAbCoin AB Coin
+                                            @if (item.IsEscrowReleased)
+                                            {
+                                                <span class="text-success">(Đã hoàn cọc)</span>
+                                            }
+                                            else if (item.IsEscrowHeld)
+                                            {
+                                                <span class="text-primary">(Đã khóa cọc)</span>
+                                            }
+                                        </span>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(item.Notes))
+                                {
+                                    <p class="small text-secondary mb-3 bg-light p-2 rounded-3 border-start border-3 border-warning">
+                                        @item.Notes
+                                    </p>
+                                }
+
+                                @if (item.EffectiveMatchId.HasValue)
+                                {
+                                    <div class="small mb-3">
+                                        <a asp-controller="Matches" asp-action="Detail" asp-route-id="@item.EffectiveMatchId.Value" class="text-decoration-none fw-semibold text-success">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Đã thêm vào danh sách thi đấu &amp; chia tiền sân Matchday
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- 1-Tap Captain Deal & Zalo Copy -->
+                            <div class="pt-2 border-top mt-2">
+                                @if (item.Status == LoanListingStatus.Open && isAuth && Model.ManagedTeams.Any() && item.UserId != sc.UserId)
+                                {
+                                    <form method="post" asp-controller="LoanMarket" asp-action="DirectRecruit" class="row g-2 align-items-center mb-2">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="listingId" value="@item.Id" />
+                                        <input type="hidden" name="position" value="@(item.PositionBadges.FirstOrDefault() ?? "MID")" />
+                                        <div class="col-12 col-sm-4">
+                                            <select name="recruitingTeamId" class="form-select form-select-sm" style="min-height: 44px;" required>
+                                                @foreach (var t in Model.ManagedTeams)
+                                                {
+                                                    <option value="@t.Id">Đội: @t.Name</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-sm-4">
+                                            <select name="matchId" class="form-select form-select-sm" style="min-height: 44px;">
+                                                <option value="">-- Gắn vào trận (Tùy chọn) --</option>
+                                                @foreach (var m in Model.UpcomingManagedMatches)
+                                                {
+                                                    <option value="@m.Id">@m.PitchName (@m.MatchDateTime.ToString("dd/MM HH:mm"))</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-12 col-sm-4">
+                                            <button type="submit" class="btn btn-success btn-sm w-100 loan-action-btn">
+                                                <i class="bi bi-lightning-charge-fill"></i> Chốt mượn 1 chạm
+                                            </button>
+                                        </div>
+                                    </form>
+                                }
+
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <button type="button"
+                                            class="btn btn-outline-success btn-sm loan-action-btn js-copy-zalo-loan"
+                                            data-zalo-text="@item.ZaloShareMessage">
+                                        <i class="bi bi-clipboard-check"></i> Copy tin nhắn chốt kèo mượn Zalo
+                                    </button>
+
+                                    <div class="d-flex gap-2">
+                                        @if (item.CanManage && item.Status == LoanListingStatus.Matched)
+                                        {
+                                            <form method="post" asp-controller="LoanMarket" asp-action="Complete">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="listingId" value="@item.Id" />
+                                                <input type="hidden" name="returnTab" value="players" />
+                                                <button type="submit" class="btn btn-success btn-sm loan-action-btn">
+                                                    <i class="bi bi-shield-check"></i> Hoàn tất &amp; Mở cọc AB Coin
+                                                </button>
+                                            </form>
+                                        }
+                                        @if (item.CanManage && item.Status == LoanListingStatus.Open)
+                                        {
+                                            <form method="post" asp-controller="LoanMarket" asp-action="Cancel">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="listingId" value="@item.Id" />
+                                                <input type="hidden" name="returnTab" value="players" />
+                                                <button type="submit" class="btn btn-outline-danger btn-sm loan-action-btn">
+                                                    <i class="bi bi-x-circle"></i> Hủy lịch
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<!-- Modal 1: Đội đăng tin tìm người (TeamRecruiting) -->
+@if (isAuth && Model.ManagedTeams.Any())
+{
+    <div class="modal fade" id="postTeamRecruitModal" tabindex="-1" aria-labelledby="postTeamRecruitLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <form method="post" asp-controller="LoanMarket" asp-action="CreateListing">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ListingType" value="@LoanListingType.TeamRecruiting" />
+                    <div class="modal-header bg-dark text-white rounded-top-4">
+                        <h5 class="modal-title fw-bold" id="postTeamRecruitLabel"><i class="bi bi-megaphone-fill text-success me-2"></i>Đội bóng đăng tuyển cầu thủ tăng cường</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold small">Chọn Đội bóng của bạn</label>
+                                <select name="TeamId" class="form-select" required>
+                                    @foreach (var t in Model.ManagedTeams)
+                                    {
+                                        <option value="@t.Id">@t.Name (@(t.ActivityArea ?? "Hà Nội"))</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold small">Gắn với trận Matchday sắp tới (Tùy chọn)</label>
+                                <select name="MatchId" class="form-select">
+                                    <option value="">-- Không gắn trận hoặc tạo riêng --</option>
+                                    @foreach (var m in Model.UpcomingManagedMatches)
+                                    {
+                                        <option value="@m.Id">@m.PitchName · @m.MatchDateTime.ToString("HH:mm dd/MM/yyyy")</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold small">Khu vực / Quận</label>
+                                <input type="text" name="Region" class="form-control" placeholder="VD: Cầu Giấy, Nam Từ Liêm..." value="@(Model.ManagedTeams.FirstOrDefault()?.ActivityArea ?? "Cầu Giấy")" required />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold small">Sân thi đấu</label>
+                                <input type="text" name="PitchName" class="form-control" placeholder="VD: Sân bóng Thành Phát" value="@(Model.ManagedTeams.FirstOrDefault()?.HomePitch)" />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Ngày thi đấu</label>
+                                <input type="date" name="PlayDate" class="form-control" value="@AloBall.Web.Services.CompetitionRules.LocalNow.Date.AddDays(1).ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Khung giờ (Giờ VN)</label>
+                                <input type="text" name="TimeSlot" class="form-control" value="19:00 - 20:30" required />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold small">Vị trí cần tuyển</label>
+                                <div class="d-flex gap-2 flex-wrap pt-1">
+                                    @foreach (var p in new[] { "GK", "DEF", "MID", "FWD" })
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="Positions" value="@p" id="teamPos_@p" checked="@(p == "MID" || p == "FWD")" />
+                                            <label class="form-check-label fw-bold" for="teamPos_@p">@p</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold small">Hình thức chi phí</label>
+                                <select name="FeeType" class="form-select js-fee-type-select" data-target-input="#teamLoanFeeInput">
+                                    <option value="@LoanFeeType.SplitPitch">Share tiền sân (0đ)</option>
+                                    <option value="@LoanFeeType.PaidMercenary">Có phí tăng cường (0 - 1tr)</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Phí mượn (0 - 1.000.000đ)</label>
+                                <input type="number" id="teamLoanFeeInput" name="LoanFeeAmount" class="form-control" value="0" min="0" max="1000000" step="10000" />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Yêu cầu cọc AB Coin</label>
+                                <input type="number" name="EscrowAbCoin" class="form-control" value="2" min="0" max="100" />
+                                <div class="form-text small">Hoàn trả tự động khi xong trận</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">Ghi chú thêm (Màu áo, trình độ mong muốn...)</label>
+                                <textarea name="Notes" class="form-control" rows="2" placeholder="VD: Đội đá vui vẻ, thiếu 1 tiền đạo bén và 1 thủ môn chắc tay..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light loan-action-btn" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-success loan-action-btn px-4"><i class="bi bi-check2-circle"></i> Đăng tin tuyển người</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal 2: Cầu thủ đăng lịch rảnh (PlayerAvailable) -->
+@if (isAuth)
+{
+    <div class="modal fade" id="postPlayerAvailableModal" tabindex="-1" aria-labelledby="postPlayerAvailableLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <form method="post" asp-controller="LoanMarket" asp-action="CreateListing">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="ListingType" value="@LoanListingType.PlayerAvailable" />
+                    <div class="modal-header bg-dark text-white rounded-top-4">
+                        <h5 class="modal-title fw-bold" id="postPlayerAvailableLabel"><i class="bi bi-person-raised-hand text-warning me-2"></i>Đăng lịch rảnh đi đá ké / đá thuê</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold small">Khu vực có thể di chuyển</label>
+                                <input type="text" name="Region" class="form-control" value="@(Model.CurrentUserScout?.Region ?? "Cầu Giấy")" placeholder="VD: Cầu Giấy, Thanh Xuân, Đống Đa..." required />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-bold small">Sân ưu tiên (Tùy chọn)</label>
+                                <input type="text" name="PitchName" class="form-control" placeholder="VD: Sân Thành Phát, Thủy Lợi..." />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Ngày rảnh lịch</label>
+                                <input type="date" name="PlayDate" class="form-control" value="@AloBall.Web.Services.CompetitionRules.LocalNow.Date.AddDays(1).ToString("yyyy-MM-dd")" required />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Khung giờ rảnh</label>
+                                <input type="text" name="TimeSlot" class="form-control" value="19:00 - 20:30" required />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold small">Vị trí sở trường</label>
+                                <div class="d-flex gap-2 flex-wrap pt-1">
+                                    @foreach (var p in new[] { "GK", "DEF", "MID", "FWD" })
+                                    {
+                                        bool isDefault = (Model.CurrentUserScout?.PrimaryPosition ?? "MID") == p;
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="Positions" value="@p" id="playerPos_@p" checked="@isDefault" />
+                                            <label class="form-check-label fw-bold" for="playerPos_@p">@p</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label fw-bold small">Hình thức mong muốn</label>
+                                <select name="FeeType" class="form-select js-fee-type-select" data-target-input="#playerLoanFeeInput">
+                                    <option value="@LoanFeeType.SplitPitch">Share tiền sân (0đ)</option>
+                                    <option value="@LoanFeeType.PaidMercenary">Đá thuê có phí (0 - 1tr)</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Mức phí (0 - 1.000.000đ)</label>
+                                <input type="number" id="playerLoanFeeInput" name="LoanFeeAmount" class="form-control" value="0" min="0" max="1000000" step="10000" />
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="form-label fw-bold small">Cam kết cọc AB Coin (Khả dụng: @Model.CurrentUserAbCoin)</label>
+                                <input type="number" name="EscrowAbCoin" class="form-control" value="0" min="0" max="@Math.Max(0, Model.CurrentUserAbCoin)" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">Giới thiệu ngắn (Thể lực, lối chơi, SĐT Zalo liên hệ nhanh)</label>
+                                <textarea name="Notes" class="form-control" rows="2" placeholder="VD: Chạy nhiệt, không ngại va chạm, đúng giờ 100%..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light loan-action-btn" data-bs-dismiss="modal">Đóng</button>
+                        <button type="submit" class="btn btn-warning text-dark loan-action-btn px-4"><i class="bi bi-check2-circle"></i> Đăng lịch sẵn sàng đá</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.js-copy-zalo-loan').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var text = btn.getAttribute('data-zalo-text') || '';
+                    if (!text) return;
+                    navigator.clipboard.writeText(text).then(function () {
+                        var originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="bi bi-check2-all"></i> Đã copy tin nhắn Zalo!';
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-success');
+                        setTimeout(function () {
+                            btn.innerHTML = originalHtml;
+                            btn.classList.remove('btn-success');
+                            btn.classList.add('btn-outline-success');
+                        }, 2200);
+                    });
+                });
+            });
+
+            document.querySelectorAll('.js-fee-type-select').forEach(function (sel) {
+                sel.addEventListener('change', function () {
+                    var targetSelector = sel.getAttribute('data-target-input');
+                    var input = targetSelector ? document.querySelector(targetSelector) : null;
+                    if (!input) return;
+                    if (sel.value.indexOf('SplitPitch') !== -1 || sel.value === '0') {
+                        input.value = '0';
+                    } else if (parseInt(input.value || '0', 10) === 0) {
+                        input.value = '150000';
+                    }
+                });
+            });
+        });
+    </script>
+}

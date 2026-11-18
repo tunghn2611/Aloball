@@ -1,4 +1,4 @@
-﻿using AloBall.Web.Data.Entities;
+using AloBall.Web.Data.Entities;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +57,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
     public DbSet<FireCompetitionPeriod> FireCompetitionPeriods => Set<FireCompetitionPeriod>();
     public DbSet<PlayerAbJournalEntry> PlayerAbJournalEntries => Set<PlayerAbJournalEntry>();
     public DbSet<MonthlyFireAward> MonthlyFireAwards => Set<MonthlyFireAward>();
+
+    // Phase 3A: Player Loan & Mercenary Market
+    public DbSet<PlayerLoanListing> PlayerLoanListings => Set<PlayerLoanListing>();
+    public DbSet<PlayerLoanApplication> PlayerLoanApplications => Set<PlayerLoanApplication>();
+
+    // Phase 3B: Club Plus/Pro, Auto-Pairing & Concierge
+    public DbSet<TeamRecurringSchedule> TeamRecurringSchedules => Set<TeamRecurringSchedule>();
+    public DbSet<MatchConciergeOrder> MatchConciergeOrders => Set<MatchConciergeOrder>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -351,7 +359,84 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
             entity.HasIndex(v => v.District);
             entity.HasIndex(v => v.IsActive);
         });
+
+        // Phase 3A: Player Loan & Mercenary Market
+        builder.Entity<PlayerLoanListing>(entity =>
+        {
+            entity.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(l => l.Player)
+                .WithMany()
+                .HasForeignKey(l => l.PlayerId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(l => l.Team)
+                .WithMany()
+                .HasForeignKey(l => l.TeamId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(l => l.Match)
+                .WithMany()
+                .HasForeignKey(l => l.MatchId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(l => new { l.ListingType, l.Status, l.PlayDate });
+            entity.HasIndex(l => l.Region);
+        });
+
+        builder.Entity<PlayerLoanApplication>(entity =>
+        {
+            entity.HasOne(a => a.Listing)
+                .WithMany(l => l.Applications)
+                .HasForeignKey(a => a.ListingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.ApplicantUser)
+                .WithMany()
+                .HasForeignKey(a => a.ApplicantUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(a => a.ApplicantPlayer)
+                .WithMany()
+                .HasForeignKey(a => a.ApplicantPlayerId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(a => a.ApplicantTeam)
+                .WithMany()
+                .HasForeignKey(a => a.ApplicantTeamId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(a => a.TargetMatch)
+                .WithMany()
+                .HasForeignKey(a => a.TargetMatchId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(a => new { a.ListingId, a.Status });
+            entity.HasIndex(a => new { a.ListingId, a.ApplicantUserId });
+        });
+
+        // Phase 3B: Recurring schedule (1 per team) & Concierge orders
+        builder.Entity<TeamRecurringSchedule>(entity =>
+        {
+            entity.HasIndex(s => s.TeamId).IsUnique();
+            entity.HasOne(s => s.Team).WithMany().HasForeignKey(s => s.TeamId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<MatchConciergeOrder>(entity =>
+        {
+            entity.HasOne(o => o.Team).WithMany().HasForeignKey(o => o.TeamId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(o => o.MatchedOpponentTeam).WithMany().HasForeignKey(o => o.MatchedOpponentTeamId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(o => new { o.TeamId, o.Status });
+        });
     }
 }
-
-

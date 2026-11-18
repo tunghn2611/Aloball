@@ -7,7 +7,8 @@ public enum AbSourceDomain
 {
     AttendanceSession = 1,
     MatchGoalEvent = 2,
-    MatchWin = 3
+    MatchWin = 3,
+    LoanEscrow = 4
 }
 
 public enum PeriodStatus

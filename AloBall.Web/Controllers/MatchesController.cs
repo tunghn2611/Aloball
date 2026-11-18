@@ -1,4 +1,4 @@
-﻿using AloBall.Web.Data;
+using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -20,6 +20,7 @@ public partial class MatchesController : Controller
     private readonly ITeamMessagingService? _teamMessaging;
     private readonly IAttendanceCalculationEngine? _calcEngine;
     private readonly IMatchSplitBillService _splitBill;
+    private readonly ILoanMarketService _loanMarket;
 
     public MatchesController(
         ApplicationDbContext db,
@@ -30,7 +31,8 @@ public partial class MatchesController : Controller
         AloBall.Web.Services.TeamDivision.ITeamDivisionEngine divisionEngine,
         ITeamMessagingService? teamMessaging = null,
         IAttendanceCalculationEngine? calcEngine = null,
-        IMatchSplitBillService? splitBill = null)
+        IMatchSplitBillService? splitBill = null,
+        ILoanMarketService? loanMarket = null)
     {
         _db = db;
         _userManager = userManager;
@@ -41,6 +43,7 @@ public partial class MatchesController : Controller
         _teamMessaging = teamMessaging;
         _calcEngine = calcEngine;
         _splitBill = splitBill ?? new MatchSplitBillService(db, auth);
+        _loanMarket = loanMarket ?? new LoanMarketService(db, auth);
     }
 
     // 1. Chi tiết trận đấu & Đội hình 2 bên (Matchday Center)
@@ -347,6 +350,7 @@ public partial class MatchesController : Controller
         if (match.ConfirmedByTeamA && match.ConfirmedByTeamB)
         {
             match.ConfirmedAt = DateTime.UtcNow;
+            await _loanMarket.CompleteLoansForMatchAsync(match.Id);
         }
 
         if (!string.IsNullOrEmpty(reason))
@@ -398,6 +402,7 @@ public partial class MatchesController : Controller
         if (match.ConfirmedByTeamA && (match.ConfirmedByTeamB || !match.TeamBId.HasValue))
         {
             match.ConfirmedAt = DateTime.UtcNow;
+            await _loanMarket.CompleteLoansForMatchAsync(match.Id);
         }
 
         await _db.SaveChangesAsync();
