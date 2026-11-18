@@ -416,6 +416,116 @@ namespace AloBall.Web.Migrations
                     b.ToTable("KitOrderItems");
                 });
 
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchExpense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("MatchPerPersonShare")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MatchTotalPayable")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("PitchFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RefereeFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SplitRatio")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("Tang2Fee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Tang2PerPersonShare")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("WaterFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("MatchId", "TeamId")
+                        .IsUnique();
+
+                    b.ToTable("MatchExpenses");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchExpenseShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LinkedUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MarkedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("MatchAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("MatchExpenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ParticipatesInMatch")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ParticipatesInTang2")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Tang2Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("MatchExpenseId", "PlayerId")
+                        .IsUnique();
+
+                    b.ToTable("MatchExpenseShares");
+                });
+
             modelBuilder.Entity("AloBall.Web.Data.Entities.MatchExpenseEstimate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -477,7 +587,15 @@ namespace AloBall.Web.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<bool>("IsPublic")
+                    b.Property<string>("KitColor")
+    .HasMaxLength(50)
+    .HasColumnType("character varying(50)");
+
+b.Property<string>("RsvpToken")
+    .HasMaxLength(50)
+    .HasColumnType("character varying(50)");
+
+b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsScoreIncomplete")
@@ -1405,7 +1523,14 @@ namespace AloBall.Web.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<double?>("HeightCm")
+                    b.Property<string>("InviteToken")
+    .HasMaxLength(50)
+    .HasColumnType("character varying(50)");
+
+b.Property<bool>("IsClaimed")
+    .HasColumnType("boolean");
+
+b.Property<double?>("HeightCm")
                         .HasColumnType("double precision");
 
                     b.Property<DateTime?>("InactiveDate")
@@ -1779,11 +1904,23 @@ namespace AloBall.Web.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AccountHolderName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<string>("ActivityArea")
                         .HasColumnType("text");
 
                     b.Property<double>("AverageRating")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("BankCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<string>("CoverImageUrl")
                         .HasColumnType("text");
@@ -2309,6 +2446,44 @@ namespace AloBall.Web.Migrations
                         .HasForeignKey("PlayerId");
 
                     b.Navigation("Batch");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchExpense", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.MatchGame", "Match")
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AloBall.Web.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Match");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchExpenseShare", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.MatchExpense", "MatchExpense")
+                        .WithMany("Shares")
+                        .HasForeignKey("MatchExpenseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AloBall.Web.Data.Entities.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MatchExpense");
 
                     b.Navigation("Player");
                 });
@@ -2904,6 +3079,11 @@ namespace AloBall.Web.Migrations
             modelBuilder.Entity("AloBall.Web.Data.Entities.KitOrderBatch", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("AloBall.Web.Data.Entities.MatchExpense", b =>
+                {
+                    b.Navigation("Shares");
                 });
 
             modelBuilder.Entity("AloBall.Web.Data.Entities.MatchGame", b =>

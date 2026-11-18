@@ -1,7 +1,13 @@
 @model AloBall.Web.Models.MatchShareViewModel
+@using System.Globalization
+@using AloBall.Web.Controllers
 @{
     Layout = null;
     var poster = Model.Poster;
+    var coverSrc = ShareCardController.ToProxyAwareImageUrl(poster.TeamA.CoverUrl ?? poster.TeamB.CoverUrl);
+    var logoASrc = ShareCardController.ToProxyAwareImageUrl(poster.TeamA.LogoUrl);
+    var logoBSrc = ShareCardController.ToProxyAwareImageUrl(poster.TeamB.LogoUrl);
+    var motmPhotoSrc = ShareCardController.ToProxyAwareImageUrl(poster.Motm?.PhotoUrl);
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -23,7 +29,7 @@
 
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <link rel="stylesheet" href="~/css/aloball-cards.css" />
+    <link rel="stylesheet" href="~/css/fc27-cards.css" asp-append-version="true" />
     <style>
         body { background: #080c14; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 10px; }
     </style>
@@ -34,7 +40,7 @@
         <h1 class="h4 fw-bold mt-1 text-white">Poster Kết Quả Trận Đấu Chính Thức</h1>
     </div>
 
-    <div class="aloball-aspect-toggle mb-3" style="max-width: 280px;">
+    <div class="aloball-aspect-toggle mb-3" style="max-width: 340px;">
         <button type="button" class="active" id="btnAspectFeed" onclick="togglePosterAspect('feed')">
             <i class="bi bi-grid-fill me-1"></i> Bảng Tin (4:5)
         </button>
@@ -45,9 +51,9 @@
 
     <div class="aloball-match-poster-wrapper mb-4">
         <div class="aloball-match-poster ratio-feed" id="socialMatchPoster">
-            @if (!string.IsNullOrEmpty(poster.TeamA.CoverUrl) || !string.IsNullOrEmpty(poster.TeamB.CoverUrl))
+            @if (!string.IsNullOrEmpty(coverSrc))
             {
-                <div class="aloball-poster-backdrop" style="background-image: url('@(poster.TeamA.CoverUrl ?? poster.TeamB.CoverUrl)'); opacity: @poster.TeamA.CoverOpacity;"></div>
+                <div class="aloball-poster-backdrop" style="background-image: url('@coverSrc'); opacity: @poster.TeamA.CoverOpacity.ToString(CultureInfo.InvariantCulture);"></div>
             }
             <div class="aloball-poster-gradient"></div>
             <div class="aloball-poster-content">
@@ -59,9 +65,9 @@
                 </div>
                 <div class="poster-scoreboard">
                     <div class="poster-team">
-                        @if (!string.IsNullOrEmpty(poster.TeamA.LogoUrl))
+                        @if (!string.IsNullOrEmpty(logoASrc))
                         {
-                            <img src="@poster.TeamA.LogoUrl" class="poster-crest" alt="@poster.TeamA.Name" crossorigin="anonymous" />
+                            <img src="@logoASrc" class="poster-crest" alt="@poster.TeamA.Name" crossorigin="anonymous" />
                         }
                         else
                         {
@@ -75,9 +81,9 @@
                         <span class="poster-score-digit">@poster.ScoreB</span>
                     </div>
                     <div class="poster-team">
-                        @if (!string.IsNullOrEmpty(poster.TeamB.LogoUrl))
+                        @if (!string.IsNullOrEmpty(logoBSrc))
                         {
-                            <img src="@poster.TeamB.LogoUrl" class="poster-crest" alt="@poster.TeamB.Name" crossorigin="anonymous" />
+                            <img src="@logoBSrc" class="poster-crest" alt="@poster.TeamB.Name" crossorigin="anonymous" />
                         }
                         else
                         {
@@ -95,10 +101,8 @@
                         @foreach (var s in poster.ScorersA)
                         {
                             <div class="poster-scorer-row">
-                                <span>⚽</span>
-                                <span class="poster-scorer-name">@s.PlayerName</span>
-                                @if (!string.IsNullOrEmpty(s.Minutes)) { <span class="poster-scorer-minute">(@s.Minutes)</span> }
-                                @if (!string.IsNullOrEmpty(s.AssistName)) { <span class="poster-assist-name">👟 @s.AssistName</span> }
+                                <span class="poster-scorer-name">@(string.IsNullOrEmpty(s.SummaryText) ? $"{s.PlayerName} ({s.Goals}⚽)" : s.SummaryText)</span>
+                                @if (!string.IsNullOrEmpty(s.Minutes)) { <span class="poster-scorer-minute">@s.Minutes</span> }
                             </div>
                         }
                     </div>
@@ -110,10 +114,8 @@
                         @foreach (var s in poster.ScorersB)
                         {
                             <div class="poster-scorer-row">
-                                <span>⚽</span>
-                                <span class="poster-scorer-name">@s.PlayerName</span>
-                                @if (!string.IsNullOrEmpty(s.Minutes)) { <span class="poster-scorer-minute">(@s.Minutes)</span> }
-                                @if (!string.IsNullOrEmpty(s.AssistName)) { <span class="poster-assist-name">👟 @s.AssistName</span> }
+                                <span class="poster-scorer-name">@(string.IsNullOrEmpty(s.SummaryText) ? $"{s.PlayerName} ({s.Goals}⚽)" : s.SummaryText)</span>
+                                @if (!string.IsNullOrEmpty(s.Minutes)) { <span class="poster-scorer-minute">@s.Minutes</span> }
                             </div>
                         }
                     </div>
@@ -121,10 +123,19 @@
                 @if (poster.Motm != null)
                 {
                     <div class="poster-motm-banner">
-                        <div class="poster-motm-badge">⭐</div>
+                        <div class="poster-motm-badge">
+                            @if (!string.IsNullOrEmpty(motmPhotoSrc))
+                            {
+                                <img src="@motmPhotoSrc" class="poster-motm-avatar" alt="@poster.Motm.PlayerName" crossorigin="anonymous" />
+                            }
+                            else
+                            {
+                                <span>⭐</span>
+                            }
+                        </div>
                         <div class="poster-motm-info text-start">
-                            <h4>Cầu thủ xuất sắc nhất: @poster.Motm.PlayerName</h4>
-                            <p>@poster.Motm.TeamName · @poster.Motm.Highlight</p>
+                            <h4>MOTM: @poster.Motm.PlayerName</h4>
+                            <p>@poster.Motm.TeamName@(string.IsNullOrEmpty(poster.Motm.Highlight) ? "" : $" · {poster.Motm.Highlight}")</p>
                         </div>
                     </div>
                 }
@@ -136,15 +147,15 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2 justify-content-center">
-        <button type="button" class="btn btn-success fw-bold px-4 py-2 shadow" onclick="shareOrDownloadCard('socialMatchPoster', 'Match-Poster-@(poster.ScoreA)-@(poster.ScoreB).png', 'Poster Trận Đấu @poster.TeamA.Name @poster.ScoreA - @poster.ScoreB @poster.TeamB.Name | AloBall')">
+        <button type="button" class="btn btn-success fw-bold px-4 py-2 shadow" style="min-height: 44px;" onclick="shareOrDownloadCard('socialMatchPoster', 'Match-Poster-@(poster.ScoreA)-@(poster.ScoreB).png', 'Poster Trận Đấu @poster.TeamA.Name @poster.ScoreA - @poster.ScoreB @poster.TeamB.Name | AloBall')">
             <i class="bi bi-share-fill me-1"></i> Chia sẻ 1-Chạm (Zalo / FB)
         </button>
-        <a href="/Matches/Detail/@poster.Id" class="btn btn-outline-light fw-bold px-4 py-2">
+        <a href="/Matches/Detail/@poster.Id" class="btn btn-outline-light fw-bold px-4 py-2 d-inline-flex align-items-center" style="min-height: 44px;">
             <i class="bi bi-trophy-fill me-1"></i> Xem chi tiết trận đấu
         </a>
     </div>
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/share-card.js"></script>
+    <script src="~/js/share-card.js" asp-append-version="true"></script>
 </body>
 </html>

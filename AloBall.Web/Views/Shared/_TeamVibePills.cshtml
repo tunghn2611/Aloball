@@ -1,0 +1,17 @@
+@model AloBall.Web.Models.TeamVibeAnalysis?
+@using AloBall.Web.Models
+@if (Model != null && (Model.TopVibes.Any() || Model.HardTacklePercentage >= 35.0))
+{
+    <div class="d-flex flex-wrap gap-1 align-items-center">
+        @foreach (var tag in Model.TopVibes)
+        {
+            <span class="fc27-vibe-pill @PlayStyleCatalog.GetVibeCssClass(tag)">@tag</span>
+        }
+        @if (Model.IsHighHardTackle)
+        {
+            <span class="badge bg-warning text-dark border">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>@Model.HardTacklePercentage% đá rát
+            </span>
+        }
+    </div>
+}

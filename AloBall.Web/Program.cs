@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.DataProtection;
+﻿using Microsoft.AspNetCore.DataProtection;
 using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
@@ -139,6 +139,7 @@ builder.Services.AddScoped<ITeamMessagingService, TeamMessagingService>();
 builder.Services.AddScoped<IRefereeCoordinationService, RefereeCoordinationService>();
 builder.Services.AddScoped<IPitchBookingService, PitchBookingService>();
 builder.Services.AddScoped<IFinanceService, FinanceService>();
+builder.Services.AddScoped<IMatchSplitBillService, MatchSplitBillService>();
 builder.Services.AddScoped<AloBall.Web.Services.TeamDivision.ITeamDivisionEngine, AloBall.Web.Services.TeamDivision.TeamDivisionEngine>();
 builder.Services.AddHttpClient();
 

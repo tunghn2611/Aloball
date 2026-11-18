@@ -1,4 +1,4 @@
-@model IEnumerable<AloBall.Web.Data.Entities.MatchmakingPost>
+﻿@model IEnumerable<AloBall.Web.Data.Entities.MatchmakingPost>
 @{
     ViewData["Title"] = "Tìm đối giao lưu";
     var managedTeams = ViewBag.ManagedTeams as IEnumerable<AloBall.Web.Data.Entities.Team> ?? Enumerable.Empty<AloBall.Web.Data.Entities.Team>();
@@ -49,6 +49,10 @@
                         @if (vibeInfo.HardTacklePercentage >= 35.0)
                         {
                             <span class="badge bg-warning text-dark border"><i class="bi bi-exclamation-triangle-fill me-1"></i>@vibeInfo.HardTacklePercentage% đá rát</span>
+                            @if (ViewBag.HasCasualManagedTeam == true)
+                            {
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning">Không hợp đội đá dưỡng sinh</span>
+                            }
                         }
                     </div>
                 }<div class="invitation-meta"><span><i class="bi bi-clock"></i> @post.StartTime.ToString(@"hh\:mm") – @post.EndTime.ToString(@"hh\:mm")</span><span><i class="bi bi-geo-alt"></i> @(post.PitchName ?? post.Area)</span></div>

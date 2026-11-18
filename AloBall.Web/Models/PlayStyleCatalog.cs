@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using AloBall.Web.Data.Entities;
@@ -22,7 +22,8 @@ public record TeamVibeAnalysis(
     List<string> TopVibes,
     double HardTacklePercentage,
     int TotalVibeReviews,
-    bool IsHighHardTackle
+    bool IsHighHardTackle,
+    bool IsCasualTeam = false
 );
 
 public static class PlayStyleCatalog
@@ -143,20 +144,40 @@ public static class PlayStyleCatalog
 
     public static List<AssignedPlayStyle> Parse(string? raw)
     {
-        var list = new List<AssignedPlayStyle>();
-        if (string.IsNullOrWhiteSpace(raw)) return list;
+        if (string.IsNullOrWhiteSpace(raw)) return new List<AssignedPlayStyle>();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        AssignedPlayStyle? plusSkill = null;
+        var regularSkills = new List<AssignedPlayStyle>();
 
         var tokens = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var t in tokens)
         {
             bool isPlus = t.EndsWith('+');
-            var code = t.TrimEnd('+');
-            if (ByCode.TryGetValue(code, out var def))
+            var code = t.TrimEnd('+').Trim();
+            if (!ByCode.TryGetValue(code, out var def) || !seen.Add(def.Code))
+                continue;
+
+            if (isPlus && plusSkill == null)
             {
-                list.Add(new AssignedPlayStyle(def, isPlus));
+                plusSkill = new AssignedPlayStyle(def, true);
+            }
+            else if (!isPlus && regularSkills.Count < 3)
+            {
+                regularSkills.Add(new AssignedPlayStyle(def, false));
             }
         }
-        return list;
+
+        var ordered = new List<AssignedPlayStyle>(4);
+        if (plusSkill != null) ordered.Add(plusSkill);
+        ordered.AddRange(regularSkills);
+        return ordered;
+    }
+
+    public static string NormalizeRaw(string? raw)
+    {
+        var parsed = Parse(raw);
+        return string.Join(",", parsed.Select(p => p.IsPlus ? $"{p.Definition.Code}+" : p.Definition.Code));
     }
 
     public static (bool IsValid, string? Error, string Formatted) ValidateAndFormat(string? raw)
@@ -227,8 +248,66 @@ public static class PlayStyleCatalog
         }
 
         double hardTacklePct = totalWithVibes > 0 ? (double)hardTackleCount / totalWithVibes * 100.0 : 0.0;
+        double casualPct = (totalWithVibes > 0 && counts.TryGetValue(VibeDaoDuongSinh, out var casualCount))
+            ? (double)casualCount / totalWithVibes * 100.0
+            : 0.0;
         var topVibes = counts.OrderByDescending(kv => kv.Value).Take(2).Select(kv => kv.Key).ToList();
+        bool isCasualTeam = topVibes.Contains(VibeDaoDuongSinh) || casualPct >= 35.0;
 
-        return new TeamVibeAnalysis(topVibes, Math.Round(hardTacklePct, 1), totalWithVibes, hardTacklePct >= 35.0);
+        return new TeamVibeAnalysis(topVibes, Math.Round(hardTacklePct, 1), totalWithVibes, hardTacklePct >= 35.0, isCasualTeam);
     }
+
+    /// <summary>
+    /// Filters and normalizes review vibe tags against AllowedVibeTags into a comma-separated string.
+    /// </summary>
+    public static string? NormalizeVibeTags(IEnumerable<string>? rawTags)
+    {
+        if (rawTags == null) return null;
+
+        var valid = rawTags
+            .Select(t => t?.Trim() ?? string.Empty)
+            .Where(t => AllowedVibeTags.Contains(t))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (valid.Count == 0) return null;
+        var joined = string.Join(",", valid);
+        return joined.Length <= 150 ? joined : joined[..150];
+    }
+
+    /// <summary>
+    /// Triggers an amber soft warning when a Đá dưỡng sinh team faces an opponent with >= 35% Đá rát reviews.
+    /// </summary>
+    public static bool ShouldShowHardTackleWarning(TeamVibeAnalysis? myTeamVibe, TeamVibeAnalysis? opponentVibe)
+    {
+        if (opponentVibe == null || !opponentVibe.IsHighHardTackle)
+            return false;
+
+        return myTeamVibe != null && (myTeamVibe.IsCasualTeam || myTeamVibe.TopVibes.Contains(VibeDaoDuongSinh));
+    }
+
+    public static List<string> ParseVibeTags(string? rawVibeTags)
+    {
+        if (string.IsNullOrWhiteSpace(rawVibeTags)) return new List<string>();
+        return rawVibeTags
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(t => AllowedVibeTags.Contains(t))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    public static string GetVibeCssClass(string tag) => tag switch
+    {
+        VibeDaoDuongSinh => "vibe-duongsinh",
+        VibeBanBat => "vibe-banbat",
+        VibeTheLuc => "vibe-theluc",
+        VibeDaRat => "vibe-darat",
+        _ => "vibe-vuive"
+    };
+
+    public static Dictionary<Guid, TeamVibeAnalysis> AnalyzeTeamVibesMap(IEnumerable<TeamMatchReview> reviews) =>
+        reviews
+            .Where(r => r.IsValid && !string.IsNullOrWhiteSpace(r.PlayStyleVibeTags))
+            .GroupBy(r => r.TargetTeamId)
+            .ToDictionary(g => g.Key, g => AnalyzeTeamVibe(g));
 }

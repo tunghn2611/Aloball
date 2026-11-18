@@ -261,4 +261,189 @@ public class ShareCardTests
         Assert.Equal("Hải Long", poster.Motm!.PlayerName);
         Assert.Equal("aloball.vercel.app", poster.BrandTag);
     }
+
+    [Fact]
+    public void CalculateCardTier_MapsBronzeSilverGoldAndMotmCorrectly()
+    {
+        Assert.Equal("bronze", ShareCardController.CalculateCardTier(55, false));
+        Assert.Equal("bronze", ShareCardController.CalculateCardTier(69, false));
+        Assert.Equal("silver", ShareCardController.CalculateCardTier(70, false));
+        Assert.Equal("silver", ShareCardController.CalculateCardTier(79, false));
+        Assert.Equal("gold", ShareCardController.CalculateCardTier(80, false));
+        Assert.Equal("gold", ShareCardController.CalculateCardTier(89, false));
+        Assert.Equal("motm", ShareCardController.CalculateCardTier(64, true));
+        Assert.Equal("motm", ShareCardController.CalculateCardTier(88, true));
+    }
+
+    [Fact]
+    public async Task GetPlayerCard_ClampsStats55To99_OrdersPlayStylesPlusFirst_AndHonorsPrivacyFlags()
+    {
+        using var db = CreateInMemoryDbContext();
+        var userManager = CreateMockUserManager(db);
+        var authService = new TeamAuthorizationService(db);
+        var httpFactory = new DummyHttpClientFactory();
+
+        var team = new Team { Id = Guid.NewGuid(), Name = "FC Hà Nội", Slug = "fc-ha-noi", AverageRating = 5.0 };
+        db.Teams.Add(team);
+
+        var user = new ApplicationUser
+        {
+            Id = "u-card-1",
+            UserName = "secret@aloball.vn",
+            Email = "secret@aloball.vn",
+            PhoneNumber = "0909123456",
+            AvatarUrl = "https://cdn.example.com/private-avatar.jpg"
+        };
+        db.Users.Add(user);
+
+        var player = new Player
+        {
+            Id = Guid.NewGuid(),
+            TeamId = team.Id,
+            LinkedUserId = user.Id,
+            FullName = "Quang Hải",
+            Position = "Tiền đạo",
+            PreferredFoot = "Trái",
+            PhotoUrl = "https://cdn.example.com/photo.jpg",
+            PlayStyles = "FINESSE,RAPID+,TRICKSTER",
+            IsPublicProfile = true,
+            PublicPhoto = false,
+            PublicPreferredFoot = false,
+            PublicKitNumber = false
+        };
+        db.Players.Add(player);
+
+        // Give top weekly AB Coin -> qualifies for MOTM tier
+        db.PlayerAbJournalEntries.Add(new PlayerAbJournalEntry
+        {
+            TeamId = team.Id,
+            PlayerId = player.Id,
+            StatisticalPeriod = CompetitionRules.LocalNow.ToString("yyyy-MM"),
+            OperationKey = $"k_{Guid.NewGuid()}",
+            Points = 5,
+            EventDate = CompetitionRules.LocalNow
+        });
+
+        // Extreme goal count to test clamping at 99
+        var match = new MatchGame
+        {
+            Id = Guid.NewGuid(),
+            TeamAId = team.Id,
+            ScoreA = 20,
+            ScoreB = 0,
+            Status = MatchStatus.Completed,
+            ConfirmedByTeamA = true,
+            ConfirmedByTeamB = true,
+            MatchDateTime = DateTime.UtcNow.AddDays(-1)
+        };
+        db.Matches.Add(match);
+        for (int i = 0; i < 20; i++)
+        {
+            db.MatchGoalEvents.Add(new MatchGoalEvent { MatchId = match.Id, TeamId = team.Id, ScorerPlayerId = player.Id });
+        }
+        await db.SaveChangesAsync();
+
+        var controller = new ShareCardController(db, userManager, authService, httpFactory);
+        var result = await controller.GetPlayerCard(player.Id);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var dto = Assert.IsType<PlayerCardDto>(ok.Value);
+
+        Assert.Equal("motm", dto.Tier);
+        Assert.True(dto.IsMotm);
+        Assert.Equal(99, dto.Stats.Att);
+        Assert.InRange(dto.Stats.Ovr, 55, 99);
+
+        // PlayStyle+ gold sorted first
+        Assert.Equal("RAPID+,FINESSE,TRICKSTER", dto.PlayStyles);
+        Assert.Equal(3, dto.PlayStyleItems.Count);
+        Assert.True(dto.PlayStyleItems[0].IsPlus);
+        Assert.Equal("RAPID", dto.PlayStyleItems[0].Code);
+
+        // Privacy flags enforced for anonymous caller (no photo, no preferredFoot, no kitNumber, no email/phone)
+        Assert.Null(dto.PhotoUrl);
+        Assert.Null(dto.PreferredFoot);
+        Assert.Null(dto.KitNumber);
+    }
+
+    [Fact]
+    public async Task GetMatchPoster_FormatsGroupedGoalsAndAssistsSummary_WithVnTimezone()
+    {
+        using var db = CreateInMemoryDbContext();
+        var controller = new ShareCardController(db, CreateMockUserManager(db), new TeamAuthorizationService(db), new DummyHttpClientFactory());
+
+        var teamA = new Team { Id = Guid.NewGuid(), Name = "Đội Nhà", Slug = "doi-nha", CoverImageUrl = "/img/cover.jpg", CoverOpacity = 0.55 };
+        var teamB = new Team { Id = Guid.NewGuid(), Name = "Đội Khách", Slug = "doi-khach" };
+        db.Teams.AddRange(teamA, teamB);
+
+        var p1 = new Player { Id = Guid.NewGuid(), TeamId = teamA.Id, FullName = "Tuấn Anh" };
+        var p2 = new Player { Id = Guid.NewGuid(), TeamId = teamA.Id, FullName = "Hoàng Đức" };
+        db.Players.AddRange(p1, p2);
+
+        // 12:30 UTC == 19:30 Asia/Ho_Chi_Minh (UTC+7)
+        var utcKickoff = new DateTime(2026, 11, 15, 12, 30, 0, DateTimeKind.Utc);
+        var match = new MatchGame
+        {
+            Id = Guid.NewGuid(),
+            TeamAId = teamA.Id,
+            TeamBId = teamB.Id,
+            ScoreA = 3,
+            ScoreB = 0,
+            Status = MatchStatus.Completed,
+            ConfirmedByTeamA = true,
+            ConfirmedByTeamB = true,
+            PitchName = "Sân Mỹ Đình",
+            MatchDateTime = utcKickoff
+        };
+        db.Matches.Add(match);
+
+        db.MatchGoalEvents.AddRange(
+            new MatchGoalEvent { MatchId = match.Id, TeamId = teamA.Id, ScorerPlayerId = p1.Id, Scorer = p1, AssistPlayerId = p2.Id, Assist = p2, Minute = 10 },
+            new MatchGoalEvent { MatchId = match.Id, TeamId = teamA.Id, ScorerPlayerId = p1.Id, Scorer = p1, Minute = 25 },
+            new MatchGoalEvent { MatchId = match.Id, TeamId = teamA.Id, ScorerPlayerId = p2.Id, Scorer = p2, AssistPlayerId = p1.Id, Assist = p1, Minute = 50 });
+        await db.SaveChangesAsync();
+
+        var result = await controller.GetMatchPoster(match.Id);
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var poster = Assert.IsType<MatchPosterDto>(ok.Value);
+
+        Assert.Equal("19:30 · 15/11/2026", poster.MatchDate);
+        Assert.Equal(0.55, poster.TeamA.CoverOpacity);
+        Assert.Contains(poster.ScorersA, s => s.SummaryText == "Tuấn Anh (2⚽, 1👟)");
+        Assert.Contains(poster.ScorersA, s => s.SummaryText == "Hoàng Đức (1⚽, 1👟)");
+    }
+
+    [Theory]
+    [InlineData("http://localhost/secret.png")]
+    [InlineData("http://127.0.0.1/img.png")]
+    [InlineData("http://169.254.169.254/latest/meta-data/")]
+    [InlineData("http://10.0.0.5/avatar.png")]
+    [InlineData("http://172.16.0.10/avatar.png")]
+    [InlineData("http://192.168.1.100/avatar.png")]
+    [InlineData("http://[::1]/img.png")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("http://user@8.8.8.8/img.png")]
+    [InlineData("/../../appsettings.json")]
+    public async Task ProxyImage_BlocksSsrfAndPathTraversalUrls(string dangerousUrl)
+    {
+        using var db = CreateInMemoryDbContext();
+        var controller = new ShareCardController(db, CreateMockUserManager(db), new TeamAuthorizationService(db), new DummyHttpClientFactory());
+
+        var result = await controller.ProxyImage(dangerousUrl);
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task ValidateExternalImageUri_BlocksDnsRebindingToPrivateIp_AndAllowsPublicIp()
+    {
+        var blocked = await ShareCardController.ValidateExternalImageUriAsync(
+            "https://evil.example.com/avatar.png",
+            _ => Task.FromResult(new[] { System.Net.IPAddress.Parse("10.1.2.3") }));
+        Assert.False(blocked.IsValid);
+
+        var allowed = await ShareCardController.ValidateExternalImageUriAsync(
+            "https://cdn.example.com/avatar.png",
+            _ => Task.FromResult(new[] { System.Net.IPAddress.Parse("93.184.216.34") }));
+        Assert.True(allowed.IsValid);
+    }
 }

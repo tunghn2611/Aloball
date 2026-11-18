@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -166,6 +166,11 @@ public class MatchmakingService : IMatchmakingService
         if (stars == 1 && string.IsNullOrWhiteSpace(comment))
             return (false, "Đánh giá 1 sao bắt buộc phải ghi rõ lý do vi phạm / hành vi không đúng mực.");
 
+        var normalizedVibes = AloBall.Web.Models.PlayStyleCatalog.NormalizeVibeTags(
+            string.IsNullOrWhiteSpace(vibeTags)
+                ? Array.Empty<string>()
+                : vibeTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
         var review = new TeamMatchReview
         {
             MatchId = matchId,
@@ -174,6 +179,7 @@ public class MatchmakingService : IMatchmakingService
             SubmittedByUserId = userId,
             RatingStars = stars,
             Comment = comment.Trim(),
+            PlayStyleVibeTags = normalizedVibes,
             IsValid = true
         };
 
@@ -274,5 +280,21 @@ public class MatchmakingService : IMatchmakingService
         await UpdateTeamRatingAndBlacklistStatusAsync(appeal.Review.TargetTeamId);
 
         return (true, "Đã xử lý khiếu nại thành công.");
+    }
+
+    public static async Task<Dictionary<Guid, AloBall.Web.Models.TeamVibeAnalysis>> LoadTeamVibesMapAsync(
+        ApplicationDbContext db,
+        IEnumerable<Guid> teamIds)
+    {
+        var ids = teamIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new Dictionary<Guid, AloBall.Web.Models.TeamVibeAnalysis>();
+
+        var reviews = await db.TeamMatchReviews
+            .AsNoTracking()
+            .Where(r => r.IsValid && ids.Contains(r.TargetTeamId) && r.PlayStyleVibeTags != null)
+            .ToListAsync();
+
+        return AloBall.Web.Models.PlayStyleCatalog.AnalyzeTeamVibesMap(reviews);
     }
 }

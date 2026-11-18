@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ALOBALL EA FC 27 PLAYSTYLES & UI CONTROLLER
  */
 (function () {
@@ -258,9 +258,13 @@
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
 
         try {
+            const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
             const res = await fetch('/club/member/playstyles', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': antiForgeryToken
+                },
                 body: JSON.stringify({ playerId: activePlayerId, playStyles: rawResult })
             });
 

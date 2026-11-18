@@ -37,6 +37,42 @@
         </div>
     }
 
+    <!-- Claim Profile Banner (Dành cho cầu thủ nhận hồ sơ chưa liên kết) -->
+    @if (!Model.IsLinkedUser)
+    {
+        <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #064E3B 0%, #0F172A 100%); color: white; border-radius: 16px;">
+            <div class="card-body p-4 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                <div>
+                    <div class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded bg-white bg-opacity-20 text-white small fw-bold mb-2">
+                        <i class="bi bi-person-check-fill text-warning"></i> HỒ SƠ CHƯA ĐƯỢC NHẬN
+                    </div>
+                    <h4 class="fw-bold mb-1 text-white">Bạn là @Model.DisplayName?</h4>
+                    <p class="mb-0 text-white-50 small">
+                        Nhận hồ sơ này để đồng bộ toàn bộ lịch sử bàn thắng, kiến tạo, chuyên cần và điểm thưởng AB Coin vào tài khoản của bạn.
+                    </p>
+                </div>
+                <div class="flex-shrink-0">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <form asp-controller="Teams" asp-action="ClaimProfile" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="playerId" value="@Model.PlayerId" />
+                            <button type="submit" class="btn btn-warning fw-bold px-4 shadow-sm" style="min-height: 48px; border-radius: 12px;" onclick="return confirm('Bạn xác nhận muốn nhận hồ sơ cầu thủ này vào tài khoản của mình?')">
+                                <i class="bi bi-person-badge me-1"></i> Nhận hồ sơ của tôi
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a href="/Account/Login?returnUrl=/cau-thu/@Model.PlayerId" class="btn btn-warning fw-bold px-4 shadow-sm d-inline-flex align-items-center" style="min-height: 48px; border-radius: 12px;">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Đăng nhập để nhận hồ sơ
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- 1. PASSPORT CẦU THỦ (PLAYER HERO CARD) -->
     <div class="arena-card p-4 mb-4 shadow-sm">
         <div class="d-flex flex-column flex-md-row gap-4 align-items-start align-items-md-center justify-content-between">
@@ -68,6 +104,10 @@
                         @if (Model.IsLinkedUser)
                         {
                             <span class="badge bg-success-subtle text-success border"><i class="bi bi-patch-check-fill me-1"></i>Đã liên kết tài khoản</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning-subtle text-warning-emphasis border"><i class="bi bi-person-dash me-1"></i>Chưa nhận hồ sơ</span>
                         }
                     </div>
                     <h2 class="fw-bold mb-1 text-dark">@Model.DisplayName</h2>

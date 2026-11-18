@@ -1,0 +1,653 @@
+@model AloBall.Web.Models.MatchSplitBillPanelViewModel
+@using AloBall.Web.Data.Entities
+@using AloBall.Web.Services
+@{
+    bool canManage = ViewData["CanManageSplitBill"] as bool? ?? false;
+    string? rsvpToken = ViewData["RsvpToken"] as string;
+    string? currentUserId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var myShare = !string.IsNullOrEmpty(currentUserId)
+        ? Model.Shares.FirstOrDefault(s => s.LinkedUserId == currentUserId)
+        : null;
+    double progressPct = Model.GrandTotalDue > 0
+        ? Math.Min(100, Math.Round((double)Model.GrandTotalCollected / (double)Model.GrandTotalDue * 100, 0))
+        : 0;
+}
+
+<section id="splitBillSection" class="arena-card p-3 p-md-4 mb-3 border-top border-4 border-success bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <span class="eyebrow text-success"><i class="bi bi-qr-code-scan me-1"></i>CHIA TIỀN SÂN &amp; VIETQR</span>
+            <h5 class="fw-bold text-dark mb-1">Thu chi trận đấu · @Model.TeamName</h5>
+            <div class="d-flex flex-wrap align-items-center gap-2 small">
+                @if (Model.HasBankSetup)
+                {
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                        <i class="bi bi-bank me-1"></i>@Model.BankCode · @Model.AccountNumber
+                        @if (!string.IsNullOrWhiteSpace(Model.AccountHolderName))
+                        {
+                            <span>(@Model.AccountHolderName)</span>
+                        }
+                    </span>
+                }
+                else
+                {
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Chưa cài tài khoản ngân hàng CLB
+                    </span>
+                }
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            @if (Model.HasExpense)
+            {
+                <button type="button"
+                        class="btn btn-outline-success btn-sm fw-bold d-inline-flex align-items-center shadow-sm"
+                        style="min-height: 44px;"
+                        onclick="copyZaloPaymentReminder()">
+                    <i class="bi bi-chat-dots-fill me-1"></i> Copy nhắc tiền sân Zalo
+                </button>
+            }
+            @if (canManage)
+            {
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm fw-semibold d-inline-flex align-items-center"
+                        style="min-height: 44px;"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#quickBankCollapse">
+                    <i class="bi bi-bank2 me-1"></i> @(Model.HasBankSetup ? "Đổi TK ngân hàng" : "Cài TK ngân hàng CLB")
+                </button>
+                @if (Model.HasExpense)
+                {
+                    <button type="button"
+                            class="btn btn-primary btn-sm fw-bold d-inline-flex align-items-center"
+                            style="min-height: 44px;"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#splitBillEditorCollapse">
+                        <i class="bi bi-sliders me-1"></i> Sửa chia tiền &amp; Tăng 2
+                    </button>
+                }
+            }
+        </div>
+    </div>
+
+    @if (canManage)
+    {
+        <div class="collapse @(!Model.HasBankSetup ? "show" : "") mb-3" id="quickBankCollapse">
+            <div class="p-3 rounded-3 border bg-light">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <strong class="small text-dark"><i class="bi bi-qr-code text-success me-1"></i>Thiết lập nhanh tài khoản nhận tiền VietQR của CLB</strong>
+                    <a asp-controller="Teams" asp-action="Edit" asp-route-id="@Model.TeamId" class="small text-decoration-none">
+                        Hoặc mở Cài đặt CLB <i class="bi bi-arrow-up-right"></i>
+                    </a>
+                </div>
+                <form asp-controller="Matches" asp-action="SaveClubBankQuickSetup" method="post" class="row g-2 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="matchId" value="@Model.MatchId" />
+                    <input type="hidden" name="teamId" value="@Model.TeamId" />
+                    <input type="hidden" name="rsvpToken" value="@rsvpToken" />
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Ngân hàng</label>
+                        <select name="bankCode" class="form-select form-select-sm" required>
+                            <option value="">-- Chọn ngân hàng --</option>
+                            @foreach (var bank in MatchSplitBillService.SupportedBanks)
+                            {
+                                <option value="@bank.Code" selected="@(Model.BankCode == bank.Code ? "selected" : null)">@bank.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Số tài khoản</label>
+                        <input type="text" name="accountNumber" value="@Model.AccountNumber" class="form-control form-control-sm" placeholder="VD: 0123456789" required maxlength="40" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small fw-semibold mb-1">Tên chủ tài khoản</label>
+                        <input type="text" name="accountHolderName" value="@Model.AccountHolderName" class="form-control form-control-sm text-uppercase" placeholder="VD: NGUYEN VAN A" maxlength="120" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold" style="min-height: 44px;">Lưu TK</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (Model.HasExpense)
+    {
+        <!-- Tổng quan chia tiền & tiến độ thu -->
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="p-2 p-md-3 rounded-3 border bg-light h-100">
+                    <span class="d-block text-muted small fw-semibold">Đội trả (@MatchSplitBillService.GetSplitRatioLabel(Model.SplitRatio))</span>
+                    <strong class="fs-5 text-dark">@Model.MatchTotalPayable.ToString("N0")đ</strong>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-2 p-md-3 rounded-3 border bg-success-subtle border-success-subtle h-100">
+                    <span class="d-block text-success small fw-semibold">⚽ Tiền sân / người</span>
+                    <strong class="fs-5 text-success">@Model.MatchPerPersonShare.ToString("N0")đ</strong>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-2 p-md-3 rounded-3 border @(Model.Tang2Fee > 0 ? "bg-warning-subtle border-warning-subtle" : "bg-light") h-100">
+                    <span class="d-block text-dark small fw-semibold">🍻 Tăng 2 / người</span>
+                    <strong class="fs-5 text-dark">@(Model.Tang2Fee > 0 ? $"{Model.Tang2PerPersonShare:N0}đ" : "Không có")</strong>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-2 p-md-3 rounded-3 border bg-light h-100">
+                    <span class="d-block text-muted small fw-semibold">Đã thu / Tổng cần thu</span>
+                    <strong class="fs-6 text-primary" id="splitBillProgressText">@Model.GrandTotalCollected.ToString("N0")đ / @Model.GrandTotalDue.ToString("N0")đ</strong>
+                    <div class="progress mt-1" style="height: 6px;">
+                        <div class="progress-bar bg-success" id="splitBillProgressBar" style="width: @progressPct%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (myShare != null)
+        {
+            <div class="p-3 mb-3 rounded-3 border border-success bg-success-subtle d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <span class="badge bg-success text-white mb-1">PHẦN CỦA BẠN · @myShare.FullName</span>
+                    <div class="fw-bold fs-4 text-dark">
+                        @myShare.TotalAmount.ToString("N0")đ
+                        <small class="fs-6 fw-normal text-muted">
+                            (Sân: @myShare.MatchAmount.ToString("N0")đ@(myShare.ParticipatesInTang2 ? $" + Tăng 2: {myShare.Tang2Amount:N0}đ" : Model.Tang2Fee > 0 ? " · Không tính Tăng 2" : ""))
+                        </small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    @if (myShare.PaymentStatus == ExpenseSharePaymentStatus.Paid)
+                    {
+                        <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i>Đã đóng</span>
+                    }
+                    else if (!string.IsNullOrEmpty(myShare.VietQrUrl))
+                    {
+                        <button type="button"
+                                class="btn btn-primary fw-bold px-3 shadow-sm d-inline-flex align-items-center"
+                                style="min-height: 48px;"
+                                data-qr-url="@myShare.VietQrUrl"
+                                data-player-name="@myShare.FullName"
+                                data-amount="@myShare.TotalAmount.ToString("N0")"
+                                data-note="@myShare.TransferNote"
+                                data-bank="@Model.BankCode"
+                                data-acc="@Model.AccountNumber"
+                                data-holder="@Model.AccountHolderName"
+                                data-breakdown="Sân: @myShare.MatchAmount.ToString("N0")đ@(myShare.ParticipatesInTang2 ? $" + Tăng 2: {myShare.Tang2Amount:N0}đ" : "")"
+                                onclick="openVietQrModal(this)">
+                            <i class="bi bi-qr-code-scan me-2"></i>Quét mã VietQR
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Danh sách chia tiền từng cầu thủ -->
+        <div class="table-responsive border rounded-3 overflow-hidden mb-3">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light small text-uppercase text-muted">
+                    <tr>
+                        <th class="ps-3">Cầu thủ</th>
+                        <th>Chi tiết khoản</th>
+                        <th class="text-end">Phải đóng</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end pe-3">VietQR / Thu tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Shares)
+                    {
+                        bool isPaid = s.PaymentStatus == ExpenseSharePaymentStatus.Paid;
+                        <tr class="@(isPaid ? "table-success bg-opacity-25" : "")" id="share-row-@s.ShareId">
+                            <td class="ps-3">
+                                <div class="fw-bold text-dark">
+                                    #@(s.KitNumber?.ToString() ?? "-") @s.FullName
+                                </div>
+                                @if (!s.IsClaimed)
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border" style="font-size: 0.68rem;">Chưa nhận hồ sơ</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (s.ParticipatesInMatch)
+                                    {
+                                        <span class="badge bg-light text-dark border">⚽ Sân: @s.MatchAmount.ToString("N0")đ</span>
+                                    }
+                                    @if (s.ParticipatesInTang2)
+                                    {
+                                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle">🍻 Tăng 2: @s.Tang2Amount.ToString("N0")đ</span>
+                                    }
+                                    else if (Model.Tang2Fee > 0)
+                                    {
+                                        <span class="badge bg-light text-muted border">Về sớm (0đ Tăng 2)</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="text-end fw-bold text-dark fs-6" data-share-amount="@s.TotalAmount">@s.TotalAmount.ToString("N0")đ</td>
+                            <td id="share-status-@s.ShareId">
+                                @if (isPaid)
+                                {
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Đã thu
+                                        @if (s.PaidAt.HasValue)
+                                        {
+                                            <small class="ms-1">(@CompetitionRules.ToLocal(s.PaidAt.Value).ToString("HH:mm dd/MM"))</small>
+                                        }
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
+                                        <i class="bi bi-hourglass-split me-1"></i>Chưa đóng
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-end pe-3">
+                                <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                    @if (!string.IsNullOrEmpty(s.VietQrUrl))
+                                    {
+                                        <button type="button"
+                                                class="btn btn-outline-primary btn-sm fw-bold d-inline-flex align-items-center"
+                                                style="min-height: 48px;"
+                                                data-qr-url="@s.VietQrUrl"
+                                                data-player-name="@s.FullName"
+                                                data-amount="@s.TotalAmount.ToString("N0")"
+                                                data-note="@s.TransferNote"
+                                                data-bank="@Model.BankCode"
+                                                data-acc="@Model.AccountNumber"
+                                                data-holder="@Model.AccountHolderName"
+                                                data-breakdown="Sân: @s.MatchAmount.ToString("N0")đ@(s.ParticipatesInTang2 ? $" + Tăng 2: {s.Tang2Amount:N0}đ" : "")"
+                                                onclick="openVietQrModal(this)">
+                                            <i class="bi bi-qr-code-scan me-1"></i> Quét mã VietQR
+                                        </button>
+                                    }
+                                    @if (canManage)
+                                    {
+                                        <form asp-controller="Matches" asp-action="ToggleExpenseSharePaid" method="post" class="d-inline js-toggle-paid-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="matchId" value="@Model.MatchId" />
+                                            <input type="hidden" name="shareId" value="@s.ShareId" />
+                                            <input type="hidden" name="rsvpToken" value="@rsvpToken" />
+                                            <button type="submit"
+                                                    class="btn btn-sm fw-bold d-inline-flex align-items-center @(isPaid ? "btn-outline-secondary" : "btn-success")"
+                                                    style="min-height: 48px; min-width: 108px; justify-content: center;">
+                                                <i class="bi @(isPaid ? "bi-arrow-counterclockwise" : "bi-check2-circle") me-1"></i>
+                                                @(isPaid ? "Hoàn tác" : "Đã thu")
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light border mb-3 small text-muted">
+            <i class="bi bi-info-circle me-1 text-success"></i>
+            Chưa có bảng chia tiền cho trận này. @(canManage ? "Nhập chi phí sân, nước, trọng tài và kèo Tăng 2 (nếu có) bên dưới để tạo mã VietQR tự động." : "Đội trưởng chưa lập bảng chia tiền trận này.")
+        </div>
+    }
+
+    @if (canManage)
+    {
+        <div class="collapse @(!Model.HasExpense ? "show" : "")" id="splitBillEditorCollapse">
+            <form asp-controller="Matches" asp-action="SaveMatchSplitBill" method="post" class="p-3 rounded-3 border bg-light" id="splitBillForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="MatchId" value="@Model.MatchId" />
+                <input type="hidden" name="TeamId" value="@Model.TeamId" />
+                <input type="hidden" name="RsvpToken" value="@rsvpToken" />
+
+                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-calculator me-1 text-success"></i>Thiết lập chia tiền sân &amp; Tăng 2 (làm tròn 1.000đ)</h6>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold">Tiền sân (VNĐ)</label>
+                        <input type="number" min="0" step="1000" name="PitchFee" id="sbPitchFee" value="@((long)Model.PitchFee)" class="form-control js-sb-input" required />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold">Tiền nước / phụ phí</label>
+                        <input type="number" min="0" step="1000" name="WaterFee" id="sbWaterFee" value="@((long)Model.WaterFee)" class="form-control js-sb-input" required />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold">Tiền trọng tài</label>
+                        <input type="number" min="0" step="1000" name="RefereeFee" id="sbRefereeFee" value="@((long)Model.RefereeFee)" class="form-control js-sb-input" required />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-bold">Tỷ lệ chia kèo</label>
+                        <select name="SplitRatio" id="sbSplitRatio" class="form-select js-sb-input">
+                            <option value="100" selected="@(Model.SplitRatio == "100" ? "selected" : null)">100% đội chịu (Nội bộ / Tự túc)</option>
+                            <option value="50-50" selected="@(Model.SplitRatio == "50-50" ? "selected" : null)">50-50 (Chia đôi · Đội trả 50%)</option>
+                            <option value="60-40" selected="@(Model.SplitRatio == "60-40" ? "selected" : null)">60-40 (Thua kèo · Đội trả 60%)</option>
+                            <option value="40-60" selected="@(Model.SplitRatio == "40-60" ? "selected" : null)">40-60 (Thắng kèo · Đội trả 40%)</option>
+                            <option value="70-30" selected="@(Model.SplitRatio == "70-30" ? "selected" : null)">70-30 (Thua kèo · Đội trả 70%)</option>
+                            <option value="30-70" selected="@(Model.SplitRatio == "30-70" ? "selected" : null)">30-70 (Thắng kèo · Đội trả 30%)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Kèo Tăng 2 tách riêng -->
+                <div class="p-3 mb-3 rounded-3 border border-warning bg-warning-subtle bg-opacity-50">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small fw-bold text-dark mb-1">
+                                🍻 Kèo Tăng 2 (Ăn uống hậu trận - Tùy chọn)
+                            </label>
+                            <input type="number" min="0" step="1000" name="Tang2Fee" id="sbTang2Fee" value="@((long)Model.Tang2Fee)" class="form-control js-sb-input" placeholder="0" />
+                        </div>
+                        <div class="col-12 col-md-7 small text-dark">
+                            <strong>Tách bạch người về sớm:</strong> Nhập tổng hóa đơn Tăng 2 và chỉ tích cột <strong>"Tăng 2"</strong> cho những anh em ở lại. Người về sớm không bị cộng khoản này.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danh sách chọn cầu thủ -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <span class="small fw-bold text-dark">Chọn thành viên tham gia (@Model.Candidates.Count cầu thủ):</span>
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllMatchChecks(true)">Tích hết Đá sân</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllTang2Checks(true)">Tích hết Tăng 2</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllTang2Checks(false)">Bỏ Tăng 2</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive border rounded bg-white mb-3" style="max-height: 340px; overflow-y: auto;">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="bg-light sticky-top small text-muted">
+                            <tr>
+                                <th class="ps-3">Cầu thủ</th>
+                                <th class="text-center" style="width: 110px;">⚽ Đá sân</th>
+                                <th class="text-center" style="width: 110px;">🍻 Tăng 2</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.Candidates)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-semibold text-dark">
+                                            #@(c.KitNumber?.ToString() ?? "-") @c.FullName
+                                            @if (!c.IsClaimed)
+                                            {
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border ms-1" style="font-size: 0.65rem;">Chưa nhận hồ sơ</span>
+                                            }
+                                        </div>
+                                        <small class="text-muted">@c.AttendanceHint</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check d-inline-flex justify-content-center align-items-center m-0" style="min-height: 44px;">
+                                            <input class="form-check-input js-match-check js-sb-input" style="width: 22px; height: 22px;" type="checkbox" name="MatchParticipantPlayerIds" value="@c.PlayerId" checked="@(c.InMatch ? "checked" : null)" aria-label="Đá sân @c.FullName" />
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check d-inline-flex justify-content-center align-items-center m-0" style="min-height: 44px;">
+                                            <input class="form-check-input js-tang2-check js-sb-input" style="width: 22px; height: 22px;" type="checkbox" name="Tang2ParticipantPlayerIds" value="@c.PlayerId" checked="@(c.InTang2 ? "checked" : null)" aria-label="Tăng 2 @c.FullName" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Live preview & submit -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="small text-dark" id="sbLivePreview">
+                        Tạm tính: <strong class="text-success" id="sbPreviewMatchShare">0đ</strong>/người đá sân
+                        <span id="sbPreviewTang2Wrap" class="d-none"> · +<strong class="text-warning-emphasis" id="sbPreviewTang2Share">0đ</strong>/người Tăng 2</span>
+                    </div>
+                    <button type="submit" class="btn btn-primary fw-bold px-4" style="min-height: 48px;">
+                        <i class="bi bi-check2-all me-1"></i> Lưu chia tiền &amp; Tạo VietQR
+                    </button>
+                </div>
+            </form>
+        </div>
+    }
+</section>
+
+<!-- Modal Quét mã VietQR -->
+<div class="modal fade" id="vietQrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #064E3B 0%, #0F172A 100%);">
+                <h5 class="modal-title fw-bold mb-0"><i class="bi bi-qr-code-scan me-2 text-warning"></i>Chuyển khoản VietQR</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <h6 class="fw-bold text-dark mb-1" id="vietQrModalPlayer">Cầu thủ</h6>
+                <div class="fs-3 fw-bold text-success mb-1" id="vietQrModalAmount">0đ</div>
+                <div class="small text-muted mb-3" id="vietQrModalBreakdown"></div>
+
+                <div class="p-2 border rounded-3 bg-white d-inline-block mb-3 shadow-sm">
+                    <img id="vietQrModalImg" src="" alt="Mã VietQR chuyển khoản" class="img-fluid" style="max-width: 280px; min-height: 200px;" />
+                </div>
+
+                <div class="text-start small bg-light p-3 rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Ngân hàng:</span>
+                        <strong id="vietQrModalBank">-</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                        <span class="text-muted">Số TK:</span>
+                        <div>
+                            <strong id="vietQrModalAcc">-</strong>
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-decoration-none" onclick="copyTextValue(document.getElementById('vietQrModalAcc').textContent)">Copy</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between py-1 border-bottom">
+                        <span class="text-muted">Chủ TK:</span>
+                        <strong id="vietQrModalHolder">-</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-1">
+                        <span class="text-muted">Nội dung CK:</span>
+                        <div>
+                            <code class="fw-bold text-dark" id="vietQrModalNote">-</code>
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-decoration-none" onclick="copyTextValue(document.getElementById('vietQrModalNote').textContent)">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary flex-fill fw-bold" style="min-height: 48px;" onclick="downloadVietQrImage()">
+                        <i class="bi bi-download me-1"></i> Tải / Lưu ảnh QR
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary fw-semibold" style="min-height: 48px;" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.HasExpense)
+{
+    <textarea id="zaloPaymentTextTemplate" style="display:none;" readonly>@Model.ZaloCollectionText</textarea>
+}
+
+<script>
+    function roundNearest1000(val) {
+        if (!val || val <= 0) return 0;
+        return Math.round(val / 1000) * 1000;
+    }
+
+    function getRatioMultiplier(ratio) {
+        switch (ratio) {
+            case '50-50': return 0.5;
+            case '60-40': return 0.6;
+            case '40-60': return 0.4;
+            case '70-30': return 0.7;
+            case '30-70': return 0.3;
+            default: return 1.0;
+        }
+    }
+
+    function recalcSplitBillPreview() {
+        const pitch = parseFloat(document.getElementById('sbPitchFee')?.value || 0);
+        const water = parseFloat(document.getElementById('sbWaterFee')?.value || 0);
+        const ref = parseFloat(document.getElementById('sbRefereeFee')?.value || 0);
+        const tang2 = parseFloat(document.getElementById('sbTang2Fee')?.value || 0);
+        const ratio = document.getElementById('sbSplitRatio')?.value || '100';
+        const matchCount = document.querySelectorAll('.js-match-check:checked').length;
+        const tang2Count = document.querySelectorAll('.js-tang2-check:checked').length;
+
+        const matchPayable = (pitch + water + ref) * getRatioMultiplier(ratio);
+        const matchShare = matchCount > 0 ? roundNearest1000(matchPayable / matchCount) : 0;
+        const tang2Share = (tang2 > 0 && tang2Count > 0) ? roundNearest1000(tang2 / tang2Count) : 0;
+
+        const matchEl = document.getElementById('sbPreviewMatchShare');
+        if (matchEl) matchEl.textContent = matchShare.toLocaleString('vi-VN') + 'đ (' + matchCount + ' người)';
+        const tang2Wrap = document.getElementById('sbPreviewTang2Wrap');
+        const tang2El = document.getElementById('sbPreviewTang2Share');
+        if (tang2Wrap && tang2El) {
+            if (tang2 > 0) {
+                tang2Wrap.classList.remove('d-none');
+                tang2El.textContent = tang2Share.toLocaleString('vi-VN') + 'đ (' + tang2Count + ' người)';
+            } else {
+                tang2Wrap.classList.add('d-none');
+            }
+        }
+    }
+
+    function toggleAllMatchChecks(checked) {
+        document.querySelectorAll('.js-match-check').forEach(el => { el.checked = checked; });
+        recalcSplitBillPreview();
+    }
+
+    function toggleAllTang2Checks(checked) {
+        document.querySelectorAll('.js-tang2-check').forEach(el => { el.checked = checked; });
+        recalcSplitBillPreview();
+    }
+
+    function openVietQrModal(btn) {
+        const qrUrl = btn.getAttribute('data-qr-url') || '';
+        document.getElementById('vietQrModalPlayer').textContent = btn.getAttribute('data-player-name') || '';
+        document.getElementById('vietQrModalAmount').textContent = (btn.getAttribute('data-amount') || '0') + 'đ';
+        document.getElementById('vietQrModalBreakdown').textContent = btn.getAttribute('data-breakdown') || '';
+        document.getElementById('vietQrModalBank').textContent = btn.getAttribute('data-bank') || '';
+        document.getElementById('vietQrModalAcc').textContent = btn.getAttribute('data-acc') || '';
+        document.getElementById('vietQrModalHolder').textContent = btn.getAttribute('data-holder') || '-';
+        document.getElementById('vietQrModalNote').textContent = btn.getAttribute('data-note') || '';
+        const img = document.getElementById('vietQrModalImg');
+        img.src = qrUrl;
+        img.dataset.downloadUrl = qrUrl;
+        if (window.bootstrap) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('vietQrModal')).show();
+        }
+    }
+
+    async function downloadVietQrImage() {
+        const img = document.getElementById('vietQrModalImg');
+        const url = img?.dataset?.downloadUrl || img?.src;
+        if (!url) return;
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('fetch failed');
+            const blob = await resp.blob();
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objUrl;
+            a.download = 'vietqr-aloball.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+        } catch (e) {
+            window.open(url, '_blank', 'noopener');
+        }
+    }
+
+    function copyTextValue(val) {
+        if (!val) return;
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(val);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = val;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+    }
+
+    function copyZaloPaymentReminder() {
+        const el = document.getElementById('zaloPaymentTextTemplate');
+        if (!el) return;
+        copyTextValue(el.value);
+        const toastEl = document.getElementById('zaloCopyToast');
+        if (toastEl && window.bootstrap) {
+            const body = toastEl.querySelector('.toast-body');
+            if (body) body.innerHTML = '<i class="bi bi-check2-circle me-2 fs-5"></i> Đã copy nhắc tiền sân chuẩn Zalo! Hãy dán vào nhóm chat.';
+            bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        } else {
+            alert('Đã copy tin nhắn nhắc tiền sân Zalo!');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.js-sb-input').forEach(el => {
+            el.addEventListener('input', recalcSplitBillPreview);
+            el.addEventListener('change', recalcSplitBillPreview);
+        });
+        recalcSplitBillPreview();
+
+        document.querySelectorAll('.js-toggle-paid-form').forEach(form => {
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) btn.disabled = true;
+                try {
+                    const resp = await fetch(form.action, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: new FormData(form)
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) {
+                        form.submit();
+                        return;
+                    }
+                    const shareId = form.querySelector('input[name="shareId"]').value;
+                    const row = document.getElementById('share-row-' + shareId);
+                    const statusCell = document.getElementById('share-status-' + shareId);
+                    if (data.isPaid) {
+                        row?.classList.add('table-success', 'bg-opacity-25');
+                        if (statusCell) statusCell.innerHTML = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Đã thu <small class="ms-1">(${data.paidAtText || ''})</small></span>`;
+                        if (btn) {
+                            btn.className = 'btn btn-sm fw-bold d-inline-flex align-items-center btn-outline-secondary';
+                            btn.innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i> Hoàn tác';
+                        }
+                    } else {
+                        row?.classList.remove('table-success', 'bg-opacity-25');
+                        if (statusCell) statusCell.innerHTML = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="bi bi-hourglass-split me-1"></i>Chưa đóng</span>';
+                        if (btn) {
+                            btn.className = 'btn btn-sm fw-bold d-inline-flex align-items-center btn-success';
+                            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Đã thu';
+                        }
+                    }
+                    // Cập nhật lại tổng tiến độ thu ngay trên trang
+                    let collected = 0, total = 0;
+                    document.querySelectorAll('tr[id^="share-row-"]').forEach(r => {
+                        const amt = parseFloat(r.querySelector('[data-share-amount]')?.getAttribute('data-share-amount') || '0');
+                        total += amt;
+                        if (r.classList.contains('table-success')) collected += amt;
+                    });
+                    const progTxt = document.getElementById('splitBillProgressText');
+                    const progBar = document.getElementById('splitBillProgressBar');
+                    if (progTxt) progTxt.textContent = collected.toLocaleString('vi-VN') + 'đ / ' + total.toLocaleString('vi-VN') + 'đ';
+                    if (progBar) progBar.style.width = (total > 0 ? Math.min(100, Math.round(collected / total * 100)) : 0) + '%';
+                } catch {
+                    form.submit();
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            });
+        });
+    });
+</script>

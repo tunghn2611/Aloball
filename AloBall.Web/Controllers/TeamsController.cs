@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Models;
 using AloBall.Web.Services;
@@ -207,6 +207,15 @@ public partial class TeamsController : Controller
             .Take(20)
             .ToListAsync();
 
+        var vibeTeamIds = new List<Guid> { team.Id };
+        vibeTeamIds.AddRange(userManagedTeams.Select(t => t.Id));
+        var vibeMap = await MatchmakingService.LoadTeamVibesMapAsync(_db, vibeTeamIds);
+        var teamVibe = vibeMap.GetValueOrDefault(team.Id);
+        bool showVibeWarning = userManagedTeams.Any(mt =>
+            PlayStyleCatalog.ShouldShowHardTackleWarning(vibeMap.GetValueOrDefault(mt.Id), teamVibe));
+
+        ViewBag.TeamVibe = teamVibe;
+        ViewBag.ShowVibeWarning = showVibeWarning;
         ViewBag.ReputationStats = reputationStats;
         ViewBag.OfficialMatches = officialMatches.Take(10).ToList();
         ViewBag.VerifiedReviews = verifiedReviews;
@@ -366,6 +375,186 @@ public partial class TeamsController : Controller
 
         TempData["Success"] = $"Đã thêm cầu thủ {player.FullName} thành công!";
         return RedirectToAction(nameof(Players), new { teamId });
+    }
+
+    // 5.1. Thêm nhanh hàng loạt tối đa 20 cầu thủ (30-second Unclaimed Roster)
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkAddRoster(Guid teamId, string rosterText)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        if (!await _auth.HasManagerAccessAsync(teamId, user.Id))
+            return Forbid();
+
+        var team = await _db.Teams.FindAsync(teamId);
+        if (team == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(rosterText))
+        {
+            TempData["Error"] = "Vui lòng nhập hoặc dán ít nhất 1 dòng tên cầu thủ.";
+            return RedirectToAction(nameof(Players), new { teamId });
+        }
+
+        var lines = rosterText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .Take(20)
+            .ToList();
+
+        if (!lines.Any())
+        {
+            TempData["Error"] = "Không tìm thấy dòng thông tin cầu thủ hợp lệ.";
+            return RedirectToAction(nameof(Players), new { teamId });
+        }
+
+        var existingKitNumbers = (await _db.Players
+            .Where(p => p.TeamId == teamId && p.IsActive && p.KitNumber.HasValue)
+            .Select(p => p.KitNumber!.Value)
+            .ToListAsync())
+            .ToHashSet();
+
+        var addedPlayers = new List<Player>();
+
+        foreach (var line in lines)
+        {
+            ParseRosterLine(line, out string fullName, out int? kitNum, out string? pos);
+            if (string.IsNullOrWhiteSpace(fullName)) continue;
+
+            if (kitNum.HasValue && (existingKitNumbers.Contains(kitNum.Value) || addedPlayers.Any(p => p.KitNumber == kitNum.Value)))
+            {
+                // Trùng số áo thì bỏ qua số áo để không làm hỏng cả lượt thêm nhanh
+                kitNum = null;
+            }
+
+            if (kitNum.HasValue)
+            {
+                existingKitNumbers.Add(kitNum.Value);
+            }
+
+            string stdPos = AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(pos);
+
+            var player = new Player
+            {
+                TeamId = teamId,
+                FullName = fullName.Length > 100 ? fullName[..100] : fullName,
+                KitNumber = kitNum,
+                Position = pos,
+                StandardPrimaryPosition = stdPos,
+                IsActive = true,
+                IsClaimed = false,
+                InviteToken = Guid.NewGuid().ToString("N")[..12],
+                JoinedDate = DateTime.UtcNow
+            };
+
+            _db.Players.Add(player);
+            addedPlayers.Add(player);
+        }
+
+        if (addedPlayers.Any())
+        {
+            await _db.SaveChangesAsync();
+
+            // Tự động bổ sung vào các buổi điểm danh sắp tới hoặc đang dự thảo
+            var activeSessions = await _db.AttendanceSessions
+                .Include(s => s.Records)
+                .Where(s => s.TeamId == teamId && s.SessionDateTime >= CompetitionRules.LocalNow.Date.AddDays(-1) && s.Status != SessionStatus.Cancelled)
+                .ToListAsync();
+
+            foreach (var s in activeSessions)
+            {
+                foreach (var p in addedPlayers)
+                {
+                    if (!s.Records.Any(r => r.PlayerId == p.Id))
+                    {
+                        _db.AttendanceRecords.Add(new AttendanceRecord
+                        {
+                            SessionId = s.Id,
+                            PlayerId = p.Id,
+                            Response = ResponseStatus.NotRecorded,
+                            Actual = ActualStatus.NotChecked
+                        });
+                    }
+                }
+            }
+
+            await _db.SaveChangesAsync();
+
+            TempData["Success"] = $"Đã thêm nhanh {addedPlayers.Count} cầu thủ vào danh sách đội bóng thành công trong 30 giây!";
+        }
+        else
+        {
+            TempData["Error"] = "Không thể thêm cầu thủ nào từ dữ liệu đã dán. Vui lòng kiểm tra lại định dạng.";
+        }
+
+        return RedirectToAction(nameof(Players), new { teamId });
+    }
+
+    private static void ParseRosterLine(string rawLine, out string fullName, out int? kitNumber, out string? position)
+    {
+        fullName = rawLine.Trim();
+        kitNumber = null;
+        position = null;
+
+        if (string.IsNullOrWhiteSpace(fullName)) return;
+
+        // 1. Nhận diện vị trí
+        var lower = fullName.ToLower();
+        if (lower.Contains("thủ môn") || System.Text.RegularExpressions.Regex.IsMatch(lower, @"\b(gk)\b"))
+        {
+            position = "Thủ môn";
+        }
+        else if (lower.Contains("tiền đạo") || System.Text.RegularExpressions.Regex.IsMatch(lower, @"\b(st|fw|cf|lw|rw)\b"))
+        {
+            position = "Tiền đạo";
+        }
+        else if (lower.Contains("tiền vệ") || System.Text.RegularExpressions.Regex.IsMatch(lower, @"\b(mf|cm|cdm|cam|lm|rm)\b"))
+        {
+            position = "Tiền vệ";
+        }
+        else if (lower.Contains("hậu vệ") || System.Text.RegularExpressions.Regex.IsMatch(lower, @"\b(df|cb|lb|rb)\b"))
+        {
+            position = "Hậu vệ";
+        }
+
+        // Tách theo dấu gạch ngang '-' hoặc dấu hai chấm ':' nếu có
+        string workStr = fullName;
+        if (workStr.Contains('-'))
+        {
+            var parts = workStr.Split('-');
+            if (parts.Length >= 2)
+            {
+                workStr = parts[0].Trim();
+                if (string.IsNullOrEmpty(position)) position = parts[1].Trim();
+            }
+        }
+        else if (workStr.Contains(':'))
+        {
+            var parts = workStr.Split(':');
+            if (parts.Length >= 2)
+            {
+                workStr = parts[0].Trim();
+                if (string.IsNullOrEmpty(position)) position = parts[1].Trim();
+            }
+        }
+
+        // Loại bỏ phần trong ngoặc đơn nếu là vị trí
+        workStr = System.Text.RegularExpressions.Regex.Replace(workStr, @"\((gk|df|mf|fw|st|thủ môn|hậu vệ|tiền vệ|tiền đạo)\)", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+
+        // 2. Tìm số áo: #\d+ hoặc số đầu/cuối dòng (1-99)
+        var numMatch = System.Text.RegularExpressions.Regex.Match(workStr, @"(?:#|\b)(\d{1,2})\b");
+        if (numMatch.Success && int.TryParse(numMatch.Groups[1].Value, out int numVal) && numVal >= 1 && numVal <= 99)
+        {
+            kitNumber = numVal;
+            // Xóa số áo ra khỏi tên
+            workStr = workStr.Remove(numMatch.Index, numMatch.Length).Trim();
+        }
+
+        // Dọn dẹp tên
+        workStr = workStr.Trim('-', '#', '(', ')', ',', '.', ':', ' ');
+        fullName = workStr;
     }
 
     // 6. Tạo đội bóng mới (Bất kỳ user đã đăng nhập nào)

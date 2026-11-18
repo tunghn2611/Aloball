@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -77,6 +77,14 @@ public class MatchmakingController : Controller
                 .ToListAsync();
         }
 
+        var vibeTeamIds = posts.Select(p => p.TeamId).Concat(managedTeams.Select(t => t.Id));
+        var teamVibes = await MatchmakingService.LoadTeamVibesMapAsync(_db, vibeTeamIds);
+        bool hasCasualManagedTeam = managedTeams.Any(t =>
+            teamVibes.TryGetValue(t.Id, out var mv) &&
+            (mv.IsCasualTeam || mv.TopVibes.Contains(AloBall.Web.Models.PlayStyleCatalog.VibeDaoDuongSinh)));
+
+        ViewBag.TeamVibes = teamVibes;
+        ViewBag.HasCasualManagedTeam = hasCasualManagedTeam;
         ViewBag.ManagedTeams = managedTeams;
         ViewBag.SelectedArea = area;
         ViewBag.SelectedDate = date?.ToString("yyyy-MM-dd");
@@ -125,6 +133,28 @@ public class MatchmakingController : Controller
                 .ToListAsync();
         }
 
+        var detailTeamIds = new List<Guid> { post.TeamId };
+        if (post.TargetTeamId.HasValue) detailTeamIds.Add(post.TargetTeamId.Value);
+        detailTeamIds.AddRange(post.Proposals.Select(p => p.ChallengingTeamId));
+        detailTeamIds.AddRange(managedTeams.Select(t => t.Id));
+
+        var teamVibes = await MatchmakingService.LoadTeamVibesMapAsync(_db, detailTeamIds);
+        var hostVibe = teamVibes.GetValueOrDefault(post.TeamId);
+        bool isDirect = post.PostType == MatchmakingPostType.DirectChallenge;
+
+        var acceptorVibe = (isDirect && post.TargetTeamId.HasValue)
+            ? teamVibes.GetValueOrDefault(post.TargetTeamId.Value)
+            : hostVibe;
+
+        bool showVibeWarning = isDirect && isTargetManager
+            ? AloBall.Web.Models.PlayStyleCatalog.ShouldShowHardTackleWarning(acceptorVibe, hostVibe)
+            : (!isHostManager && managedTeams.Any(mt =>
+                AloBall.Web.Models.PlayStyleCatalog.ShouldShowHardTackleWarning(teamVibes.GetValueOrDefault(mt.Id), hostVibe)));
+
+        ViewBag.TeamVibes = teamVibes;
+        ViewBag.HostVibe = hostVibe;
+        ViewBag.AcceptorTeamVibe = acceptorVibe;
+        ViewBag.ShowVibeWarning = showVibeWarning;
         ViewBag.IsHostManager = isHostManager;
         ViewBag.IsTargetManager = isTargetManager;
         ViewBag.ManagedTeams = managedTeams;

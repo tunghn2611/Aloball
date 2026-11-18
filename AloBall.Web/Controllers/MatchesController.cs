@@ -19,6 +19,7 @@ public partial class MatchesController : Controller
     private readonly AloBall.Web.Services.TeamDivision.ITeamDivisionEngine _divisionEngine;
     private readonly ITeamMessagingService? _teamMessaging;
     private readonly IAttendanceCalculationEngine? _calcEngine;
+    private readonly IMatchSplitBillService _splitBill;
 
     public MatchesController(
         ApplicationDbContext db,
@@ -28,7 +29,8 @@ public partial class MatchesController : Controller
         IFireKeepingService fireKeeping,
         AloBall.Web.Services.TeamDivision.ITeamDivisionEngine divisionEngine,
         ITeamMessagingService? teamMessaging = null,
-        IAttendanceCalculationEngine? calcEngine = null)
+        IAttendanceCalculationEngine? calcEngine = null,
+        IMatchSplitBillService? splitBill = null)
     {
         _db = db;
         _userManager = userManager;
@@ -38,12 +40,13 @@ public partial class MatchesController : Controller
         _divisionEngine = divisionEngine;
         _teamMessaging = teamMessaging;
         _calcEngine = calcEngine;
+        _splitBill = splitBill ?? new MatchSplitBillService(db, auth);
     }
 
     // 1. Chi tiết trận đấu & Đội hình 2 bên (Matchday Center)
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> Detail(Guid id)
+    public async Task<IActionResult> Detail(Guid id, string? token = null)
     {
         var match = await _db.Matches
             .Include(m => m.TeamA).ThenInclude(t => t.Players)
@@ -57,12 +60,21 @@ public partial class MatchesController : Controller
 
         if (match == null) return NotFound();
 
+        if (string.IsNullOrEmpty(match.RsvpToken))
+        {
+            match.RsvpToken = Guid.NewGuid().ToString("N")[..8];
+            await _db.SaveChangesAsync();
+        }
+
         var user = await _userManager.GetUserAsync(User);
         bool isManagerA = false;
         bool isManagerB = false;
 
+        bool hasTokenAccess = !string.IsNullOrWhiteSpace(token) && string.Equals(token.Trim(), match.RsvpToken, StringComparison.OrdinalIgnoreCase);
+
         if ((!match.IsPublic || !match.TeamA.IsPublic || match.TeamA.IsDraft ||
              (match.TeamB != null && (!match.TeamB.IsPublic || match.TeamB.IsDraft))) &&
+            !hasTokenAccess &&
             (user == null || !(await _auth.HasMemberAccessAsync(match.TeamAId, user.Id) ||
               (match.TeamBId.HasValue && await _auth.HasMemberAccessAsync(match.TeamBId.Value, user.Id)))))
             return NotFound();
@@ -84,6 +96,8 @@ public partial class MatchesController : Controller
         ViewBag.MemberA = memberA;
         ViewBag.MemberB = memberB;
         ViewBag.CanReview = (isManagerA || isManagerB) && match.Status == MatchStatus.Completed && match.TeamBId.HasValue && match.ConfirmedByTeamA && match.ConfirmedByTeamB && match.MatchDateTime <= CompetitionRules.LocalNow;
+        ViewBag.RsvpToken = match.RsvpToken;
+        ViewBag.HasTokenAccess = hasTokenAccess;
 
         // 1. Tích hợp Sân bóng (PitchBookingRequests) & Phát hiện lệch lịch
         var pitchRequests = await _db.PitchBookingRequests
@@ -125,7 +139,7 @@ public partial class MatchesController : Controller
                 .ThenInclude(r => r.Player)
             .FirstOrDefaultAsync(s => s.MatchId == match.Id && s.TeamId == viewerTeamId);
 
-        if (attendanceSession == null && (isManagerA || memberA || isManagerB || memberB))
+        if (attendanceSession == null && (isManagerA || memberA || isManagerB || memberB || hasTokenAccess))
         {
             attendanceSession = await _db.AttendanceSessions
                 .Include(s => s.Records)
@@ -271,6 +285,23 @@ public partial class MatchesController : Controller
             .ToListAsync();
         ViewBag.MatchSettlement = matchSettlement;
         ViewBag.CustomEstimates = customEstimates;
+
+        // Phase 1B: Smart Matchday Split-Bill, Tăng 2 & Dynamic VietQR
+        bool canViewSplitBill = isManagerA || isManagerB || memberA || memberB || hasTokenAccess;
+        bool canManageSplitBill = (viewerTeamId == match.TeamAId && isManagerA) || (viewerTeamId == match.TeamBId && isManagerB);
+        AloBall.Web.Models.MatchSplitBillPanelViewModel? splitBillPanel = null;
+        if (canViewSplitBill)
+        {
+            var scheme = Request?.Scheme ?? "https";
+            var host = Request?.Host.Value;
+            var baseUrl = string.IsNullOrEmpty(host)
+                ? $"/Matches/Detail/{match.Id}?token={match.RsvpToken}#splitBillSection"
+                : $"{scheme}://{host}/Matches/Detail/{match.Id}?token={match.RsvpToken}#splitBillSection";
+            splitBillPanel = await _splitBill.BuildMatchSplitBillPanelAsync(match, viewerTeamId, baseUrl, attendanceSession);
+        }
+        ViewBag.CanViewSplitBill = canViewSplitBill;
+        ViewBag.CanManageSplitBill = canManageSplitBill;
+        ViewBag.SplitBillPanel = splitBillPanel;
 
         return View(match);
     }

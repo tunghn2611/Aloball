@@ -58,7 +58,53 @@ public static class DbInitializer
         {
             try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Players"" ADD COLUMN IF NOT EXISTS ""PlayStyles"" VARCHAR(120) NULL;"); } catch { }
             try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""AspNetUsers"" ADD COLUMN IF NOT EXISTS ""PlayStyles"" VARCHAR(120) NULL;"); } catch { }
-            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""TeamMatchReviews"" ADD COLUMN IF NOT EXISTS ""PlayStyleVibeTags"" VARCHAR(150) NULL;"); } catch { }
+                        try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""TeamMatchReviews"" ADD COLUMN IF NOT EXISTS ""PlayStyleVibeTags"" VARCHAR(150) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Players"" ADD COLUMN IF NOT EXISTS ""IsClaimed"" boolean NOT NULL DEFAULT FALSE;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Players"" ADD COLUMN IF NOT EXISTS ""InviteToken"" VARCHAR(50) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Matches"" ADD COLUMN IF NOT EXISTS ""RsvpToken"" VARCHAR(50) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Matches"" ADD COLUMN IF NOT EXISTS ""KitColor"" VARCHAR(50) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Teams"" ADD COLUMN IF NOT EXISTS ""BankCode"" VARCHAR(30) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Teams"" ADD COLUMN IF NOT EXISTS ""AccountNumber"" VARCHAR(40) NULL;"); } catch { }
+            try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Teams"" ADD COLUMN IF NOT EXISTS ""AccountHolderName"" VARCHAR(120) NULL;"); } catch { }
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS ""MatchExpenses"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""MatchId"" uuid NOT NULL REFERENCES ""Matches""(""Id"") ON DELETE CASCADE,
+                        ""TeamId"" uuid NOT NULL REFERENCES ""Teams""(""Id"") ON DELETE CASCADE,
+                        ""PitchFee"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""WaterFee"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""RefereeFee"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""SplitRatio"" VARCHAR(20) NOT NULL DEFAULT '100',
+                        ""Tang2Fee"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""MatchTotalPayable"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""MatchPerPersonShare"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""Tang2PerPersonShare"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""Notes"" VARCHAR(500) NULL,
+                        ""CreatedByUserId"" text NULL,
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW()
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchExpenses_MatchId_TeamId"" ON ""MatchExpenses"" (""MatchId"", ""TeamId"");
+                    CREATE TABLE IF NOT EXISTS ""MatchExpenseShares"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""MatchExpenseId"" uuid NOT NULL REFERENCES ""MatchExpenses""(""Id"") ON DELETE CASCADE,
+                        ""PlayerId"" uuid NOT NULL REFERENCES ""Players""(""Id"") ON DELETE RESTRICT,
+                        ""LinkedUserId"" text NULL,
+                        ""ParticipatesInMatch"" boolean NOT NULL DEFAULT TRUE,
+                        ""ParticipatesInTang2"" boolean NOT NULL DEFAULT FALSE,
+                        ""MatchAmount"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""Tang2Amount"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""TotalAmount"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""PaymentStatus"" integer NOT NULL DEFAULT 0,
+                        ""PaidAt"" timestamp with time zone NULL,
+                        ""MarkedByUserId"" text NULL
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchExpenseShares_MatchExpenseId_PlayerId"" ON ""MatchExpenseShares"" (""MatchExpenseId"", ""PlayerId"");
+                ");
+            }
+            catch { }
             return;
         }
 
@@ -82,10 +128,17 @@ public static class DbInitializer
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PublicPreferredFoot INTEGER NOT NULL DEFAULT 0;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PublicExperience INTEGER NOT NULL DEFAULT 0;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN PlayStyles TEXT NULL;"); } catch { }
-        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE TeamMatchReviews ADD COLUMN PlayStyleVibeTags TEXT NULL;"); } catch { }
+                try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE TeamMatchReviews ADD COLUMN PlayStyleVibeTags TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN IsClaimed INTEGER NOT NULL DEFAULT 0;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Players ADD COLUMN InviteToken TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Matches ADD COLUMN RsvpToken TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Matches ADD COLUMN KitColor TEXT NULL;"); } catch { }
 
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN CoverImageUrl TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN CoverOpacity REAL NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN BankCode TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN AccountNumber TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE Teams ADD COLUMN AccountHolderName TEXT NULL;"); } catch { }
 
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN PreferredFoot TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE AspNetUsers ADD COLUMN Experience TEXT NULL;"); } catch { }
@@ -390,6 +443,41 @@ public static class DbInitializer
                     ""AdjustedAt"" TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS ""IX_MatchSettlementAdjustmentAudits_AllocationId"" ON ""MatchSettlementAdjustmentAudits"" (""AllocationId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchExpenses"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""MatchId"" TEXT NOT NULL,
+                    ""TeamId"" TEXT NOT NULL,
+                    ""PitchFee"" TEXT NOT NULL DEFAULT '0',
+                    ""WaterFee"" TEXT NOT NULL DEFAULT '0',
+                    ""RefereeFee"" TEXT NOT NULL DEFAULT '0',
+                    ""SplitRatio"" TEXT NOT NULL DEFAULT '100',
+                    ""Tang2Fee"" TEXT NOT NULL DEFAULT '0',
+                    ""MatchTotalPayable"" TEXT NOT NULL DEFAULT '0',
+                    ""MatchPerPersonShare"" TEXT NOT NULL DEFAULT '0',
+                    ""Tang2PerPersonShare"" TEXT NOT NULL DEFAULT '0',
+                    ""Notes"" TEXT NULL,
+                    ""CreatedByUserId"" TEXT NULL,
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""UpdatedAt"" TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchExpenses_MatchId_TeamId"" ON ""MatchExpenses"" (""MatchId"", ""TeamId"");
+
+                CREATE TABLE IF NOT EXISTS ""MatchExpenseShares"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""MatchExpenseId"" TEXT NOT NULL,
+                    ""PlayerId"" TEXT NOT NULL,
+                    ""LinkedUserId"" TEXT NULL,
+                    ""ParticipatesInMatch"" INTEGER NOT NULL DEFAULT 1,
+                    ""ParticipatesInTang2"" INTEGER NOT NULL DEFAULT 0,
+                    ""MatchAmount"" TEXT NOT NULL DEFAULT '0',
+                    ""Tang2Amount"" TEXT NOT NULL DEFAULT '0',
+                    ""TotalAmount"" TEXT NOT NULL DEFAULT '0',
+                    ""PaymentStatus"" INTEGER NOT NULL DEFAULT 0,
+                    ""PaidAt"" TEXT NULL,
+                    ""MarkedByUserId"" TEXT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_MatchExpenseShares_MatchExpenseId_PlayerId"" ON ""MatchExpenseShares"" (""MatchExpenseId"", ""PlayerId"");
             ");
         }
         catch (Exception ex)

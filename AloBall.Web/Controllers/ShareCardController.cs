@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using AloBall.Web.Models;
@@ -12,6 +14,12 @@ namespace AloBall.Web.Controllers;
 [AllowAnonymous]
 public class ShareCardController : Controller
 {
+    private const int MaxProxyImageBytes = 5 * 1024 * 1024; // 5 MB
+    private static readonly HashSet<string> AllowedLocalImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"
+    };
+
     private readonly ApplicationDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITeamAuthorizationService _auth;
@@ -52,36 +60,78 @@ public class ShareCardController : Controller
     [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> ProxyImage([FromQuery] string? url)
     {
-        if (string.IsNullOrWhiteSpace(url)) return BadRequest("URL required");
-        Response.Headers["Access-Control-Allow-Origin"] = "*";
+        if (string.IsNullOrWhiteSpace(url)) return BadRequest("URL required.");
 
-        if (url.StartsWith("/") || url.StartsWith("~/"))
+        string trimmed = url.Trim();
+
+        // Safe relative path inside wwwroot (blocks path traversal & non-image files)
+        if (trimmed.StartsWith('/') || trimmed.StartsWith("~/"))
         {
-            var localPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", url.TrimStart('~', '/').Replace('/', Path.DirectorySeparatorChar));
-            if (System.IO.File.Exists(localPath))
+            if (trimmed.StartsWith("//") || trimmed.StartsWith("/\\") || trimmed.Contains(".."))
+                return BadRequest("Invalid relative path.");
+
+            var wwwroot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+            var relative = trimmed.TrimStart('~', '/').Replace('/', Path.DirectorySeparatorChar);
+            var localFull = Path.GetFullPath(Path.Combine(wwwroot, relative));
+            if (!localFull.StartsWith(wwwroot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Invalid relative path.");
+
+            var ext = Path.GetExtension(localFull);
+            if (!AllowedLocalImageExtensions.Contains(ext))
+                return BadRequest("Unsupported file type.");
+
+            if (!System.IO.File.Exists(localFull))
+                return NotFound();
+
+            var localCtype = ext.ToLowerInvariant() switch
             {
-                var ext = Path.GetExtension(localPath).ToLowerInvariant();
-                var ctype = ext switch { ".png" => "image/png", ".webp" => "image/webp", ".svg" => "image/svg+xml", _ => "image/jpeg" };
-                return PhysicalFile(localPath, ctype);
-            }
-            return NotFound();
+                ".png" => "image/png",
+                ".webp" => "image/webp",
+                ".gif" => "image/gif",
+                ".svg" => "image/svg+xml",
+                _ => "image/jpeg"
+            };
+            Response.Headers["Access-Control-Allow-Origin"] = "*";
+            return PhysicalFile(localFull, localCtype);
         }
 
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
+        var validation = await ValidateExternalImageUriAsync(trimmed);
+        if (!validation.IsValid || validation.Uri == null)
         {
-            return BadRequest("Invalid URL");
+            return BadRequest(validation.Error ?? "Blocked or invalid image URL.");
         }
 
         try
         {
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(5);
-            var response = await client.GetAsync(uri);
-            if (!response.IsSuccessStatusCode) return StatusCode((int)response.StatusCode);
 
-            var ctype = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+            using var response = await client.GetAsync(validation.Uri, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)response.StatusCode);
+
+            // Re-validate final URI in case an HTTP redirect occurred
+            var finalUri = response.RequestMessage?.RequestUri;
+            if (finalUri != null && !Uri.Equals(finalUri, validation.Uri))
+            {
+                var redirectCheck = await ValidateExternalImageUriAsync(finalUri.AbsoluteUri);
+                if (!redirectCheck.IsValid)
+                    return BadRequest("Redirect to restricted host is not allowed.");
+            }
+
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
+            if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Target resource is not an image.");
+
+            if (response.Content.Headers.ContentLength > MaxProxyImageBytes)
+                return BadRequest("Image exceeds maximum allowed size.");
+
             var bytes = await response.Content.ReadAsByteArrayAsync();
-            return File(bytes, ctype);
+            if (bytes.Length > MaxProxyImageBytes)
+                return BadRequest("Image exceeds maximum allowed size.");
+
+            Response.Headers["Access-Control-Allow-Origin"] = "*";
+            return File(bytes, contentType);
         }
         catch
         {
@@ -98,15 +148,13 @@ public class ShareCardController : Controller
 
         var req = HttpContext.Request;
         var baseUrl = $"{req.Scheme}://{req.Host}";
-        var shareImg = !string.IsNullOrEmpty(card.PhotoUrl) 
-            ? (card.PhotoUrl.StartsWith("http") ? card.PhotoUrl : $"{baseUrl}{card.PhotoUrl}") 
-            : $"{baseUrl}/images/aloball-og-card.png";
+        var shareImg = ResolveAbsoluteShareImage(card.PhotoUrl ?? card.TeamLogoUrl, baseUrl, "/images/aloball-og-card.png");
 
         var vm = new PlayerShareViewModel
         {
             Card = card,
-            OgTitle = $"{card.FullName} ({card.Stats.Ovr} OVR - {card.PosCode}) | AloBall FUT 27",
-            OgDescription = $"Khám phá bộ chỉ số thi đấu FIFA của {card.FullName} tại CLB {card.TeamName} trên nền tảng AloBall.",
+            OgTitle = $"{card.FullName} ({card.Stats.Ovr} OVR - {card.PosCode}) | AloBall EA FC 27",
+            OgDescription = $"Khám phá thẻ chỉ số EA FC 27 ({card.Stats.Ovr} OVR) của {card.FullName} tại CLB {card.TeamName} trên AloBall.",
             OgImage = shareImg,
             OgUrl = $"{baseUrl}/share/player/{id}"
         };
@@ -123,15 +171,13 @@ public class ShareCardController : Controller
 
         var req = HttpContext.Request;
         var baseUrl = $"{req.Scheme}://{req.Host}";
-        var shareImg = !string.IsNullOrEmpty(poster.TeamA.CoverUrl)
-            ? (poster.TeamA.CoverUrl.StartsWith("http") ? poster.TeamA.CoverUrl : $"{baseUrl}{poster.TeamA.CoverUrl}")
-            : $"{baseUrl}/images/aloball-og-poster.png";
+        var shareImg = ResolveAbsoluteShareImage(poster.TeamA.CoverUrl ?? poster.TeamA.LogoUrl, baseUrl, "/images/aloball-og-poster.png");
 
         var vm = new MatchShareViewModel
         {
             Poster = poster,
             OgTitle = $"Kết quả: {poster.TeamA.Name} {poster.ScoreA} - {poster.ScoreB} {poster.TeamB.Name} | AloBall",
-            OgDescription = $"Trận đấu {poster.Category} tại {poster.Venue} ({poster.MatchDate}). Cầu thủ xuất sắc: {poster.Motm?.PlayerName ?? "N/A"}.",
+            OgDescription = $"Trận đấu {poster.Category} tại {poster.Venue} ({poster.MatchDate}). Cầu thủ xuất sắc: {poster.Motm?.PlayerName ?? "Đang cập nhật"}.",
             OgImage = shareImg,
             OgUrl = $"{baseUrl}/share/match/{id}"
         };
@@ -139,7 +185,124 @@ public class ShareCardController : Controller
         return View("~/Views/ShareCard/MatchShare.cshtml", vm);
     }
 
-    #region Helper Calculation Methods
+    #region Helper & Security Methods
+
+    public static string CalculateCardTier(int ovr, bool isMotm) =>
+        isMotm ? "motm" : ovr >= 80 ? "gold" : ovr >= 70 ? "silver" : "bronze";
+
+    public static string ToProxyAwareImageUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+        var trimmed = url.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"/api/share-card/img-proxy?url={Uri.EscapeDataString(trimmed)}";
+        }
+        return trimmed;
+    }
+
+    public static async Task<(bool IsValid, Uri? Uri, string? Error)> ValidateExternalImageUriAsync(
+        string? rawUrl,
+        Func<string, Task<IPAddress[]>>? dnsResolver = null)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+            return (false, null, "URL required.");
+
+        if (!Uri.TryCreate(rawUrl.Trim(), UriKind.Absolute, out var uri))
+            return (false, null, "Invalid URL format.");
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            return (false, null, "Only HTTP and HTTPS protocols are permitted.");
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+            return (false, null, "Credentials in URL are not permitted.");
+
+        string host = uri.DnsSafeHost.Trim('[', ']').TrimEnd('.');
+        if (string.IsNullOrWhiteSpace(host))
+            return (false, null, "Missing host.");
+
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".internal", StringComparison.OrdinalIgnoreCase) ||
+            ulong.TryParse(host, out _))
+        {
+            return (false, null, "Internal or localhost hosts are blocked.");
+        }
+
+        if (IPAddress.TryParse(host, out var literalIp))
+        {
+            if (IsBlockedIpAddress(literalIp))
+                return (false, null, "Private, loopback, or link-local IP addresses are blocked.");
+            return (true, uri, null);
+        }
+
+        try
+        {
+            var resolve = dnsResolver ?? (h => Dns.GetHostAddressesAsync(h));
+            var addresses = await resolve(host);
+            if (addresses == null || addresses.Length == 0)
+                return (false, null, "Unable to resolve remote host.");
+
+            if (addresses.Any(IsBlockedIpAddress))
+                return (false, null, "Resolved IP belongs to a private, loopback, or restricted range.");
+
+            return (true, uri, null);
+        }
+        catch
+        {
+            return (false, null, "DNS resolution failed.");
+        }
+    }
+
+    public static bool IsBlockedIpAddress(IPAddress ip)
+    {
+        if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any))
+            return true;
+
+        if (ip.IsIPv4MappedToIPv6)
+            ip = ip.MapToIPv4();
+
+        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        {
+            byte[] b = ip.GetAddressBytes();
+            if (b[0] == 0) return true;                                  // 0.0.0.0/8
+            if (b[0] == 10) return true;                                 // 10.0.0.0/8 (RFC1918)
+            if (b[0] == 100 && b[1] >= 64 && b[1] <= 127) return true;   // 100.64.0.0/10 (CGNAT)
+            if (b[0] == 127) return true;                                // 127.0.0.0/8 (Loopback)
+            if (b[0] == 169 && b[1] == 254) return true;                 // 169.254.0.0/16 (Link-local / Cloud Metadata)
+            if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;    // 172.16.0.0/12 (RFC1918)
+            if (b[0] == 192 && b[1] == 0 && (b[2] == 0 || b[2] == 2)) return true;
+            if (b[0] == 192 && b[1] == 168) return true;                 // 192.168.0.0/16 (RFC1918)
+            if (b[0] == 198 && (b[1] == 18 || b[1] == 19)) return true;  // 198.18.0.0/15
+            if (b[0] >= 224) return true;                                // Multicast & Reserved
+            return false;
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast || ip.IsIPv6Teredo)
+                return true;
+
+            byte[] b = ip.GetAddressBytes();
+            // fc00::/7 Unique Local IPv6 (fc00..fdff)
+            if ((b[0] & 0xFE) == 0xFC) return true;
+        }
+
+        return false;
+    }
+
+    private static string ResolveAbsoluteShareImage(string? candidateUrl, string baseUrl, string defaultPath)
+    {
+        if (string.IsNullOrWhiteSpace(candidateUrl)) return $"{baseUrl}{defaultPath}";
+        if (candidateUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            candidateUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            return candidateUrl;
+        if (candidateUrl.StartsWith("/"))
+            return $"{baseUrl}{candidateUrl}";
+        return $"{baseUrl}/{candidateUrl.TrimStart('~', '/')}";
+    }
 
     private async Task<PlayerCardDto?> BuildPlayerCardDtoAsync(Guid id)
     {
@@ -150,13 +313,14 @@ public class ShareCardController : Controller
 
         if (player == null) return null;
 
-        var currentUser = User != null ? await _userManager.GetUserAsync(User) : null;
+        var currentUser = (User?.Identity?.IsAuthenticated == true) ? await _userManager.GetUserAsync(User) : null;
         string? currentUserId = currentUser?.Id;
         bool isSelf = currentUserId != null && player.LinkedUserId == currentUserId;
         bool isManager = currentUserId != null && await _auth.HasManagerAccessAsync(player.TeamId, currentUserId);
         bool isPlatformAdmin = currentUserId != null && await _auth.IsPlatformAdminAsync(currentUserId);
+        bool canSeePrivateFields = isSelf || isManager || isPlatformAdmin;
 
-        if (!player.IsPublicProfile && !isSelf && !isManager && !isPlatformAdmin) return null;
+        if (!player.IsPublicProfile && !canSeePrivateFields) return null;
 
         var matches = await _db.Matches
             .Where(m => (m.TeamAId == player.TeamId || m.TeamBId == player.TeamId)
@@ -205,12 +369,26 @@ public class ShareCardController : Controller
         int presentAtt = attendances.Count(r => r.Actual == ActualStatus.Present || r.IsExempt);
         double attRate = totalAtt > 0 ? (double)presentAtt / totalAtt : 0.8;
 
+        // MOTM eligibility: recent MonthlyFireAward OR top weekly club AB Coin OR >= 30 AB Coin total
         var recentAward = await _db.MonthlyFireAwards
             .AnyAsync(a => a.PlayerId == player.Id && a.DecidedAt >= DateTime.UtcNow.AddDays(-60));
+
         var totalAbPoints = await _db.PlayerAbJournalEntries
             .Where(e => e.PlayerId == player.Id && e.ReversedEntryId == null)
             .SumAsync(e => (int?)e.Points) ?? 0;
-        bool isMotm = recentAward || totalAbPoints >= 30;
+
+        var weekAgoLocal = CompetitionRules.LocalNow.AddDays(-7);
+        var weekAgoUtc = DateTime.UtcNow.AddDays(-7);
+        var teamWeeklyTotals = await _db.PlayerAbJournalEntries
+            .Where(e => e.TeamId == player.TeamId && e.ReversedEntryId == null &&
+                        (e.EventDate >= weekAgoLocal || e.CreatedAt >= weekAgoUtc))
+            .GroupBy(e => e.PlayerId)
+            .Select(g => new { PlayerId = g.Key, WeeklyPoints = g.Sum(x => x.Points) })
+            .ToListAsync();
+
+        int maxWeeklyAb = teamWeeklyTotals.Count > 0 ? teamWeeklyTotals.Max(x => x.WeeklyPoints) : 0;
+        bool isTopWeeklyAb = maxWeeklyAb > 0 && teamWeeklyTotals.Any(x => x.PlayerId == player.Id && x.WeeklyPoints == maxWeeklyAb);
+        bool isMotm = recentAward || isTopWeeklyAb || totalAbPoints >= 30;
 
         string rawPos = (player.Position ?? player.StandardPrimaryPosition ?? "Tiền đạo").Trim();
         string pUpper = rawPos.ToUpperInvariant();
@@ -220,6 +398,10 @@ public class ShareCardController : Controller
         bool isFwd = !isGk && !isDef && !isMid;
 
         string posCode = isGk ? "GK" : isDef ? (pUpper.Contains("CB") ? "CB" : pUpper.Contains("LB") ? "LB" : "RB") : isMid ? (pUpper.Contains("CAM") ? "CAM" : pUpper.Contains("CDM") ? "CDM" : "CM") : "ST";
+        if (!canSeePrivateFields && !player.PublicPosition)
+        {
+            rawPos = "Cầu thủ";
+        }
 
         int att = Math.Clamp(60 + (goalsCount * 4) + (isFwd ? 10 : isMid ? 5 : 0), 55, 99);
         int cre = Math.Clamp(60 + (assistsCount * 4) + (isMid ? 10 : isFwd ? 4 : 0), 55, 99);
@@ -240,21 +422,33 @@ public class ShareCardController : Controller
         else ovr = (int)Math.Round(att * 0.25 + cre * 0.20 + sta * 0.20 + win * 0.15 + rep * 0.10 + exp * 0.10);
         ovr = Math.Clamp(ovr, 55, 99);
 
-        string tier = isMotm ? "motm" : ovr >= 80 ? "gold" : ovr >= 70 ? "silver" : "bronze";
+        string tier = CalculateCardTier(ovr, isMotm);
+
+        var rawPlayStyles = player.PlayStyles ?? player.LinkedUser?.PlayStyles;
+        var parsedPlayStyles = PlayStyleCatalog.Parse(rawPlayStyles);
+        var playStyleItems = parsedPlayStyles.Select(ps => new PlayerCardPlayStyleDto
+        {
+            Code = ps.Definition.Code,
+            NameVi = ps.Definition.NameVi,
+            NameEn = ps.Definition.NameEn,
+            SvgPath = ps.Definition.SvgPath,
+            IsPlus = ps.IsPlus
+        }).ToList();
 
         return new PlayerCardDto
         {
             Id = player.Id,
             FullName = player.FullName,
             DisplayName = !string.IsNullOrWhiteSpace(player.ShirtName) ? player.ShirtName : player.FullName,
-            KitNumber = player.KitNumber,
+            KitNumber = (canSeePrivateFields || player.PublicKitNumber) ? player.KitNumber : null,
             PosCode = posCode,
             Position = rawPos,
-            PreferredFoot = player.PreferredFoot ?? "Phải",
+            PreferredFoot = (canSeePrivateFields || player.PublicPreferredFoot) ? (player.PreferredFoot ?? "Phải") : null,
             Region = player.Region ?? player.Team?.ActivityArea ?? "Hà Nội",
-            Experience = player.Experience ?? "Phong trào",
-            PhotoUrl = player.PhotoUrl ?? player.LinkedUser?.AvatarUrl,
-            PlayStyles = player.PlayStyles ?? player.LinkedUser?.PlayStyles,
+            Experience = (canSeePrivateFields || player.PublicExperience) ? (player.Experience ?? "Phong trào") : null,
+            PhotoUrl = (canSeePrivateFields || player.PublicPhoto) ? (player.PhotoUrl ?? player.LinkedUser?.AvatarUrl) : null,
+            PlayStyles = PlayStyleCatalog.NormalizeRaw(rawPlayStyles),
+            PlayStyleItems = playStyleItems,
             TeamName = player.Team?.Name ?? "AloBall FC",
             TeamSlug = player.Team?.Slug,
             TeamLogoUrl = player.Team?.LogoUrl,
@@ -287,7 +481,11 @@ public class ShareCardController : Controller
             .FirstOrDefaultAsync(m => m.Id == id);
 
         if (match == null) return null;
-        if (match.Status != MatchStatus.Completed || !match.ConfirmedByTeamA || (match.TeamBId.HasValue && !match.ConfirmedByTeamB))
+        if (match.Status != MatchStatus.Completed
+            || !match.ConfirmedByTeamA
+            || (match.TeamBId.HasValue && !match.ConfirmedByTeamB)
+            || !match.ScoreA.HasValue
+            || !match.ScoreB.HasValue)
         {
             return null;
         }
@@ -301,7 +499,7 @@ public class ShareCardController : Controller
             Name = teamAName,
             LogoUrl = match.TeamA.LogoUrl,
             CoverUrl = match.TeamA.CoverImageUrl,
-            CoverOpacity = match.TeamA.CoverOpacity ?? 0.7
+            CoverOpacity = Math.Clamp(match.TeamA.CoverOpacity ?? 0.7, 0.1, 1.0)
         };
 
         var teamB = new MatchPosterTeamDto
@@ -310,48 +508,46 @@ public class ShareCardController : Controller
             Name = teamBName,
             LogoUrl = match.TeamB?.LogoUrl ?? match.TeamA.LogoUrl,
             CoverUrl = match.TeamB?.CoverImageUrl ?? match.TeamA.CoverImageUrl,
-            CoverOpacity = match.TeamB?.CoverOpacity ?? 0.7
+            CoverOpacity = Math.Clamp(match.TeamB?.CoverOpacity ?? match.TeamA.CoverOpacity ?? 0.7, 0.1, 1.0)
         };
 
         var goalEvents = match.GoalEvents.OrderBy(g => g.Minute ?? 0).ToList();
-        var scorersA = goalEvents
-            .Where(g => g.TeamId == match.TeamAId)
-            .GroupBy(g => g.ScorerPlayerId)
-            .Select(grp => new MatchPosterScorerDto
-            {
-                PlayerName = grp.First().Scorer?.FullName ?? "Cầu thủ ẩn",
-                Goals = grp.Count(),
-                Minutes = string.Join("', ", grp.Where(x => x.Minute.HasValue).Select(x => x.Minute.ToString())) + (grp.Any(x => x.Minute.HasValue) ? "'" : ""),
-                AssistName = grp.FirstOrDefault(x => x.Assist != null)?.Assist?.FullName
-            }).ToList();
+        var internalSideByPlayer = match.Lineups
+            .GroupBy(l => l.PlayerId)
+            .ToDictionary(g => g.Key, g => g.First().TeamSide ?? "A");
 
-        var scorersB = goalEvents
-            .Where(g => g.TeamId != match.TeamAId)
-            .GroupBy(g => g.ScorerPlayerId)
-            .Select(grp => new MatchPosterScorerDto
+        bool IsSideAEvent(MatchGoalEvent ev)
+        {
+            if (match.Category == MatchCategory.Internal)
             {
-                PlayerName = grp.First().Scorer?.FullName ?? "Cầu thủ ẩn",
-                Goals = grp.Count(),
-                Minutes = string.Join("', ", grp.Where(x => x.Minute.HasValue).Select(x => x.Minute.ToString())) + (grp.Any(x => x.Minute.HasValue) ? "'" : ""),
-                AssistName = grp.FirstOrDefault(x => x.Assist != null)?.Assist?.FullName
-            }).ToList();
+                return !internalSideByPlayer.TryGetValue(ev.ScorerPlayerId, out var side) || side != "B";
+            }
+            return ev.TeamId == match.TeamAId;
+        }
 
-        // Calculate MOTM
+        var sideAEvents = goalEvents.Where(IsSideAEvent).ToList();
+        var sideBEvents = goalEvents.Where(ev => !IsSideAEvent(ev)).ToList();
+
+        var scorersA = BuildGroupedContributors(sideAEvents);
+        var scorersB = BuildGroupedContributors(sideBEvents);
+
+        // Calculate MOTM (Goals * 3 + Assists * 2)
         MatchPosterMotmDto? motm = null;
         var playerContributions = new Dictionary<Guid, (Player player, int points, int goals, int assists, string teamName)>();
         foreach (var g in goalEvents)
         {
+            string sideTeamName = IsSideAEvent(g) ? teamAName : teamBName;
             if (g.Scorer != null)
             {
                 if (!playerContributions.ContainsKey(g.ScorerPlayerId))
-                    playerContributions[g.ScorerPlayerId] = (g.Scorer, 0, 0, 0, g.TeamId == match.TeamAId ? teamAName : teamBName);
+                    playerContributions[g.ScorerPlayerId] = (g.Scorer, 0, 0, 0, sideTeamName);
                 var c = playerContributions[g.ScorerPlayerId];
                 playerContributions[g.ScorerPlayerId] = (c.player, c.points + 3, c.goals + 1, c.assists, c.teamName);
             }
             if (g.Assist != null && g.AssistPlayerId.HasValue)
             {
                 if (!playerContributions.ContainsKey(g.AssistPlayerId.Value))
-                    playerContributions[g.AssistPlayerId.Value] = (g.Assist, 0, 0, 0, g.TeamId == match.TeamAId ? teamAName : teamBName);
+                    playerContributions[g.AssistPlayerId.Value] = (g.Assist, 0, 0, 0, sideTeamName);
                 var c = playerContributions[g.AssistPlayerId.Value];
                 playerContributions[g.AssistPlayerId.Value] = (c.player, c.points + 2, c.goals, c.assists + 1, c.teamName);
             }
@@ -365,7 +561,7 @@ public class ShareCardController : Controller
                 PlayerId = best.player.Id,
                 PlayerName = best.player.FullName,
                 TeamName = best.teamName,
-                PhotoUrl = best.player.PhotoUrl,
+                PhotoUrl = best.player.PublicPhoto ? best.player.PhotoUrl : null,
                 Highlight = $"{(best.goals > 0 ? $"{best.goals} Bàn thắng " : "")}{(best.assists > 0 ? $"· {best.assists} Kiến tạo" : "")}".Trim(' ', '·')
             };
         }
@@ -377,15 +573,17 @@ public class ShareCardController : Controller
                 PlayerId = p.Id,
                 PlayerName = p.FullName,
                 TeamName = teamAName,
-                PhotoUrl = p.PhotoUrl,
+                PhotoUrl = p.PublicPhoto ? p.PhotoUrl : null,
                 Highlight = "Cầu thủ thi đấu xuất sắc"
             };
         }
 
+        var localKickoff = CompetitionRules.ToLocal(match.MatchDateTime);
+
         return new MatchPosterDto
         {
             Id = match.Id,
-            MatchDate = match.MatchDateTime.ToString("HH:mm · dd/MM/yyyy"),
+            MatchDate = localKickoff.ToString("HH:mm · dd/MM/yyyy"),
             Venue = string.IsNullOrEmpty(match.PitchName) ? "Sân bóng đá phong trào" : match.PitchName,
             PitchType = match.PitchType ?? "Sân 7",
             Category = match.Category switch
@@ -403,6 +601,61 @@ public class ShareCardController : Controller
             Motm = motm,
             BrandTag = "aloball.vercel.app"
         };
+    }
+
+    private static List<MatchPosterScorerDto> BuildGroupedContributors(List<MatchGoalEvent> events)
+    {
+        var map = new Dictionary<Guid, (string Name, int Goals, int Assists, List<int> Minutes, HashSet<string> Assisters)>();
+
+        foreach (var ev in events)
+        {
+            var scorerId = ev.ScorerPlayerId;
+            var scorerName = ev.Scorer?.FullName ?? "Cầu thủ ẩn";
+            if (!map.TryGetValue(scorerId, out var sc))
+                sc = (scorerName, 0, 0, new List<int>(), new HashSet<string>());
+
+            sc.Goals++;
+            if (ev.Minute.HasValue) sc.Minutes.Add(ev.Minute.Value);
+            if (ev.Assist != null && !string.IsNullOrWhiteSpace(ev.Assist.FullName))
+                sc.Assisters.Add(ev.Assist.FullName);
+            map[scorerId] = sc;
+
+            if (ev.AssistPlayerId.HasValue)
+            {
+                var assistId = ev.AssistPlayerId.Value;
+                var assistName = ev.Assist?.FullName ?? "Đồng đội";
+                if (!map.TryGetValue(assistId, out var ast))
+                    ast = (assistName, 0, 0, new List<int>(), new HashSet<string>());
+                ast.Assists++;
+                map[assistId] = ast;
+            }
+        }
+
+        return map.Values
+            .OrderByDescending(v => v.Goals)
+            .ThenByDescending(v => v.Assists)
+            .ThenBy(v => v.Name)
+            .Select(v =>
+            {
+                var parts = new List<string>();
+                if (v.Goals > 0) parts.Add($"{v.Goals}⚽");
+                if (v.Assists > 0) parts.Add($"{v.Assists}👟");
+                string summary = parts.Count > 0 ? $"{v.Name} ({string.Join(", ", parts)})" : v.Name;
+                string? minutesStr = v.Minutes.Count > 0
+                    ? string.Join("', ", v.Minutes.OrderBy(m => m)) + "'"
+                    : null;
+
+                return new MatchPosterScorerDto
+                {
+                    PlayerName = v.Name,
+                    Goals = v.Goals,
+                    Assists = v.Assists,
+                    Minutes = minutesStr,
+                    AssistName = v.Assisters.FirstOrDefault(),
+                    SummaryText = summary
+                };
+            })
+            .ToList();
     }
 
     #endregion

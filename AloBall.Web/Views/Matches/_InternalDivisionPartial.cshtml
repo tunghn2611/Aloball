@@ -1,4 +1,4 @@
-@model AloBall.Web.Data.Entities.MatchGame
+﻿@model AloBall.Web.Data.Entities.MatchGame
 @{
     bool isInternal = Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal;
     bool isManagerA = ViewBag.IsManagerA ?? false;
@@ -781,7 +781,7 @@
         photoUrl = p.PhotoUrl,
         preferredFoot = p.PreferredFoot,
         experience = p.Experience,
-        playStyles = p.PlayStyles,
+        playStyles = AloBall.Web.Models.PlayStyleCatalog.NormalizeRaw(p.PlayStyles),
         category = AloBall.Web.Services.TeamDivision.PositionCompatibilityMatrix.NormalizePositionString(p.Position ?? "MF")
     })));
 
@@ -796,7 +796,9 @@
         const seed = myTeamPlayerSeeds.find(s => s.playerId && player.playerId && s.playerId.toLowerCase() === player.playerId.toLowerCase());
         let raw = player.playStyles || player.PlayStyles || (seed ? seed.playStyles : '');
         if (raw && typeof raw === 'string' && raw.trim().length > 0) {
-            return raw.trim();
+            const tokens = raw.split(',').map(t => t.trim()).filter(Boolean);
+            tokens.sort((a, b) => (b.endsWith('+') ? 1 : 0) - (a.endsWith('+') ? 1 : 0));
+            return tokens.slice(0, 4).join(',');
         }
         return ''; // Không gán thì không hiển thị
     }

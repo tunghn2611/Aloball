@@ -1,4 +1,4 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +9,7 @@ public static class CompetitionRules
     // Match/session timestamps entered by clubs use Vietnam local time.
     private static readonly TimeZoneInfo VnZone = ResolveZone();
     public static DateTime LocalNow => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VnZone);
+    public static DateTime ToLocal(DateTime dt) => dt.Kind == DateTimeKind.Utc ? TimeZoneInfo.ConvertTimeFromUtc(dt, VnZone) : dt;
 
     private static TimeZoneInfo ResolveZone()
     {

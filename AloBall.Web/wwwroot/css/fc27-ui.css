@@ -152,11 +152,11 @@
     height: 16px;
 }
 
-/* Vertical Stack along side edge (Pitch Player Card) */
+/* Vertical Stack along left edge (Pitch Player Card) */
 .fc27-pitch-card-playstyles {
     position: absolute;
     top: 4px;
-    right: -11px;
+    left: -10px;
     display: flex;
     flex-direction: column;
     gap: 3px;

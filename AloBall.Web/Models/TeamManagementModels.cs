@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using AloBall.Web.Data.Entities;
 
 namespace AloBall.Web.Models;
@@ -13,6 +13,9 @@ public class TeamProfileInput
     [StringLength(100)] public string? ActivityArea { get; set; }
     [StringLength(200)] public string? HomePitch { get; set; }
     [StringLength(2000)] public string? Description { get; set; }
+    [StringLength(30)] public string? BankCode { get; set; }
+    [StringLength(40)] public string? AccountNumber { get; set; }
+    [StringLength(120)] public string? AccountHolderName { get; set; }
     public bool IsPublic { get; set; } = true;
 }
 
@@ -58,6 +61,7 @@ public class ScheduleMatchInput
     public DateTime MatchDateTime { get; set; }
     [Required, StringLength(200)] public string PitchName { get; set; } = "";
     public string PitchType { get; set; } = "7 người";
+    [StringLength(50)] public string? KitColor { get; set; }
     [StringLength(1000)] public string? Notes { get; set; }
     public bool IsPublic { get; set; } = true;
 }

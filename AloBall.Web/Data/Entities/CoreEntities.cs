@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Identity;
 
@@ -56,6 +56,14 @@ public class Team
     public string? Description { get; set; }
     public string? ActivityArea { get; set; }
     public string? HomePitch { get; set; }
+
+    // Thông tin ngân hàng nhận tiền quỹ / chia tiền sân (VietQR)
+    [MaxLength(30)]
+    public string? BankCode { get; set; }
+    [MaxLength(40)]
+    public string? AccountNumber { get; set; }
+    [MaxLength(120)]
+    public string? AccountHolderName { get; set; }
 
     public bool IsPublic { get; set; } = true;
     public bool IsDraft { get; set; } = false;
@@ -129,6 +137,9 @@ public class Player
     public string? ShortSize { get; set; }
 
     public bool IsActive { get; set; } = true;
+    public bool IsClaimed { get; set; } = false;
+    [MaxLength(50)]
+    public string? InviteToken { get; set; }
     public DateTime JoinedDate { get; set; } = DateTime.UtcNow;
     public DateTime? InactiveDate { get; set; }
 

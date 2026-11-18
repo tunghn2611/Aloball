@@ -1,4 +1,4 @@
-@model IEnumerable<AloBall.Web.Data.Entities.Player>
+﻿@model IEnumerable<AloBall.Web.Data.Entities.Player>
 @{
     var team = ViewBag.Team as AloBall.Web.Data.Entities.Team;
     ViewData["Title"] = $"Danh sách Thành viên - {team?.Name}";
@@ -12,15 +12,18 @@
     <div><span class="eyebrow">ĐỘI HÌNH · @team?.Name</span><h1>Những người cùng màu áo.</h1><p>@Model.Count() cầu thủ · Hồ sơ, số áo và thông tin đặt áo của đội.</p></div>
     @if (isManager)
     {
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-primary btn-sm shadow-sm fw-bold d-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#bulkAddModal" style="min-height: 38px;">
+                <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> Thêm nhanh (30s)
+            </button>
             <button class="btn btn-arena-outline btn-sm" data-bs-toggle="modal" data-bs-target="#importExcelModal">
                 <i class="bi bi-file-earmark-arrow-up me-1"></i> Nhập từ Excel
             </button>
             <a asp-controller="Sheets" asp-action="ExportPlayers" asp-route-teamId="@team?.Id" class="btn btn-arena-outline btn-sm">
                 <i class="bi bi-file-earmark-arrow-down me-1"></i> Xuất Excel
             </a>
-            <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" class="btn btn-arena-primary btn-sm shadow-sm">
-                <i class="bi bi-person-plus-fill me-1"></i> Thêm cầu thủ
+            <a asp-action="PlayerEditor" asp-route-teamId="@team?.Id" class="btn btn-arena-outline btn-sm">
+                <i class="bi bi-person-plus me-1"></i> Thêm cầu thủ
             </a>
         </div>
     }
@@ -123,6 +126,10 @@
                                 {
                                     <small class="text-success"><i class="bi bi-check-circle-fill"></i> Đã liên kết tài khoản</small>
                                 }
+                                else
+                                {
+                                    <small class="text-warning-emphasis"><i class="bi bi-person-dash"></i> Chưa nhận hồ sơ</small>
+                                }
                             </td>
                             <td><span class="text-muted">@(p.Position ?? "Chưa đặt")</span></td>
                             <td><code class="text-dark fw-bold">@(p.ShirtName ?? "-")</code></td>
@@ -147,7 +154,7 @@
                                         <i class="bi bi-eye"></i>
                                     </a>
                                     @if(isManager) {
-                                        <button type="button" class="btn btn-outline-info btn-sm fw-bold px-2 py-1 text-nowrap d-inline-flex align-items-center gap-1 fc27-btn-assign-ps" onclick="openPlayStyleModal('@p.Id', '@Html.Raw(p.FullName.Replace("'", "\'"))', '@(p.PlayStyles ?? "")')" title="Gán kỹ năng PlayStyle FC 27">
+                                        <button type="button" class="btn btn-outline-info btn-sm fw-bold px-2 py-1 text-nowrap d-inline-flex align-items-center gap-1 fc27-btn-assign-ps" onclick="openPlayStyleModal('@p.Id', '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(p.FullName))', '@(p.PlayStyles ?? "")')" title="Gán kỹ năng PlayStyle FC 27">
                                             <i class="bi bi-gem"></i> <span class="d-none d-md-inline">Kỹ năng</span>
                                         </button>
                                         @if (!string.IsNullOrEmpty(p.LinkedUserId))
@@ -230,7 +237,7 @@
                     </a>
                     @if (isManager)
                     {
-                        <button type="button" class="btn btn-outline-info btn-sm fw-bold py-1 px-2 text-nowrap fc27-btn-assign-ps" onclick="openPlayStyleModal('@p.Id', '@Html.Raw(p.FullName.Replace("'", "\'"))', '@(p.PlayStyles ?? "")')" title="Gán kỹ năng PlayStyle FC 27" style="font-size: 11px;">
+                        <button type="button" class="btn btn-outline-info btn-sm fw-bold py-1 px-2 text-nowrap fc27-btn-assign-ps" onclick="openPlayStyleModal('@p.Id', '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(p.FullName))', '@(p.PlayStyles ?? "")')" title="Gán kỹ năng PlayStyle FC 27" style="font-size: 11px;">
                             <i class="bi bi-gem me-1"></i>Kỹ năng
                         </button>
                         @if (!string.IsNullOrEmpty(p.LinkedUserId))
@@ -309,6 +316,47 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-arena-outline" data-bs-dismiss="modal">Hủy</button>
                         <button type="submit" class="btn btn-arena-primary">Lưu Cầu Thủ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Thêm Nhanh Danh Sách (30 Giây) -->
+    <div class="modal fade" id="bulkAddModal" tabindex="-1" aria-labelledby="bulkAddModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="bulkAddModalLabel">
+                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Thêm Nhanh Đội Hình (30s)
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form asp-controller="Teams" asp-action="BulkAddRoster" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="teamId" value="@team?.Id" />
+                    <div class="modal-body">
+                        <p class="small text-muted mb-2">
+                            Dán hoặc gõ danh sách anh em trong đội (mỗi người 1 dòng, tối đa 20 người). Cầu thủ chưa cần tạo tài khoản ngay, vẫn ghi bàn, kiến tạo và điểm danh bình thường!
+                        </p>
+                        <div class="bg-light p-2 rounded small text-secondary mb-3 border">
+                            <strong>Định dạng hỗ trợ:</strong>
+                            <ul class="mb-0 ps-3">
+                                <li><code>Nguyễn Văn A</code></li>
+                                <li><code>10. Trần Tuấn (Tiền đạo)</code> hoặc <code>#7 Hoàng Nam - Tiền vệ</code></li>
+                                <li><code>Lê Văn C - 9 - ST</code></li>
+                            </ul>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-dark">Danh sách tên cầu thủ:</label>
+                            <textarea name="rawRosterText" class="form-control font-monospace" rows="8" placeholder="Nguyễn Văn A - 10 - Tiền đạo&#10;Trần Văn B - 7 - Tiền vệ&#10;Lê Văn C - Thủ môn&#10;Phạm Văn D" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4" style="min-height: 44px;">
+                            <i class="bi bi-check2-circle me-1"></i> Lưu Vào Đội Hình
+                        </button>
                     </div>
                 </form>
             </div>

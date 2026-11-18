@@ -1,4 +1,4 @@
-using AloBall.Web.Data.Entities;
+﻿using AloBall.Web.Data.Entities;
 using AloBall.Web.Models;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +19,8 @@ public partial class TeamsController
         if (team == null) return NotFound();
         return View(new TeamProfileInput { Id = id, Name = team.Name, EstablishedDate = team.EstablishedDate,
             LogoUrl = team.LogoUrl, ActivityArea = team.ActivityArea, HomePitch = team.HomePitch,
-            Description = team.Description, IsPublic = team.IsPublic });
+            Description = team.Description, BankCode = team.BankCode, AccountNumber = team.AccountNumber,
+            AccountHolderName = team.AccountHolderName, IsPublic = team.IsPublic });
     }
 
     [HttpPost, Authorize, ValidateAntiForgeryToken]
@@ -56,12 +57,28 @@ public partial class TeamsController
         }
         if (!CompetitionRules.SafeImageUrl(input.LogoUrl)) ModelState.AddModelError(nameof(input.LogoUrl), "Dùng đường dẫn ảnh bắt đầu bằng https://.");
         if (input.EstablishedDate > CompetitionRules.LocalNow.Date) ModelState.AddModelError(nameof(input.EstablishedDate), "Ngày thành lập không được ở tương lai.");
+
+        var cleanBank = input.BankCode?.Trim();
+        var cleanAcc = string.IsNullOrWhiteSpace(input.AccountNumber) ? null : System.Text.RegularExpressions.Regex.Replace(input.AccountNumber.Trim(), @"\s+", "");
+        var cleanHolder = string.IsNullOrWhiteSpace(input.AccountHolderName) ? null : input.AccountHolderName.Trim().ToUpperInvariant();
+        if ((!string.IsNullOrWhiteSpace(cleanBank) && string.IsNullOrWhiteSpace(cleanAcc)) ||
+            (string.IsNullOrWhiteSpace(cleanBank) && !string.IsNullOrWhiteSpace(cleanAcc)))
+        {
+            ModelState.AddModelError(nameof(input.AccountNumber), "Vui lòng chọn ngân hàng và nhập đầy đủ số tài khoản nhận tiền.");
+        }
+        else if (!string.IsNullOrWhiteSpace(cleanAcc) && !System.Text.RegularExpressions.Regex.IsMatch(cleanAcc, @"^[a-zA-Z0-9]{4,35}$"))
+        {
+            ModelState.AddModelError(nameof(input.AccountNumber), "Số tài khoản ngân hàng chỉ gồm chữ hoặc số (4-35 ký tự).");
+        }
+
         if (!ModelState.IsValid) return View(input);
         var team = await _db.Teams.FindAsync(input.Id);
         if (team == null) return NotFound();
         team.Name = input.Name.Trim(); team.LogoUrl = input.LogoUrl?.Trim();
         team.EstablishedDate = input.EstablishedDate; team.ActivityArea = input.ActivityArea?.Trim();
-        team.HomePitch = input.HomePitch?.Trim(); team.Description = input.Description?.Trim(); team.IsPublic = input.IsPublic;
+        team.HomePitch = input.HomePitch?.Trim(); team.Description = input.Description?.Trim();
+        team.BankCode = cleanBank; team.AccountNumber = cleanAcc; team.AccountHolderName = cleanHolder;
+        team.IsPublic = input.IsPublic;
         await _db.SaveChangesAsync();
         TempData["Success"] = "Đã cập nhật hồ sơ đội bóng.";
         return RedirectToAction(nameof(Dashboard), new { id = team.Id });

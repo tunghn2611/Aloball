@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AloBall.Web.Data.Entities;
@@ -29,6 +29,10 @@ public class MatchGame
     public DateTime MatchDateTime { get; set; }
     public string PitchName { get; set; } = string.Empty;
     public string PitchType { get; set; } = "7 người"; // 5, 7, 11 người
+    [MaxLength(50)]
+    public string? RsvpToken { get; set; }
+    [MaxLength(50)]
+    public string? KitColor { get; set; }
 
     // Đội A (luôn là đội chủ nhà hoặc đội tạo)
     public Guid TeamAId { get; set; }

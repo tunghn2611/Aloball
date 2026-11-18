@@ -1,4 +1,4 @@
-@model AloBall.Web.Data.Entities.Team
+﻿@model AloBall.Web.Data.Entities.Team
 @{
     ViewData["Title"] = $"{Model.Name} - Hồ sơ công khai CLB";
     var upcomingMatches = ViewBag.UpcomingMatches as IEnumerable<AloBall.Web.Data.Entities.MatchGame> ?? Enumerable.Empty<AloBall.Web.Data.Entities.MatchGame>();
@@ -102,6 +102,23 @@
                 <div><span>Thành lập</span><strong>@(Model.EstablishedDate?.ToString("dd/MM/yyyy") ?? "Chưa cập nhật")</strong></div>
                 <div><span>Uy tín giao lưu</span><strong><i class="bi bi-star-fill"></i> @Model.AverageRating.ToString("0.0") <small>(@Model.ValidReviewCount)</small></strong></div>
             </div>
+            @{ var profileTeamVibe = ViewBag.TeamVibe as AloBall.Web.Models.TeamVibeAnalysis; }
+            @if (profileTeamVibe != null && (profileTeamVibe.TopVibes.Any() || profileTeamVibe.IsHighHardTackle))
+            {
+                <div class="mt-3">
+                    @await Html.PartialAsync("_TeamVibePills", profileTeamVibe)
+                </div>
+            }
+            @if (ViewBag.ShowVibeWarning == true && profileTeamVibe != null)
+            {
+                <div class="fc27-vibe-warning-alert mt-3">
+                    <div class="warning-icon">⚠️</div>
+                    <div>
+                        <div class="warning-title">Cảnh báo phong cách thi đấu</div>
+                        <p class="warning-desc">@Model.Name có tỷ lệ <strong>Đá rát – quyết liệt @profileTeamVibe.HardTacklePercentage%</strong>, không thật sự phù hợp với đội <strong>Đá dưỡng sinh</strong>. Hãy thống nhất luật chơi trước khi mời giao hữu.</p>
+                    </div>
+                </div>
+            }
             <div class="d-flex align-items-center gap-3 flex-wrap mt-4">
                 @if (Model.IsRestrictedFromMatchmaking) { <span class="badge bg-danger-subtle text-danger">Tạm ngưng bắt đối</span> }
                 else { <span class="availability"><i></i> Sẵn sàng giao lưu</span> }
@@ -336,6 +353,18 @@
                                 }
                             </div>
                         </div>
+                        @{
+                            var pubRevVibes = AloBall.Web.Models.PlayStyleCatalog.ParseVibeTags(rev.PlayStyleVibeTags);
+                        }
+                        @if (pubRevVibes.Any())
+                        {
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                @foreach (var vt in pubRevVibes)
+                                {
+                                    <span class="fc27-vibe-pill @AloBall.Web.Models.PlayStyleCatalog.GetVibeCssClass(vt)">@vt</span>
+                                }
+                            </div>
+                        }
                         <p class="small text-secondary mb-0 bg-light p-2 rounded">
                             <i class="bi bi-quote me-1 text-muted"></i>@(string.IsNullOrWhiteSpace(rev.Comment) ? "CLB thi đấu nhiệt tình, đúng giờ." : rev.Comment)
                         </p>
@@ -459,9 +488,12 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="/cau-thu/@p.Id" class="fw-bold text-dark text-decoration-none hover-primary">
-                                            @p.FullName <i class="bi bi-box-arrow-up-right small text-muted ms-1" style="font-size: 10px;"></i>
-                                        </a>
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <a href="/cau-thu/@p.Id" class="fw-bold text-dark text-decoration-none hover-primary">
+                                                @p.FullName <i class="bi bi-box-arrow-up-right small text-muted ms-1" style="font-size: 10px;"></i>
+                                            </a>
+                                            @await Html.PartialAsync("_PlayStyleBadges", p.PlayStyles)
+                                        </div>
                                         @if (!string.IsNullOrEmpty(p.LinkedUserId))
                                         {
                                             <small class="text-success d-block"><i class="bi bi-check-circle-fill"></i> Đã liên kết</small>
@@ -485,8 +517,11 @@
                                         @(p.PublicExperience && !string.IsNullOrEmpty(p.Experience) ? p.Experience : "-")
                                     </td>
                                     <td class="text-end pe-3">
-                                        <div class="d-flex justify-content-end align-items-center gap-1">
-                                            <a href="/cau-thu/@p.Id" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;" title="Xem hồ sơ cá nhân">
+                                        <div class="d-flex justify-content-end align-items-center gap-1 flex-wrap">
+                                            <button type="button" class="btn btn-warning btn-sm fw-bold py-1 px-2 text-dark shadow-sm d-inline-flex align-items-center gap-1" style="font-size: 11px; min-height: 44px;" onclick="openPlayerCardModal('@p.Id')" title="Thẻ chỉ số FIFA">
+                                                <i class="bi bi-person-badge-fill"></i> Thẻ chỉ số FIFA
+                                            </button>
+                                            <a href="/cau-thu/@p.Id" class="btn btn-outline-secondary btn-sm py-1 px-2 d-inline-flex align-items-center" style="font-size: 11px; min-height: 44px;" title="Xem hồ sơ cá nhân">
                                                 <i class="bi bi-person-badge me-1"></i>Hồ sơ
                                             </a>
                                             @if (isManager)
@@ -543,9 +578,12 @@
                         <!-- Main Info -->
                         <div class="roster-card-body flex-grow-1 min-w-0">
                             <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
-                                <a href="/cau-thu/@p.Id" class="text-decoration-none text-dark flex-grow-1 min-w-0" title="Xem hồ sơ @p.FullName">
-                                    <h6 class="fw-bold mb-0 text-dark text-truncate">@p.FullName <i class="bi bi-box-arrow-up-right small text-muted" style="font-size: 9px;"></i></h6>
-                                </a>
+                                <div class="d-flex align-items-center gap-1 flex-grow-1 min-w-0 flex-wrap">
+                                    <a href="/cau-thu/@p.Id" class="text-decoration-none text-dark min-w-0" title="Xem hồ sơ @p.FullName">
+                                        <h6 class="fw-bold mb-0 text-dark text-truncate">@p.FullName <i class="bi bi-box-arrow-up-right small text-muted" style="font-size: 9px;"></i></h6>
+                                    </a>
+                                    @await Html.PartialAsync("_PlayStyleBadges", p.PlayStyles)
+                                </div>
                                 <span class="badge bg-success-subtle text-success border px-2 py-1 card-status-badge">
                                     Thành viên
                                 </span>
@@ -582,8 +620,11 @@
                         </div>
 
                         <!-- Contact action button -->
-                        <div class="card-action-btn mt-2 mt-sm-0 flex-shrink-0 d-flex gap-1">
-                            <a href="/cau-thu/@p.Id" class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;" title="Xem hồ sơ cá nhân">
+                        <div class="card-action-btn mt-2 mt-sm-0 flex-shrink-0 d-flex gap-1 flex-wrap">
+                            <button type="button" class="btn btn-warning btn-sm fw-bold py-1 px-2 text-dark shadow-sm d-inline-flex align-items-center gap-1" style="font-size: 11px; min-height: 44px;" onclick="openPlayerCardModal('@p.Id')" title="Thẻ chỉ số FIFA">
+                                <i class="bi bi-person-badge-fill"></i> <span class="d-none d-md-inline">Thẻ chỉ số FIFA</span>
+                            </button>
+                            <a href="/cau-thu/@p.Id" class="btn btn-outline-secondary btn-sm py-1 px-2 d-inline-flex align-items-center" style="font-size: 11px; min-height: 44px;" title="Xem hồ sơ cá nhân">
                                 <i class="bi bi-person-badge"></i> <span class="d-none d-md-inline ms-1">Hồ sơ</span>
                             </a>
                             @if (isManager && !string.IsNullOrEmpty(p.LinkedUserId))
@@ -703,6 +744,17 @@
                     <input type="hidden" name="targetTeamId" value="@Model.Id" />
                     <input type="hidden" name="targetSlug" value="@Model.Slug" />
                     <div class="modal-body">
+                        @if (ViewBag.ShowVibeWarning == true)
+                        {
+                            var targetVibeAlert = ViewBag.TeamVibe as AloBall.Web.Models.TeamVibeAnalysis;
+                            <div class="fc27-vibe-warning-alert mb-3">
+                                <div class="warning-icon">⚠️</div>
+                                <div>
+                                    <div class="warning-title">Cảnh báo mềm trước khi mời giao hữu</div>
+                                    <p class="warning-desc"><strong>@Model.Name</strong> có tỷ lệ đánh giá <strong>Đá rát – quyết liệt @(targetVibeAlert?.HardTacklePercentage ?? 0)%</strong>. Hãy trao đổi rõ mức độ va chạm cho đội Đá dưỡng sinh trước khi gửi lời mời.</p>
+                                </div>
+                            </div>
+                        }
                         <div class="alert alert-light border small text-dark mb-3">
                             <i class="bi bi-info-circle-fill text-success me-1"></i>
                             Tạo lời mời giao lưu trực tiếp tới <strong>@Model.Name</strong>. Kèo sẽ được ghi nhận và thông báo trên hệ thống.

@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AloBall.Web.Data.Entities;
@@ -226,4 +226,87 @@ public class MatchSettlementAdjustmentAudit
     public string AdjustedByUserId { get; set; } = string.Empty;
 
     public DateTime AdjustedAt { get; set; } = DateTime.UtcNow;
+}
+
+public enum ExpenseSharePaymentStatus
+{
+    Unpaid = 0,
+    Paid = 1
+}
+
+// Bảng chia tiền sân & kèo Tăng 2 cho trận đấu (Phase 1B)
+public class MatchExpense
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid MatchId { get; set; }
+    public MatchGame Match { get; set; } = null!;
+
+    public Guid TeamId { get; set; }
+    public Team Team { get; set; } = null!;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal PitchFee { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal WaterFee { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal RefereeFee { get; set; } = 0m;
+
+    [Required, MaxLength(20)]
+    public string SplitRatio { get; set; } = "100";
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal Tang2Fee { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal MatchTotalPayable { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal MatchPerPersonShare { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal Tang2PerPersonShare { get; set; } = 0m;
+
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+
+    public string? CreatedByUserId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public ICollection<MatchExpenseShare> Shares { get; set; } = new List<MatchExpenseShare>();
+}
+
+// Khoản chia cụ thể theo từng cầu thủ (bao gồm Unclaimed Roster) kèm trạng thái thu & VietQR
+public class MatchExpenseShare
+{
+    [Key]
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid MatchExpenseId { get; set; }
+    public MatchExpense MatchExpense { get; set; } = null!;
+
+    public Guid PlayerId { get; set; }
+    public Player Player { get; set; } = null!;
+
+    public string? LinkedUserId { get; set; }
+
+    public bool ParticipatesInMatch { get; set; } = true;
+    public bool ParticipatesInTang2 { get; set; } = false;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal MatchAmount { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal Tang2Amount { get; set; } = 0m;
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TotalAmount { get; set; } = 0m;
+
+    public ExpenseSharePaymentStatus PaymentStatus { get; set; } = ExpenseSharePaymentStatus.Unpaid;
+    public DateTime? PaidAt { get; set; }
+    public string? MarkedByUserId { get; set; }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using AloBall.Web.Data.Entities;
@@ -19,6 +19,7 @@ public partial class TeamsController
 
     [HttpPost("/club/member/playstyles")]
     [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdatePlayStyles([FromBody] UpdatePlayStylesDto dto)
     {
         var user = await _userManager.GetUserAsync(User);

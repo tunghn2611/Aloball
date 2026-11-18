@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using AloBall.Web.Data.Entities;
 
 namespace AloBall.Web.Models;
@@ -327,4 +327,81 @@ public class MemberFinanceRecordDto
     public int UnpaidCount { get; set; }
     public int PartialCount { get; set; }
     public int FullyPaidCount { get; set; }
+}
+
+// Phase 1B: Smart Matchday Split-Bill, Tăng 2 Separation & Dynamic VietQR
+public class MatchSplitBillInput
+{
+    public Guid MatchId { get; set; }
+    public Guid TeamId { get; set; }
+    public decimal PitchFee { get; set; } = 0m;
+    public decimal WaterFee { get; set; } = 0m;
+    public decimal RefereeFee { get; set; } = 0m;
+    [StringLength(20)]
+    public string SplitRatio { get; set; } = "100";
+    public decimal Tang2Fee { get; set; } = 0m;
+    [StringLength(500)]
+    public string? Notes { get; set; }
+    public List<Guid> MatchParticipantPlayerIds { get; set; } = new();
+    public List<Guid> Tang2ParticipantPlayerIds { get; set; } = new();
+    public string? RsvpToken { get; set; }
+}
+
+public class MatchSplitBillShareRow
+{
+    public Guid ShareId { get; set; }
+    public Guid PlayerId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public int? KitNumber { get; set; }
+    public string? Position { get; set; }
+    public bool IsClaimed { get; set; }
+    public string? LinkedUserId { get; set; }
+    public bool ParticipatesInMatch { get; set; }
+    public bool ParticipatesInTang2 { get; set; }
+    public decimal MatchAmount { get; set; }
+    public decimal Tang2Amount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public ExpenseSharePaymentStatus PaymentStatus { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public string? VietQrUrl { get; set; }
+    public string TransferNote { get; set; } = string.Empty;
+}
+
+public class MatchSplitBillCandidateRow
+{
+    public Guid PlayerId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public int? KitNumber { get; set; }
+    public string? Position { get; set; }
+    public bool IsClaimed { get; set; }
+    public bool InMatch { get; set; }
+    public bool InTang2 { get; set; }
+    public string AttendanceHint { get; set; } = string.Empty;
+}
+
+public class MatchSplitBillPanelViewModel
+{
+    public Guid MatchId { get; set; }
+    public Guid TeamId { get; set; }
+    public string TeamName { get; set; } = string.Empty;
+    public bool HasExpense => ExpenseId.HasValue;
+    public Guid? ExpenseId { get; set; }
+    public decimal PitchFee { get; set; }
+    public decimal WaterFee { get; set; }
+    public decimal RefereeFee { get; set; }
+    public string SplitRatio { get; set; } = "100";
+    public decimal Tang2Fee { get; set; }
+    public decimal MatchTotalPayable { get; set; }
+    public decimal MatchPerPersonShare { get; set; }
+    public decimal Tang2PerPersonShare { get; set; }
+    public decimal GrandTotalCollected => Shares.Where(s => s.PaymentStatus == ExpenseSharePaymentStatus.Paid).Sum(s => s.TotalAmount);
+    public decimal GrandTotalDue => Shares.Sum(s => s.TotalAmount);
+    public string? Notes { get; set; }
+    public string? BankCode { get; set; }
+    public string? AccountNumber { get; set; }
+    public string? AccountHolderName { get; set; }
+    public bool HasBankSetup => !string.IsNullOrWhiteSpace(BankCode) && !string.IsNullOrWhiteSpace(AccountNumber);
+    public List<MatchSplitBillShareRow> Shares { get; set; } = new();
+    public List<MatchSplitBillCandidateRow> Candidates { get; set; } = new();
+    public string ZaloCollectionText { get; set; } = string.Empty;
 }

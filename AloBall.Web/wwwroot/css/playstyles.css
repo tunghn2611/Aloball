@@ -1,0 +1,223 @@
+/* ==========================================================================
+   ALOBALL PHASE 2A: 37 EA FC PLAYSTYLES, LEFT-EDGE PITCH STACK & TEAM VIBE UI
+   ========================================================================== */
+
+:root {
+    --ps-gold: #F59E0B;
+    --ps-gold-grad: linear-gradient(135deg, #F59E0B 0%, #FEF08A 55%, #D97706 100%);
+    --ps-gold-glow: rgba(245, 158, 11, 0.55);
+    --ps-cyan: #38BDF8;
+    --ps-silver: #E2E8F0;
+    --ps-cyan-grad: linear-gradient(135deg, #38BDF8 0%, #E2E8F0 70%, #0284C7 100%);
+    --ps-cyan-glow: rgba(56, 189, 248, 0.45);
+}
+
+/* Beveled Diamond PlayStyle Badge (EA FC aesthetic) */
+.fc27-ps-diamond {
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.fc27-ps-diamond.fc27-ps-gold {
+    background: var(--ps-gold-grad);
+    color: #090D16;
+    filter: drop-shadow(0 0 5px var(--ps-gold-glow));
+}
+
+.fc27-ps-diamond.fc27-ps-cyan {
+    background: var(--ps-cyan-grad);
+    color: #0F172A;
+    filter: drop-shadow(0 0 4px var(--ps-cyan-glow));
+}
+
+/* Inline Club Roster cluster beside player names (claimed & unclaimed) */
+.fc27-ps-cluster {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    vertical-align: middle;
+}
+
+/* Tactical Pitch / Lineup Mini Card: Vertical Stack flush along LEFT edge */
+.fc27-pitch-card-playstyles {
+    position: absolute;
+    top: 4px;
+    left: -10px;
+    right: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    z-index: 15;
+    pointer-events: auto;
+}
+
+/* Left-edge badge tooltips expand rightward across the center so edges never clip */
+.fc27-pitch-card-playstyles .fc27-ps-hover-tooltip {
+    left: calc(100% + 8px);
+    right: auto;
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+}
+
+.fc27-pitch-card-playstyles .fc27-ps-hover-tooltip::after {
+    right: 100%;
+    left: auto;
+    border-color: transparent #A3E635 transparent transparent;
+}
+
+.fc27-pitch-card-playstyles .fc27-ps-item:hover .fc27-ps-hover-tooltip {
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Accessible >= 44px touch tap targets in Captain PlayStyle Modal & Roster Controls */
+.fc27-btn-assign-ps {
+    min-height: 44px;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fc27-modal .nav-pills .nav-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    font-weight: 600;
+}
+
+.fc27-ps-card {
+    min-height: 44px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.fc27-modal .modal-footer .btn,
+.fc27-modal .btn-close {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Post-match Review Multi-Select Vibe Pills (>= 44px tap targets) */
+.fc27-vibe-selector-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.fc27-vibe-check {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fc27-vibe-checkbox-label {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1.5px solid #CBD5E1;
+    background: #F8FAFC;
+    color: #1E293B;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.fc27-vibe-checkbox-label:hover {
+    border-color: #10B981;
+    background: #ECFDF5;
+}
+
+.fc27-vibe-check:checked + .fc27-vibe-checkbox-label {
+    background: #064E3B;
+    color: #FFFFFF;
+    border-color: #064E3B;
+    box-shadow: 0 2px 8px rgba(6, 78, 59, 0.25);
+}
+
+.fc27-vibe-check:focus-visible + .fc27-vibe-checkbox-label {
+    outline: 2px solid #F59E0B;
+    outline-offset: 2px;
+}
+
+/* Team Vibe Display Pills (Matchmaking Cards & Club Profile) */
+.fc27-vibe-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+}
+
+.fc27-vibe-pill.vibe-duongsinh {
+    background: #ECFDF5;
+    color: #065F46;
+    border-color: #A7F3D0;
+}
+
+.fc27-vibe-pill.vibe-banbat {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border-color: #BFDBFE;
+}
+
+.fc27-vibe-pill.vibe-theluc {
+    background: #F0FDFA;
+    color: #0F766E;
+    border-color: #99F6E4;
+}
+
+.fc27-vibe-pill.vibe-darat {
+    background: #FEF2F2;
+    color: #B91C1C;
+    border-color: #FECACA;
+}
+
+.fc27-vibe-pill.vibe-vuive {
+    background: #FFFBEB;
+    color: #B45309;
+    border-color: #FDE68A;
+}
+
+/* Amber Soft-Warning Banner (Đá dưỡng sinh vs >= 35% Đá rát opponent) */
+.fc27-vibe-warning-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    border: 1.5px solid #F59E0B;
+    color: #78350F;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.14);
+}
+
+.fc27-vibe-warning-alert .warning-icon {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.fc27-vibe-warning-alert .warning-title {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: #92400E;
+    margin-bottom: 2px;
+}
+
+.fc27-vibe-warning-alert .warning-desc {
+    margin: 0;
+    font-size: 0.86rem;
+    color: #78350F;
+    line-height: 1.45;
+}

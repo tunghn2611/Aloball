@@ -1,4 +1,4 @@
-using AloBall.Web.Data.Entities;
+﻿using AloBall.Web.Data.Entities;
 using AloBall.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -209,6 +209,87 @@ public partial class TeamsController
         await _db.SaveChangesAsync();
 
         TempData["Success"] = "Đã cập nhật cài đặt quyền riêng tư hồ sơ cầu thủ thành công!";
+        return RedirectToAction(nameof(PlayerPublicProfile), new { id = player.Id });
+    }
+
+    // Nhận hồ sơ cầu thủ chưa liên kết (Claim Profile)
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClaimProfile(Guid playerId, string? token)
+    {
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser == null) return Challenge();
+
+        var player = await _db.Players
+            .Include(p => p.Team)
+            .FirstOrDefaultAsync(p => p.Id == playerId);
+
+        if (player == null) return NotFound("Không tìm thấy thông tin cầu thủ.");
+
+        if (!string.IsNullOrEmpty(player.LinkedUserId))
+        {
+            if (player.LinkedUserId == currentUser.Id)
+            {
+                TempData["Success"] = "Bạn đã là chủ sở hữu của hồ sơ này.";
+                return RedirectToAction(nameof(PlayerPublicProfile), new { id = player.Id });
+            }
+            TempData["Error"] = "Hồ sơ cầu thủ này đã được nhận bởi một tài khoản khác.";
+            return RedirectToAction(nameof(PlayerPublicProfile), new { id = player.Id });
+        }
+
+        // Nếu có token, kiểm tra khớp token nếu đã cấp
+        if (!string.IsNullOrEmpty(player.InviteToken) && !string.IsNullOrEmpty(token) && !string.Equals(player.InviteToken, token, StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Mã xác thực nhận hồ sơ không hợp lệ.";
+            return RedirectToAction(nameof(PlayerPublicProfile), new { id = player.Id });
+        }
+
+        // Kiểm tra xem user này đã liên kết với cầu thủ nào khác trong cùng đội chưa
+        var alreadyLinked = await _db.Players
+            .FirstOrDefaultAsync(p => p.TeamId == player.TeamId && p.LinkedUserId == currentUser.Id && p.Id != player.Id);
+        if (alreadyLinked != null)
+        {
+            TempData["Error"] = $"Tài khoản của bạn đã được liên kết với cầu thủ #{alreadyLinked.KitNumber ?? 0} {alreadyLinked.FullName} trong {player.Team.Name}. Mỗi tài khoản chỉ nhận 1 hồ sơ trong 1 đội.";
+            return RedirectToAction(nameof(PlayerPublicProfile), new { id = player.Id });
+        }
+
+        // Thực hiện liên kết hồ sơ
+        player.LinkedUserId = currentUser.Id;
+        player.IsClaimed = true;
+
+        var unclaimedShares = await _db.MatchExpenseShares
+            .Where(s => s.PlayerId == player.Id && s.LinkedUserId == null)
+            .ToListAsync();
+        foreach (var sh in unclaimedShares)
+        {
+            sh.LinkedUserId = currentUser.Id;
+        }
+
+        // Đồng bộ họ tên nếu tài khoản chưa có tên thật
+        if (string.IsNullOrWhiteSpace(currentUser.FullName) || currentUser.FullName == currentUser.UserName)
+        {
+            currentUser.FullName = player.FullName;
+            await _userManager.UpdateAsync(currentUser);
+        }
+
+        // Đảm bảo là thành viên đội bóng trong TeamMembers
+        var membership = await _db.TeamMembers
+            .FirstOrDefaultAsync(tm => tm.TeamId == player.TeamId && tm.UserId == currentUser.Id);
+        if (membership == null)
+        {
+            _db.TeamMembers.Add(new TeamMember
+            {
+                TeamId = player.TeamId,
+                UserId = currentUser.Id,
+                Role = TeamRole.Member,
+                JoinedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = $"Chúc mừng {player.FullName}! Bạn đã nhận hồ sơ thành công và chính thức gia nhập {player.Team.Name}. Mọi điểm danh, bàn thắng và AB Coin lịch sử đã được kết nối vào tài khoản của bạn!";
         return RedirectToAction(nameof(PlayerPublicProfile), new { id = player.Id });
     }
 }

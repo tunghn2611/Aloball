@@ -42,13 +42,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
     public DbSet<PitchBookingRequest> PitchBookingRequests => Set<PitchBookingRequest>();
     public DbSet<PitchBookingOffer> PitchBookingOffers => Set<PitchBookingOffer>();
 
-    // Module Smart Match Finance
+    // Module Smart Match Finance & Split-Bill VietQR (Phase 1B)
     public DbSet<MatchExpenseEstimate> MatchExpenseEstimates => Set<MatchExpenseEstimate>();
     public DbSet<MatchSettlement> MatchSettlements => Set<MatchSettlement>();
     public DbSet<MatchSettlementItem> MatchSettlementItems => Set<MatchSettlementItem>();
     public DbSet<MatchSettlementMemberAllocation> MatchSettlementMemberAllocations => Set<MatchSettlementMemberAllocation>();
     public DbSet<MatchSettlementPayment> MatchSettlementPayments => Set<MatchSettlementPayment>();
     public DbSet<MatchSettlementAdjustmentAudit> MatchSettlementAdjustmentAudits => Set<MatchSettlementAdjustmentAudit>();
+    public DbSet<MatchExpense> MatchExpenses => Set<MatchExpense>();
+    public DbSet<MatchExpenseShare> MatchExpenseShares => Set<MatchExpenseShare>();
 
     // Module Giữ Lửa
     public DbSet<TeamFireRegulation> TeamFireRegulations => Set<TeamFireRegulation>();
@@ -99,6 +101,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
         builder.Entity<MatchSettlementMemberAllocation>()
             .HasIndex(a => new { a.SettlementId, a.PlayerId })
             .IsUnique();
+
+        // Phase 1B: MatchExpense & MatchExpenseShare (1 trận / 1 đội = 1 bảng chia tiền)
+        builder.Entity<MatchExpense>(entity =>
+        {
+            entity.HasIndex(e => new { e.MatchId, e.TeamId }).IsUnique();
+            entity.HasOne(e => e.Match).WithMany().HasForeignKey(e => e.MatchId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Team).WithMany().HasForeignKey(e => e.TeamId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<MatchExpenseShare>(entity =>
+        {
+            entity.HasIndex(s => new { s.MatchExpenseId, s.PlayerId }).IsUnique();
+            entity.HasOne(s => s.MatchExpense).WithMany(e => e.Shares).HasForeignKey(s => s.MatchExpenseId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.Player).WithMany().HasForeignKey(s => s.PlayerId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         // Giữ Lửa Constraints:
         // 1. Quy chế giữ lửa: duy nhất theo TeamId và Version

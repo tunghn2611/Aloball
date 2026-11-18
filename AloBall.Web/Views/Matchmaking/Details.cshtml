@@ -1,4 +1,4 @@
-@model AloBall.Web.Data.Entities.MatchmakingPost
+﻿@model AloBall.Web.Data.Entities.MatchmakingPost
 @{
     bool isDirectChallenge = Model.PostType == AloBall.Web.Data.Entities.MatchmakingPostType.DirectChallenge;
     ViewData["Title"] = isDirectChallenge ? $"Lời Mời Thách Đấu: {Model.Team.Name} vs {Model.TargetTeam?.Name}" : $"Kèo Giao Hữu: {Model.Team.Name}";
@@ -172,7 +172,17 @@
                                     <input type="text" name="message" class="form-control" placeholder="Bên em nhận kèo giao lưu nhé..." />
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-arena-primary w-100">Gửi Thách Đấu</button>
+                            @if (ViewBag.ShowVibeWarning == true)
+                            {
+                                <div class="fc27-vibe-warning-alert mb-2">
+                                    <div class="warning-icon">⚠️</div>
+                                    <div>
+                                        <div class="warning-title">Lưu ý cho đội Đá dưỡng sinh</div>
+                                        <p class="warning-desc">Đối thủ có tỷ lệ đánh giá <strong>Đá rát – quyết liệt</strong> cao (@(((AloBall.Web.Models.TeamVibeAnalysis?)ViewBag.HostVibe)?.HardTacklePercentage ?? 0)%). Hãy trao đổi trước khi gửi thách đấu.</p>
+                                    </div>
+                                </div>
+                            }
+                            <button type="submit" class="btn btn-arena-primary w-100" style="min-height: 44px;">Gửi Thách Đấu</button>
                         </form>
                     </div>
                 }
@@ -199,51 +209,74 @@
             }
             else
             {
+                var detailTeamVibes = ViewBag.TeamVibes as Dictionary<Guid, AloBall.Web.Models.TeamVibeAnalysis>;
+                var acceptorVibe = ViewBag.AcceptorTeamVibe as AloBall.Web.Models.TeamVibeAnalysis;
                 <div class="list-group list-group-flush">
                     @foreach (var prop in Model.Proposals)
                     {
-                        <div class="list-group-item px-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <h6 class="fw-bold mb-0 text-dark">@prop.ChallengingTeam.Name</h6>
-                                    <span class="text-warning small"><i class="bi bi-star-fill"></i> @prop.ChallengingTeam.AverageRating</span>
-                                </div>
-                                <small class="text-muted">Gửi lúc: @prop.CreatedAt.ToString("dd/MM HH:mm")</small>
-                                @if (!string.IsNullOrEmpty(prop.Message))
-                                {
-                                    <p class="small text-dark mb-0 mt-1">"@prop.Message"</p>
-                                }
-                            </div>
+                        AloBall.Web.Models.TeamVibeAnalysis? propVibe = null;
+                        detailTeamVibes?.TryGetValue(prop.ChallengingTeamId, out propVibe);
+                        bool canAccept = prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Pending
+                            && Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open
+                            && ((!isDirectChallenge && isHostManager) || (isDirectChallenge && isTargetManager));
+                        bool showPropWarning = canAccept && AloBall.Web.Models.PlayStyleCatalog.ShouldShowHardTackleWarning(acceptorVibe, propVibe);
 
-                            <div>
-                                @if (prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Accepted)
-                                {
-                                    <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">Đã Chốt</span>
-                                }
-                                else if (prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Pending && Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open)
-                                {
-                                    bool canAccept = (!isDirectChallenge && isHostManager) || (isDirectChallenge && isTargetManager);
-                                    if (canAccept)
+                        <div class="list-group-item px-0 py-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <h6 class="fw-bold mb-0 text-dark">@prop.ChallengingTeam.Name</h6>
+                                        <span class="text-warning small"><i class="bi bi-star-fill"></i> @prop.ChallengingTeam.AverageRating</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        @await Html.PartialAsync("_TeamVibePills", propVibe)
+                                    </div>
+                                    <small class="text-muted">Gửi lúc: @prop.CreatedAt.ToString("dd/MM HH:mm")</small>
+                                    @if (!string.IsNullOrEmpty(prop.Message))
                                     {
-                                        <form asp-action="AcceptProposal" method="post" class="d-inline">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="postId" value="@Model.Id" />
-                                            <input type="hidden" name="proposalId" value="@prop.Id" />
-                                            <button type="submit" class="btn btn-arena-primary btn-sm px-3" onclick="return confirm('@(isDirectChallenge ? "Bạn có đồng ý nhận lời mời thách đấu này và lên lịch thi đấu chính thức?" : "Bạn có chắc chắn muốn chốt đối với đội này?")')">
-                                                <i class="bi bi-check-lg me-1"></i> @(isDirectChallenge ? "Đồng Ý Nhận Kèo" : "Chốt Kèo Này")
-                                            </button>
-                                        </form>
+                                        <p class="small text-dark mb-0 mt-1">"@prop.Message"</p>
+                                    }
+                                </div>
+
+                                <div>
+                                    @if (prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Accepted)
+                                    {
+                                        <span class="badge bg-success fs-6 px-3 py-2 rounded-pill">Đã Chốt</span>
+                                    }
+                                    else if (prop.Status == AloBall.Web.Data.Entities.ProposalStatus.Pending && Model.Status == AloBall.Web.Data.Entities.MatchmakingStatus.Open)
+                                    {
+                                        if (canAccept)
+                                        {
+                                            <form asp-action="AcceptProposal" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="postId" value="@Model.Id" />
+                                                <input type="hidden" name="proposalId" value="@prop.Id" />
+                                                <button type="submit" class="btn btn-arena-primary btn-sm px-3" style="min-height: 44px;" onclick="return confirm('@(isDirectChallenge ? "Bạn có đồng ý nhận lời mời thách đấu này và lên lịch thi đấu chính thức?" : "Bạn có chắc chắn muốn chốt đối với đội này?")')">
+                                                    <i class="bi bi-check-lg me-1"></i> @(isDirectChallenge ? "Đồng Ý Nhận Kèo" : "Chốt Kèo Này")
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Chờ phản hồi</span>
+                                        }
                                     }
                                     else
                                     {
-                                        <span class="badge bg-warning text-dark">Chờ phản hồi</span>
+                                        <span class="badge bg-secondary">@prop.Status</span>
                                     }
-                                }
-                                else
-                                {
-                                    <span class="badge bg-secondary">@prop.Status</span>
-                                }
+                                </div>
                             </div>
+                            @if (showPropWarning && propVibe != null)
+                            {
+                                <div class="fc27-vibe-warning-alert mt-2">
+                                    <div class="warning-icon">⚠️</div>
+                                    <div>
+                                        <div class="warning-title">Cảnh báo mềm: Đội bạn Đá dưỡng sinh vs Đối thủ Đá rát</div>
+                                        <p class="warning-desc">@prop.ChallengingTeam.Name có tỷ lệ đánh giá <strong>Đá rát – quyết liệt @propVibe.HardTacklePercentage%</strong>. Hãy thống nhất luật chơi an toàn trước khi chốt kèo!</p>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     }
                 </div>

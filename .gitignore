@@ -101,3 +101,9 @@ ehthumbs.db
 $RECYCLE.BIN/
 .DS_Store
 ._*
+
+# Temporary user uploads and media
+*.mp4
+image_*.jpg
+image_*.png
+image_*.jpeg

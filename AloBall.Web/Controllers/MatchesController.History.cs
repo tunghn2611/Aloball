@@ -52,9 +52,18 @@ public partial class MatchesController
         if (input.Category == MatchCategory.Tournament && string.IsNullOrWhiteSpace(input.Notes)) ModelState.AddModelError("Notes", "Nhập tên giải và vòng đấu.");
         if (await CompetitionRules.IsClosedAsync(_db, input.TeamId, input.MatchDateTime.ToString("yyyy-MM"))) ModelState.AddModelError("", "Kỳ đã chốt. Hãy mở lại kỳ trong Giữ Lửa trước khi bổ sung trận.");
         if (!ModelState.IsValid) return View(input);
-        var match = new MatchGame { TeamAId = input.TeamId, Category = input.Category, TeamBExternalName = input.Opponent.Trim(),
-            MatchDateTime = input.MatchDateTime, PitchName = input.PitchName.Trim(), PitchType = input.PitchType,
-            Notes = input.Notes?.Trim(), IsPublic = input.IsPublic };
+        var match = new MatchGame {
+            TeamAId = input.TeamId,
+            Category = input.Category,
+            TeamBExternalName = input.Opponent.Trim(),
+            MatchDateTime = input.MatchDateTime,
+            PitchName = input.PitchName.Trim(),
+            PitchType = input.PitchType,
+            KitColor = input.KitColor?.Trim(),
+            RsvpToken = Guid.NewGuid().ToString("N")[..8],
+            Notes = input.Notes?.Trim(),
+            IsPublic = input.IsPublic
+        };
         _db.Matches.Add(match); await _db.SaveChangesAsync();
         TempData["Success"] = "Đã tạo trận đấu. Cập nhật đội hình, tỉ số và bàn thắng sau trận.";
         return RedirectToAction(nameof(Detail), new { id = match.Id });

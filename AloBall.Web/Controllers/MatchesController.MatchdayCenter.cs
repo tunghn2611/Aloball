@@ -1,5 +1,6 @@
-using AloBall.Web.Data;
+﻿using AloBall.Web.Data;
 using AloBall.Web.Data.Entities;
+using AloBall.Web.Models;
 using AloBall.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -79,6 +80,72 @@ public partial class MatchesController
             : $"Đã cập nhật trạng thái của {record.Player.FullName} thành công.";
 
         return RedirectToAction(nameof(Detail), new { id = matchId });
+    }
+
+    // 1b. Fast Matchday RSVP (Dành cho Zalo & Thành viên chưa đăng ký tài khoản / hoặc thao tác 1 chạm)
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> FastMatchRsvp(Guid matchId, Guid recordId, int responseStatus, string? rsvpToken)
+    {
+        var match = await _db.Matches.FindAsync(matchId);
+        if (match == null) return NotFound();
+
+        var user = await _userManager.GetUserAsync(User);
+        bool hasValidToken = !string.IsNullOrWhiteSpace(rsvpToken) &&
+                             !string.IsNullOrWhiteSpace(match.RsvpToken) &&
+                             string.Equals(rsvpToken.Trim(), match.RsvpToken.Trim(), StringComparison.OrdinalIgnoreCase);
+
+        var record = await _db.AttendanceRecords
+            .Include(r => r.Session)
+            .Include(r => r.Player)
+            .FirstOrDefaultAsync(r => r.Id == recordId && r.Session.MatchId == matchId);
+
+        if (record == null) return NotFound(new { success = false, message = "Bản ghi điểm danh không tồn tại." });
+
+        bool isSelf = user != null && !string.IsNullOrEmpty(record.Player.LinkedUserId) && record.Player.LinkedUserId == user.Id;
+        bool isManager = user != null && await _auth.HasManagerAccessAsync(record.Session.TeamId, user.Id);
+
+        if (!isSelf && !isManager && !(hasValidToken && string.IsNullOrEmpty(record.Player.LinkedUserId)))
+        {
+            if (hasValidToken && !string.IsNullOrEmpty(record.Player.LinkedUserId))
+            {
+                TempData["Error"] = $"Hồ sơ {record.Player.FullName} đã được liên kết tài khoản. Vui lòng đăng nhập để điểm danh.";
+                return RedirectToAction(nameof(Detail), new { id = matchId, token = rsvpToken });
+            }
+            return Forbid();
+        }
+
+        if (record.Session.Status == SessionStatus.Cancelled)
+            return BadRequest(new { success = false, message = "Buổi thi đấu đã bị hủy." });
+
+        if (await CompetitionRules.IsClosedAsync(_db, record.Session.TeamId, record.Session.StatisticalPeriod))
+            return Conflict(new { success = false, message = "Kỳ thống kê đã chốt. Không thể thay đổi trạng thái điểm danh." });
+
+        if (!Enum.IsDefined(typeof(ResponseStatus), responseStatus))
+            return BadRequest(new { success = false, message = "Trạng thái phản hồi không hợp lệ." });
+
+        var newResponse = (ResponseStatus)responseStatus;
+        record.Response = newResponse;
+        record.ResponseTime = DateTime.UtcNow;
+        record.IsResponseLate = DateTime.UtcNow > record.Session.ResponseDeadline;
+
+        if (_calcEngine != null)
+        {
+            await _calcEngine.RecalculateSessionPenaltiesAsync(record.SessionId);
+            if (record.Session.Status == SessionStatus.Finalized && user != null)
+            {
+                await _fireKeeping.SyncAttendanceSessionPointsAsync(record.SessionId, user.Id);
+            }
+        }
+        else
+        {
+            await _db.SaveChangesAsync();
+        }
+
+        TempData["Success"] = $"Đã cập nhật điểm danh cho {record.Player.FullName}: {(newResponse == ResponseStatus.Attending ? "Có mặt ⚽" : "Xin nghỉ")}.";
+
+        return RedirectToAction(nameof(Detail), new { id = matchId, token = rsvpToken });
     }
 
     // 2. Cập nhật hạn chót RSVP cho trận đấu (Dành cho Lãnh đội)
@@ -273,5 +340,82 @@ public partial class MatchesController
 
         TempData["Success"] = "Đã đồng bộ thông tin sân và thời gian thi đấu theo đơn đặt sân thành công!";
         return RedirectToAction(nameof(Detail), new { id = matchId });
+    }
+
+    // 5. Phase 1B: Lưu bảng chia tiền sân & Kèo Tăng 2
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveMatchSplitBill(MatchSplitBillInput input)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        if (!await _auth.HasManagerAccessAsync(input.TeamId, user.Id))
+            return Forbid();
+
+        var result = await _splitBill.SaveMatchSplitBillAsync(input, user.Id);
+        if (result.Success) TempData["Success"] = result.Message;
+        else TempData["Error"] = result.Message;
+
+        return RedirectToAction(nameof(Detail), null, new { id = input.MatchId, token = input.RsvpToken }, "splitBillSection");
+    }
+
+    // 6. Phase 1B: Đánh dấu Đã thu / Chưa đóng cho từng cầu thủ (1 tap)
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleExpenseSharePaid(Guid matchId, Guid shareId, string? rsvpToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var shareLookup = await _db.MatchExpenseShares
+            .Include(s => s.MatchExpense)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == shareId && s.MatchExpense.MatchId == matchId);
+
+        if (shareLookup == null) return NotFound();
+        if (!await _auth.HasManagerAccessAsync(shareLookup.MatchExpense.TeamId, user.Id))
+            return Forbid();
+
+        var result = await _splitBill.ToggleSharePaymentAsync(matchId, shareId, user.Id);
+
+        bool isAjax = string.Equals(Request?.Headers["X-Requested-With"].ToString(), "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+        if (isAjax)
+        {
+            if (!result.Success) return BadRequest(new { success = false, message = result.Message });
+            return Json(new
+            {
+                success = true,
+                message = result.Message,
+                isPaid = result.NewStatus == ExpenseSharePaymentStatus.Paid,
+                paidAtText = result.PaidAt?.AddHours(7).ToString("HH:mm dd/MM")
+            });
+        }
+
+        if (result.Success) TempData["Success"] = result.Message;
+        else TempData["Error"] = result.Message;
+
+        return RedirectToAction(nameof(Detail), null, new { id = matchId, token = rsvpToken }, "splitBillSection");
+    }
+
+    // 7. Phase 1B: Lưu nhanh tài khoản ngân hàng CLB nhận tiền VietQR từ Matchday Detail
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveClubBankQuickSetup(Guid matchId, Guid teamId, string? bankCode, string? accountNumber, string? accountHolderName, string? rsvpToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        if (!await _auth.HasManagerAccessAsync(teamId, user.Id))
+            return Forbid();
+
+        var result = await _splitBill.SaveClubBankInfoAsync(teamId, bankCode, accountNumber, accountHolderName, user.Id);
+        if (result.Success) TempData["Success"] = result.Message;
+        else TempData["Error"] = result.Message;
+
+        return RedirectToAction(nameof(Detail), null, new { id = matchId, token = rsvpToken }, "splitBillSection");
     }
 }

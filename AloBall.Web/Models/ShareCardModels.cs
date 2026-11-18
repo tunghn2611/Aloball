@@ -11,6 +11,15 @@ public class PlayerCardStatsDto
     public int Ovr { get; set; }
 }
 
+public class PlayerCardPlayStyleDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string NameVi { get; set; } = string.Empty;
+    public string NameEn { get; set; } = string.Empty;
+    public string SvgPath { get; set; } = string.Empty;
+    public bool IsPlus { get; set; }
+}
+
 public class PlayerCardDto
 {
     public Guid Id { get; set; }
@@ -24,6 +33,7 @@ public class PlayerCardDto
     public string? Experience { get; set; }
     public string? PhotoUrl { get; set; }
     public string? PlayStyles { get; set; }
+    public List<PlayerCardPlayStyleDto> PlayStyleItems { get; set; } = new();
     public string? TeamName { get; set; }
     public string? TeamSlug { get; set; }
     public string? TeamLogoUrl { get; set; }
@@ -47,9 +57,11 @@ public class MatchPosterTeamDto
 public class MatchPosterScorerDto
 {
     public string PlayerName { get; set; } = string.Empty;
-    public int Goals { get; set; } = 1;
+    public int Goals { get; set; }
+    public int Assists { get; set; }
     public string? Minutes { get; set; }
     public string? AssistName { get; set; }
+    public string SummaryText { get; set; } = string.Empty;
 }
 
 public class MatchPosterMotmDto

@@ -44,12 +44,83 @@
     // Smart Match Finance Variables
     var matchSettlement = ViewBag.MatchSettlement as AloBall.Web.Data.Entities.MatchSettlement;
     var customEstimates = ViewBag.CustomEstimates as List<AloBall.Web.Data.Entities.MatchExpenseEstimate> ?? new();
+    bool canViewSplitBill = ViewBag.CanViewSplitBill ?? false;
+    bool canManageSplitBill = ViewBag.CanManageSplitBill ?? false;
+    var splitBillPanel = ViewBag.SplitBillPanel as AloBall.Web.Models.MatchSplitBillPanelViewModel;
     decimal pitchCost = acceptedPitchOffer?.TotalPriceVND ?? 0m;
     decimal refCost = acceptedRefereeProposal?.TotalPriceVND ?? 0m;
     decimal customTotal = customEstimates.Sum(e => e.EstimatedAmount);
     decimal totalForecast = pitchCost + refCost + customTotal;
     int expectedExpCount = attendingCount > 0 ? attendingCount : (Model.PitchType == "11 người" ? 11 : (Model.PitchType == "5 người" ? 5 : 7));
     decimal estPerPerson = expectedExpCount > 0 ? Math.Round(totalForecast / expectedExpCount, 0) : totalForecast;
+
+    string teamName = attendanceSession?.Team?.Name ?? Model.TeamA?.Name ?? "AloBall FC";
+    string zaloOpponentName = Model.Category == AloBall.Web.Data.Entities.MatchCategory.Internal 
+        ? "Nội bộ" 
+        : (!string.IsNullOrEmpty(Model.TeamBExternalName) ? Model.TeamBExternalName : Model.TeamB?.Name ?? "Đối thủ");
+    string kitColorText = !string.IsNullOrWhiteSpace(Model.KitColor) ? Model.KitColor : "Đồng phục chính của đội";
+    string rsvpUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/Matches/Detail/{Model.Id}?token={Model.RsvpToken}";
+
+    var attendingList = attendanceSession?.Records
+        .Where(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.Attending)
+        .OrderBy(r => r.Player.KitNumber ?? 999)
+        .Select((r, i) => $"{i + 1}. {(r.Player.KitNumber.HasValue ? $"#{r.Player.KitNumber} " : "")}{r.Player.FullName}")
+        .ToList() ?? new List<string>();
+
+    var excusedList = attendanceSession?.Records
+        .Where(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.Excused)
+        .OrderBy(r => r.Player.KitNumber ?? 999)
+        .Select((r, i) => $"{i + 1}. {(r.Player.KitNumber.HasValue ? $"#{r.Player.KitNumber} " : "")}{r.Player.FullName}")
+        .ToList() ?? new List<string>();
+
+    var unansweredList = attendanceSession?.Records
+        .Where(r => r.Response == AloBall.Web.Data.Entities.ResponseStatus.NotRecorded || r.Response == AloBall.Web.Data.Entities.ResponseStatus.NoResponse)
+        .OrderBy(r => r.Player.KitNumber ?? 999)
+        .Select((r, i) => $"{i + 1}. {(r.Player.KitNumber.HasValue ? $"#{r.Player.KitNumber} " : "")}{r.Player.FullName}")
+        .ToList() ?? new List<string>();
+
+    var sbZalo = new System.Text.StringBuilder();
+    sbZalo.AppendLine($"📢 THÔNG BÁO LỊCH ĐÁ BÓNG - {teamName.ToUpper()}");
+    sbZalo.AppendLine($"⚽ Trận: {teamName} vs {zaloOpponentName}");
+    sbZalo.AppendLine($"⏰ Giờ tập trung: {gatheringDateTime.ToString("HH:mm · dddd dd/MM/yyyy")} (Bóng lăn: {Model.MatchDateTime.ToString("HH:mm")})");
+    sbZalo.AppendLine($"🏟 Sân: {Model.PitchName} ({Model.PitchType})");
+    sbZalo.AppendLine($"🎽 Màu áo: {kitColorText}");
+    sbZalo.AppendLine();
+    sbZalo.AppendLine($"📋 DANH SÁCH ĐIỂM DANH ({attendingList.Count} có mặt, {excusedList.Count} nghỉ, {unansweredList.Count} chưa báo):");
+    sbZalo.AppendLine();
+    sbZalo.AppendLine($"✅ CÓ MẶT ({attendingList.Count}):");
+    if (attendingList.Any())
+    {
+        foreach (var item in attendingList) sbZalo.AppendLine(item);
+    }
+    else
+    {
+        sbZalo.AppendLine("(Chưa có)");
+    }
+    sbZalo.AppendLine();
+    sbZalo.AppendLine($"❌ XIN NGHỈ ({excusedList.Count}):");
+    if (excusedList.Any())
+    {
+        foreach (var item in excusedList) sbZalo.AppendLine(item);
+    }
+    else
+    {
+        sbZalo.AppendLine("(Không có)");
+    }
+    sbZalo.AppendLine();
+    sbZalo.AppendLine($"⏳ CHƯA PHẢN HỒI ({unansweredList.Count}):");
+    if (unansweredList.Any())
+    {
+        foreach (var item in unansweredList) sbZalo.AppendLine(item);
+    }
+    else
+    {
+        sbZalo.AppendLine("(Tất cả đã báo)");
+    }
+    sbZalo.AppendLine();
+    sbZalo.AppendLine($"👉 Anh em bấm vào link để điểm danh 1 chạm (Có mặt / Nghỉ):");
+    sbZalo.AppendLine(rsvpUrl);
+    string zaloAnnouncementText = sbZalo.ToString();
 }
 
 @if (memberA || memberB) { @await Html.PartialAsync("_TeamNavigation", memberA ? Model.TeamAId : Model.TeamBId!.Value) }
@@ -65,13 +136,20 @@
                     <i class="bi bi-calendar3 me-1"></i>@Model.MatchDateTime.ToString("dd/MM/yyyy · dddd") · 
                     <i class="bi bi-clock me-1"></i>Tập trung: <strong>@gatheringDateTime.ToString("HH:mm")</strong> (Bóng lăn: <strong>@Model.MatchDateTime.ToString("HH:mm")</strong>) · 
                     <i class="bi bi-geo-alt me-1"></i>@Model.PitchName (@Model.PitchType)
+                    @if (!string.IsNullOrWhiteSpace(Model.KitColor))
+                    {
+                        <span> · <i class="bi bi-palette-fill text-warning me-1"></i>Áo: <strong>@Model.KitColor</strong></span>
+                    }
                 </p>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-success fw-bold px-3 shadow-sm d-inline-flex align-items-center" onclick="copyZaloAnnouncement()" style="min-height: 38px;">
+                    <i class="bi bi-chat-dots-fill me-1 text-success"></i> Copy tin nhắn chuẩn Zalo
+                </button>
                 @if (Model.Status == AloBall.Web.Data.Entities.MatchStatus.Completed && Model.ConfirmedByTeamA && (Model.ConfirmedByTeamB || !Model.TeamBId.HasValue))
                 {
-                    <button type="button" class="btn btn-sm btn-warning fw-bold px-3 shadow-sm d-inline-flex align-items-center text-dark" onclick="openMatchPosterModal('@Model.Id')">
-                        <i class="bi bi-file-earmark-image-fill me-1"></i> Xuất Poster trận đấu
+                    <button type="button" class="btn btn-sm btn-warning fw-bold px-3 shadow-sm d-inline-flex align-items-center text-dark" style="min-height: 44px;" onclick="openMatchPosterModal('@Model.Id')">
+                        <i class="bi bi-file-earmark-image-fill me-1"></i> Xuất Poster kết quả
                     </button>
                 }
                 <a href="#smartTacticalBoard" class="btn btn-sm btn-success fw-bold px-3 shadow-sm d-none d-sm-inline-flex align-items-center" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: 1.5px solid #34d399;">
@@ -207,6 +285,13 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    @if (canViewSplitBill && splitBillPanel != null)
+                    {
+                        <a href="#splitBillSection" class="btn btn-success btn-sm px-3 fw-bold shadow-sm d-inline-flex align-items-center">
+                            <i class="bi bi-qr-code-scan me-1"></i>
+                            @(splitBillPanel.HasExpense ? $"Chia tiền & VietQR ({splitBillPanel.MatchPerPersonShare:N0}đ)" : "Chia tiền sân & VietQR")
+                        </a>
+                    }
                     @if (matchSettlement != null)
                     {
                         <a asp-controller="Finance" asp-action="SettlementDetail" asp-route-matchId="@Model.Id" asp-route-teamId="@viewerTeamId" class="btn btn-arena-primary btn-sm px-3 shadow-sm">
@@ -282,8 +367,8 @@
                         <span class="badge bg-success px-3 py-2 rounded-pill">
                             <i class="bi bi-patch-check-fill me-1"></i> Kết quả chính thức (Đã xác nhận 2 bên)
                         </span>
-                        <button type="button" class="btn btn-warning btn-sm fw-bold rounded-pill px-3 py-1 shadow-sm d-inline-flex align-items-center gap-1 text-dark" onclick="openMatchPosterModal('@Model.Id')">
-                            <i class="bi bi-file-earmark-image-fill"></i> Xuất Poster trận đấu
+                        <button type="button" class="btn btn-warning btn-sm fw-bold rounded-pill px-3 py-1 shadow-sm d-inline-flex align-items-center gap-1 text-dark" style="min-height: 44px;" onclick="openMatchPosterModal('@Model.Id')">
+                            <i class="bi bi-file-earmark-image-fill"></i> Xuất Poster kết quả
                         </button>
                     }
                     else
@@ -385,6 +470,56 @@
             </div>
         }
 
+        <!-- FAST RSVP CARD FOR ZALO / UNCLAIMED MEMBERS -->
+        @if (attendanceSession != null && (myRecord == null || ViewBag.HasTokenAccess == true || !isMember))
+        {
+            <div class="arena-card p-3 mb-3 border-start border-4 border-success bg-white shadow-sm">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                    <div>
+                        <div class="d-inline-flex align-items-center gap-1 px-2 py-0.5 rounded bg-success-subtle text-success small fw-bold mb-1">
+                            <i class="bi bi-lightning-charge-fill text-warning"></i> ĐIỂM DANH NHANH QUA ZALO (1 CHẠM)
+                        </div>
+                        <h5 class="fw-bold text-dark mb-1">Xác nhận có mặt hoặc báo vắng trận đấu</h5>
+                        <p class="small text-muted mb-0">
+                            Chọn tên bạn trong danh sách đội bóng dưới đây rồi bấm xác nhận. Không bắt buộc phải đăng nhập trước!
+                        </p>
+                    </div>
+
+                    <form asp-action="FastMatchRsvp" method="post" class="w-100" style="max-width: 480px;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="matchId" value="@Model.Id" />
+                        <input type="hidden" name="rsvpToken" value="@Model.RsvpToken" />
+                        <div class="mb-2">
+                            <select name="recordId" class="form-select form-select-sm" required style="min-height: 44px; font-weight: 500;">
+                                <option value="" selected disabled>-- Chọn tên của bạn trong danh sách --</option>
+                                @foreach (var r in attendanceSession.Records.OrderBy(r => r.Player.KitNumber ?? 999).ThenBy(r => r.Player.FullName))
+                                {
+                                    string statusLabel = r.Response switch
+                                    {
+                                        AloBall.Web.Data.Entities.ResponseStatus.Attending => "✅ Có mặt",
+                                        AloBall.Web.Data.Entities.ResponseStatus.Excused => "❌ Báo vắng",
+                                        _ => "⏳ Chưa báo"
+                                    };
+                                    string claimedNote = string.IsNullOrEmpty(r.Player.LinkedUserId) ? " (Chưa nhận hồ sơ)" : "";
+                                    <option value="@r.Id">
+                                        #@(r.Player.KitNumber?.ToString() ?? "-") @r.Player.FullName · @statusLabel@claimedNote
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" name="responseStatus" value="1" class="btn btn-success flex-fill fw-bold d-inline-flex align-items-center justify-content-center shadow-sm" style="min-height: 48px; border-radius: 10px;">
+                                <i class="bi bi-hand-thumbs-up-fill me-1"></i> Có mặt ⚽
+                            </button>
+                            <button type="submit" name="responseStatus" value="2" class="btn btn-outline-danger flex-fill fw-bold d-inline-flex align-items-center justify-content-center" style="min-height: 48px; border-radius: 10px;">
+                                <i class="bi bi-hand-thumbs-down-fill me-1"></i> Xin nghỉ
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        }
+
         <!-- SECTION 2: QUẢN LÝ RSVP & ĐIỂM DANH TOÀN ĐỘI (RSVP SUMMARY & REMINDERS) -->
         @if (attendanceSession != null && isMember)
         {
@@ -400,6 +535,9 @@
                     </div>
 
                     <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <button type="button" class="btn btn-outline-success btn-sm fw-bold d-inline-flex align-items-center shadow-sm" onclick="copyZaloAnnouncement()">
+                            <i class="bi bi-chat-dots-fill me-1 text-success"></i> Copy tin chuẩn Zalo
+                        </button>
                         <a href="#smartTacticalBoard" class="btn btn-warning btn-sm fw-bold px-3 shadow-sm d-inline-flex align-items-center" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: 1.5px solid #34d399; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45); text-transform: uppercase; letter-spacing: 0.5px;">
                             <i class="bi bi-diagram-3-fill me-1 fs-6"></i> @(isManager ? "Sắp xếp đội hình (Sa bàn FIFA)" : "Xem Sa bàn chiến thuật FIFA")
                         </a>
@@ -515,6 +653,16 @@
                     </div>
                 </div>
             </div>
+        }
+
+        <!-- SECTION 2B: CHIA TIỀN SÂN, TĂNG 2 & DYNAMIC VIETQR (PHASE 1B) -->
+        @if (canViewSplitBill && splitBillPanel != null)
+        {
+            @await Html.PartialAsync("_MatchSplitBillPanel", splitBillPanel, new ViewDataDictionary(ViewData)
+            {
+                ["CanManageSplitBill"] = canManageSplitBill,
+                ["RsvpToken"] = Model.RsvpToken
+            })
         }
 
         <!-- SECTION 3: TÍCH HỢP DỊCH VỤ SÂN BÓNG & TRỌNG TÀI -->
@@ -1009,11 +1157,31 @@
                     </div>
 
                     <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label fw-semibold mb-0">Phong cách thi đấu (chọn nhiều thẻ phù hợp)</label>
+                            <small id="fc27VibeCount" class="text-muted fw-semibold">0 đã chọn</small>
+                        </div>
+                        <div class="fc27-vibe-selector-grid">
+                            @for (int vi = 0; vi < AloBall.Web.Models.PlayStyleCatalog.AllowedVibeTags.Length; vi++)
+                            {
+                                var vibeTag = AloBall.Web.Models.PlayStyleCatalog.AllowedVibeTags[vi];
+                                var checkId = $"vibeTag_{vi}";
+                                <div>
+                                    <input type="checkbox" class="fc27-vibe-check" id="@checkId" name="vibeTags" value="@vibeTag" onchange="onVibeCheckChanged(this)" />
+                                    <label class="fc27-vibe-checkbox-label" for="@checkId">
+                                        <i class="bi bi-tag-fill"></i> @vibeTag
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">Nhận xét chi tiết</label>
                         <textarea name="comment" class="form-control" rows="2" placeholder="Ghi nhận xét về tinh thần thi đấu của đội bạn..."></textarea>
                     </div>
 
-                    <button type="submit" class="btn btn-arena-primary">Gửi Đánh Giá</button>
+                    <button type="submit" class="btn btn-arena-primary" style="min-height: 44px;">Gửi Đánh Giá</button>
                 </form>
             </div>
         }
@@ -1079,6 +1247,18 @@
                                 <strong>@rev.ReviewerTeam.Name</strong>
                                 <span class="text-warning">@string.Concat(Enumerable.Repeat("⭐", rev.RatingStars))</span>
                             </div>
+                            @{
+                                var revVibes = AloBall.Web.Models.PlayStyleCatalog.ParseVibeTags(rev.PlayStyleVibeTags);
+                            }
+                            @if (revVibes.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    @foreach (var vt in revVibes)
+                                    {
+                                        <span class="fc27-vibe-pill @AloBall.Web.Models.PlayStyleCatalog.GetVibeCssClass(vt)">@vt</span>
+                                    }
+                                </div>
+                            }
                             <p class="small text-muted mb-0 mt-1">"@rev.Comment"</p>
                         </div>
                     }
@@ -1088,15 +1268,62 @@
     </div>
 </div>
 
+<textarea id="zaloTextTemplate" style="display:none;" readonly>@zaloAnnouncementText</textarea>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="zaloCopyToast" class="toast align-items-center text-bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body fw-semibold">
+                <i class="bi bi-check2-circle me-2 fs-5"></i> Đã copy tin nhắn chuẩn Zalo! Hãy dán vào nhóm chat của đội.
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
 <script>
     function onVibeCheckChanged(el) {
         const checked = document.querySelectorAll('.fc27-vibe-check:checked');
-        if (checked.length > 2) {
-            el.checked = false;
-            alert('Bạn chỉ được chọn tối đa 2 phong cách thi đấu.');
-            return;
-        }
         const counter = document.getElementById('fc27VibeCount');
-        if (counter) counter.textContent = `${checked.length}/2 đã chọn`;
+        if (counter) counter.textContent = `${checked.length} đã chọn`;
+    }
+
+    function copyZaloAnnouncement() {
+        const textEl = document.getElementById('zaloTextTemplate');
+        if (!textEl) return;
+        const text = textEl.value;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(onCopySuccess).catch(() => fallbackCopy(text));
+        } else {
+            fallbackCopy(text);
+        }
+
+        function fallbackCopy(val) {
+            const ta = document.createElement('textarea');
+            ta.value = val;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                onCopySuccess();
+            } catch (err) {
+                alert('Không thể tự động copy. Vui lòng copy thủ công!');
+            }
+            document.body.removeChild(ta);
+        }
+
+        function onCopySuccess() {
+            const toastEl = document.getElementById('zaloCopyToast');
+            if (toastEl && window.bootstrap) {
+                const body = toastEl.querySelector('.toast-body');
+                if (body) body.innerHTML = '<i class="bi bi-check2-circle me-2 fs-5"></i> Đã copy tin nhắn chuẩn Zalo! Hãy dán vào nhóm chat của đội.';
+                bootstrap.Toast.getOrCreateInstance(toastEl).show();
+            } else {
+                alert('Đã copy tin nhắn thông báo chuẩn Zalo vào bộ nhớ tạm! Bạn có thể dán ngay vào nhóm Zalo.');
+            }
+        }
     }
 </script>

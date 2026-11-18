@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.RegularExpressions;
 
 namespace AloBall.Tests;
@@ -122,7 +122,8 @@ public class ArenaRenderingTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var html = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Khám phá sân chơi", html);
+        var decodedHtml = System.Net.WebUtility.HtmlDecode(html);
+        Assert.Contains("Khám phá sân chơi", decodedHtml);
         Assert.Contains("arena-content", html);
     }
 }
