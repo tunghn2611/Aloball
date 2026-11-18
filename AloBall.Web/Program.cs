@@ -214,12 +214,14 @@ using (var scope = app.Services.CreateScope())
 
         // Tự động seed dữ liệu mẫu chỉ khi CSDL hoàn toàn mới (chưa có đội bóng nào) và không phải môi trường Testing
         // Đảm bảo trang web luôn có đầy đủ dữ liệu tiếng Việt chuẩn UTF-8 và hoạt động ngay lập tức
-        if (!app.Environment.IsEnvironment("Testing") && !await db.Teams.AnyAsync())
+        if (!app.Environment.IsEnvironment("Testing") &&
+            (!await db.Teams.AnyAsync() ||
+             (await db.Teams.AnyAsync(t => t.Slug == "klb-fc") && !await db.PlayerLoanListings.AnyAsync())))
         {
             logger?.LogInformation("CSDL chưa có dữ liệu đội bóng. Đang khởi tạo dữ liệu chuẩn AloBall...");
             await DbInitializer.SeedDemoDataAsync(app.Services, db);
         }
-        else if (app.Environment.IsProduction())
+        if (app.Environment.IsProduction())
         {
             // Production: Khởi tạo an toàn (one-time bootstrap) cho tài khoản Super Admin nếu được cấu hình
             await AdminBootstrap.ProvisionSuperAdminAsync(app.Services);

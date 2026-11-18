@@ -55,7 +55,7 @@
     <div class="arena-shell">
         <header class="arena-topbar">
             <div class="topbar-path">
-                <button class="menu-trigger" type="button" aria-controls="arenaSidebar" aria-expanded="false" aria-label="Mở menu"><i class="bi bi-list"></i></button>
+                <button class="menu-trigger" type="button" aria-controls="arenaSidebar" aria-expanded="false" aria-label="Mở menu Thêm"><i class="bi bi-list"></i><span class="mobile-more-label">Thêm</span></button>
                 <span class="topbar-wordmark">ALOBALL<span>®</span></span>
                 <span class="path-divider">/</span>
                 <span class="topbar-SectionPill">@sectionName</span>
@@ -101,6 +101,35 @@
             <small>© @DateTime.Now.Year AloBall</small>
         </footer>
     </div>
+    <nav class="ab-mobile-bottom-nav" aria-label="Điều hướng nhanh trên di động">
+        <a class="ab-mobile-tab @(section == "Teams" || section == "Home" || section == "Attendance" || section == "FireKeeping" || section == "Sheets" ? "active" : "")"
+           asp-controller="@(User.Identity?.IsAuthenticated == true ? "Teams" : "Home")"
+           asp-action="@(User.Identity?.IsAuthenticated == true ? "Index" : "Explore")"
+           aria-label="Trang chủ / CLB">
+            <i class="bi @(User.Identity?.IsAuthenticated == true ? "bi-shield-check" : "bi-house-door-fill")"></i>
+            <span>@(User.Identity?.IsAuthenticated == true ? "CLB" : "Trang chủ")</span>
+        </a>
+        <a class="ab-mobile-tab @(section == "Matchmaking" || section == "Matches" ? "active" : "")"
+           asp-controller="Matchmaking" asp-action="Index">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>Trận đấu</span>
+        </a>
+        <a class="ab-mobile-tab @(section == "LoanMarket" ? "active" : "")"
+           asp-controller="LoanMarket" asp-action="Index">
+            <i class="bi bi-person-plus-fill"></i>
+            <span>Mượn quân</span>
+        </a>
+        <a class="ab-mobile-tab @(section == "Concierge" ? "active" : "")"
+           asp-controller="Concierge" asp-action="Index">
+            <i class="bi bi-stars"></i>
+            <span>Trọn gói</span>
+        </a>
+        <a class="ab-mobile-tab @(section == "Leaderboard" ? "active" : "")"
+           asp-controller="Leaderboard" asp-action="Index">
+            <i class="bi bi-trophy-fill"></i>
+            <span>BXH Sao</span>
+        </a>
+    </nav>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/arena.js" asp-append-version="true"></script>
     <script src="~/js/share-card.js" asp-append-version="true"></script>
