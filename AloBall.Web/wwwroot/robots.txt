@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /Account/
+Disallow: /api/
+
+Sitemap: https://aloball.vercel.app/sitemap.xml

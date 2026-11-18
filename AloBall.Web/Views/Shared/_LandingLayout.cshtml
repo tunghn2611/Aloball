@@ -3,12 +3,37 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>@ViewData["Title"] — AloBall</title>
-    <meta name="description" content="@ViewData["Description"]" />
+    @{
+        var seoTitle = $"Aloball — {ViewData["Title"] ?? "Đội Bóng Trong Mơ"}";
+        var seoDescription = ViewData["Description"]?.ToString()
+            ?? "Nền tảng quản lý đội bóng phủi: điểm danh qua Zalo, chia tiền sân bằng VietQR, cáp kèo cân trình và tạo thẻ chỉ số cầu thủ chuẩn FIFA.";
+    }
+    <title>@seoTitle</title>
+    <meta name="description" content="@seoDescription" />
+    <link rel="canonical" href="https://aloball.vercel.app/" />
     <meta name="theme-color" content="#064E3B" />
-    <meta property="og:title" content="@ViewData["Title"] — AloBall" />
-    <meta property="og:description" content="@ViewData["Description"]" />
+    <meta property="og:site_name" content="Aloball" />
+    <meta property="og:title" content="@seoTitle" />
+    <meta property="og:description" content="@seoDescription" />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aloball.vercel.app/" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta property="og:image" content="https://aloball.vercel.app/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="@seoTitle" />
+    <meta name="twitter:description" content="@seoDescription" />
+    <meta name="twitter:image" content="https://aloball.vercel.app/icon-512.png" />
+    <script type="application/ld+json">
+    {
+      "@@context": "https://schema.org",
+      "@@type": "WebSite",
+      "name": "Aloball",
+      "alternateName": ["Alo Ball", "Aloball VN"],
+      "url": "https://aloball.vercel.app/",
+      "inLanguage": "vi-VN",
+      "description": "Nền tảng quản lý đội bóng phủi: điểm danh qua Zalo, chia tiền sân bằng VietQR, cáp kèo cân trình và tạo thẻ chỉ số cầu thủ chuẩn FIFA."
+    }
+    </script>
     <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true" />
     <link rel="alternate icon" type="image/x-icon" href="~/favicon.ico" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/icon-192.png" asp-append-version="true" />
