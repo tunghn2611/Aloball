@@ -9,6 +9,9 @@
     <meta property="og:title" content="@ViewData["Title"] — AloBall" />
     <meta property="og:description" content="@ViewData["Description"]" />
     <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="~/favicon.svg" asp-append-version="true" />
+    <link rel="alternate icon" type="image/x-icon" href="~/favicon.ico" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/icon-192.png" asp-append-version="true" />
     <link rel="manifest" href="~/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -64,7 +67,7 @@
     <footer class="lp-footer">
         <div class="lp-container lp-footer__grid">
             <div>
-                <a class="lp-brand lp-brand--light" asp-controller="Home" asp-action="Index"><span>ALOBALL</span></a>
+                <a class="lp-brand lp-brand--light" asp-controller="Home" asp-action="Index"><svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M16 2 4 6.5V15c0 7.2 5 12.2 12 15 7-2.800 12-7.800 12-15V6.500z" fill="#064E3B"/><circle cx="16" cy="15.500" r="7" fill="#fff"/><path d="m16 11.500 3.300 2.400-1.300 3.900h-4l-1.300-3.900z" fill="#064E3B"/><path d="M16 11.500V8.800M19.300 13.900l2.600-.9M18 17.800l1.600 2.300M14 17.800l-1.600 2.300M12.700 13.900l-2.600-.9" stroke="#064E3B" stroke-width="1.200" stroke-linecap="round"/></svg><span>ALOBALL</span></a>
                 <p>Quản lý đội bóng phủi gọn trong một chạm.</p>
             </div>
             <nav aria-label="Liên kết nhanh">

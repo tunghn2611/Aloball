@@ -1,8 +1,10 @@
 // Safe Service Worker - Chỉ cache static assets an toàn, không cache trang HTML động hay API
-const CACHE_NAME = 'aloball-football-v4';
+const CACHE_NAME = 'aloball-football-v5';
 const STATIC_ASSETS = [
   '/manifest.json',
+  '/favicon.svg',
   '/favicon.ico',
+  '/icon-192.png',
   '/css/arena.css',
   '/js/arena.js',
   '/lib/bootstrap/dist/css/bootstrap.min.css',
