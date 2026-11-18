@@ -72,6 +72,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
     public DbSet<TournamentStanding> TournamentStandings => Set<TournamentStanding>();
     public DbSet<MatchCardEvent> MatchCardEvents => Set<MatchCardEvent>();
 
+    // Phase 4B: B2B Partner Portal & Last-Minute Pitch Flash Deals
+    public DbSet<PitchFlashDeal> PitchFlashDeals => Set<PitchFlashDeal>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -483,6 +486,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
             entity.HasOne(c => c.Team).WithMany().HasForeignKey(c => c.TeamId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(c => c.Player).WithMany().HasForeignKey(c => c.PlayerId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(c => c.MatchId);
+        });
+
+        // Phase 4B: PitchFlashDeal & Partner links
+        builder.Entity<PitchVenue>().HasIndex(v => v.OwnerUserId);
+        builder.Entity<Referee>().HasIndex(r => r.UserId);
+
+        builder.Entity<PitchFlashDeal>(entity =>
+        {
+            entity.HasOne(d => d.Pitch).WithMany(v => v.FlashDeals).HasForeignKey(d => d.PitchId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(d => d.ClaimedByTeam).WithMany().HasForeignKey(d => d.ClaimedByTeamId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.ClaimedMatch).WithMany().HasForeignKey(d => d.ClaimedMatchId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(d => new { d.Status, d.Region, d.KickoffAt });
+            entity.HasIndex(d => d.PitchId);
         });
     }
 }

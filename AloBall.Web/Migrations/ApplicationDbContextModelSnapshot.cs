@@ -663,6 +663,79 @@ b.Property<bool>("IsPublic")
                     b.ToTable("Matches");
                 });
 
+            modelBuilder.Entity("AloBall.Web.Data.Entities.PitchFlashDeal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ClaimVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ClaimedByTeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ClaimedMatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("DealPriceVnd")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("DiscountPercent")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FieldCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("KickoffAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("OriginalPriceVnd")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("PitchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Region")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClaimedByTeamId");
+
+                    b.HasIndex("ClaimedMatchId");
+
+                    b.HasIndex("PitchId");
+
+                    b.HasIndex("Status", "Region", "KickoffAt");
+
+                    b.ToTable("PitchFlashDeals");
+                });
+
             modelBuilder.Entity("AloBall.Web.Data.Entities.MatchGoalEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1745,6 +1818,9 @@ b.Property<bool>("IsPublic")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("OwnerUserId")
+                        .HasColumnType("text");
+
                     b.Property<string>("PriceNotes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -1769,6 +1845,8 @@ b.Property<bool>("IsPublic")
                     b.HasIndex("District");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("OwnerUserId");
 
                     b.ToTable("PitchVenues");
                 });
@@ -1982,6 +2060,9 @@ b.Property<double?>("HeightCm")
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -1993,7 +2074,12 @@ b.Property<double?>("HeightCm")
                     b.Property<string>("SupportedFormats")
                         .HasColumnType("text");
 
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Referees");
                 });
@@ -3181,6 +3267,31 @@ b.Property<double?>("HeightCm")
                     b.Navigation("Request");
                 });
 
+            modelBuilder.Entity("AloBall.Web.Data.Entities.PitchFlashDeal", b =>
+                {
+                    b.HasOne("AloBall.Web.Data.Entities.Team", "ClaimedByTeam")
+                        .WithMany()
+                        .HasForeignKey("ClaimedByTeamId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AloBall.Web.Data.Entities.MatchGame", "ClaimedMatch")
+                        .WithMany()
+                        .HasForeignKey("ClaimedMatchId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AloBall.Web.Data.Entities.PitchVenue", "Pitch")
+                        .WithMany("FlashDeals")
+                        .HasForeignKey("PitchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClaimedByTeam");
+
+                    b.Navigation("ClaimedMatch");
+
+                    b.Navigation("Pitch");
+                });
+
             modelBuilder.Entity("AloBall.Web.Data.Entities.PitchBookingRequest", b =>
                 {
                     b.HasOne("AloBall.Web.Data.Entities.MatchGame", "Match")
@@ -3561,6 +3672,8 @@ b.Property<double?>("HeightCm")
             modelBuilder.Entity("AloBall.Web.Data.Entities.PitchVenue", b =>
                 {
                     b.Navigation("BookingRequests");
+
+                    b.Navigation("FlashDeals");
                 });
 
             modelBuilder.Entity("AloBall.Web.Data.Entities.Player", b =>

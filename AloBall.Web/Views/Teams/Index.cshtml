@@ -2,6 +2,7 @@
 @using AloBall.Web.Data.Entities
 @{ ViewData["Title"] = "Đội của tôi"; }
 <div class="page-heading"><div><span class="heading-index">MY CLUBHOUSE / 02</span><h1>Những người cùng sân.</h1><p>Chọn đội để quản lý, theo dõi lịch thi đấu và kết nối đồng đội.</p></div><a asp-action="Create" class="btn btn-arena-primary">Tạo đội mới <i class="bi bi-plus-lg"></i></a></div>
+@await Component.InvokeAsync("FlashDealsBanner")
 @if(!Model.Any()) { <div class="empty-state"><i class="bi bi-shield-plus"></i><h3>Đội bóng đầu tiên đang chờ bạn</h3><p>Tạo câu lạc bộ của riêng mình hoặc liên hệ lãnh đội để tham gia.</p><a asp-action="Create" class="btn btn-arena-primary">Bắt đầu một đội bóng</a></div> }
 else {
     <div class="team-collection">

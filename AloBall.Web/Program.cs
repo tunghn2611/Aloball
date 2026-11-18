@@ -144,6 +144,7 @@ builder.Services.AddScoped<ILoanMarketService, LoanMarketService>();
 builder.Services.AddScoped<IAloballStarsService, AloballStarsService>();
 builder.Services.AddScoped<IMatchConciergeService, MatchConciergeService>();
 builder.Services.AddScoped<ITournamentService, TournamentService>();
+builder.Services.AddScoped<IPartnerPortalService, PartnerPortalService>();
 builder.Services.AddScoped<AloBall.Web.Services.TeamDivision.ITeamDivisionEngine, AloBall.Web.Services.TeamDivision.TeamDivisionEngine>();
 builder.Services.AddHttpClient();
 
@@ -217,7 +218,7 @@ using (var scope = app.Services.CreateScope())
         // Đảm bảo trang web luôn có đầy đủ dữ liệu tiếng Việt chuẩn UTF-8 và hoạt động ngay lập tức
         if (!app.Environment.IsEnvironment("Testing") &&
             (!await db.Teams.AnyAsync() ||
-             (await db.Teams.AnyAsync(t => t.Slug == "klb-fc") && !await db.PlayerLoanListings.AnyAsync())))
+             (await db.Teams.AnyAsync(t => t.Slug == "klb-fc") && (!await db.PlayerLoanListings.AnyAsync() || !await db.PitchFlashDeals.AnyAsync()))))
         {
             logger?.LogInformation("CSDL chưa có dữ liệu đội bóng. Đang khởi tạo dữ liệu chuẩn AloBall...");
             await DbInitializer.SeedDemoDataAsync(app.Services, db);

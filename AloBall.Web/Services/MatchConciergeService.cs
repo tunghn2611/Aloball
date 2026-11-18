@@ -358,15 +358,56 @@ public class MatchConciergeService : IMatchConciergeService
         if (bestOpponent == null)
             return (false, "Không tìm thấy đối thủ phù hợp tiêu chuẩn Sao Aloball, độ thân thiện và lịch trống.", null, null);
 
-        // 2. Automatically reserve an available pitch slot in Region
-        var availablePitch = await FindAvailableVenueAsync(region, kickoffAt);
-        if (availablePitch == null)
-            return (false, $"Khu vực '{region}' hiện chưa có sân trống vào khung giờ {kickoffAt:HH:mm dd/MM/yyyy}.", null, null);
+        // 2. Prioritize an active Flash Deal slot in the same Region & time window (+/- 90 mins) before standard venues
+        Guid preMatchId = Guid.NewGuid();
+        PitchVenue? venue = null;
+        string fieldCode = "Sân 1";
+        decimal pitchFee = 600_000m;
+        PitchFlashDeal? claimedFlashDeal = null;
 
-        var (venue, fieldCode) = availablePitch.Value;
-        decimal pitchFee = venue.IndicativePricePerHour.HasValue && venue.IndicativePricePerHour.Value > 0
-            ? MatchSplitBillService.RoundToNearest1000(venue.IndicativePricePerHour.Value)
-            : 600_000m;
+        var localNow = CompetitionRules.LocalNow;
+        var windowMin = kickoffAt.AddMinutes(-90);
+        var windowMax = kickoffAt.AddMinutes(90);
+        var candidateFlashDeals = await _db.PitchFlashDeals
+            .Include(d => d.Pitch)
+            .Where(d => d.Status == PitchFlashDealStatus.Active
+                        && d.KickoffAt > localNow
+                        && d.KickoffAt >= windowMin
+                        && d.KickoffAt <= windowMax)
+            .OrderByDescending(d => d.DiscountPercent)
+            .ThenBy(d => d.KickoffAt)
+            .ToListAsync();
+
+        var matchingFlash = candidateFlashDeals.FirstOrDefault(d =>
+            RegionsMatch(d.Region, region)
+            || RegionsMatch(d.Pitch?.District, region)
+            || RegionsMatch(d.Pitch?.City, region)
+            || RegionsMatch(d.Pitch?.FullAddress, region));
+
+        if (matchingFlash != null)
+        {
+            var (locked, _, lockedDeal) = await PartnerPortalService.TryLockFlashDealAsync(_db, matchingFlash.Id, team.Id, preMatchId);
+            if (locked && lockedDeal != null && lockedDeal.Pitch != null)
+            {
+                claimedFlashDeal = lockedDeal;
+                venue = lockedDeal.Pitch;
+                fieldCode = string.IsNullOrWhiteSpace(lockedDeal.FieldCode) ? "Suất Flash Deal" : lockedDeal.FieldCode;
+                pitchFee = lockedDeal.DealPriceVnd;
+                kickoffAt = lockedDeal.KickoffAt;
+            }
+        }
+
+        if (venue == null)
+        {
+            var availablePitch = await FindAvailableVenueAsync(region, kickoffAt);
+            if (availablePitch == null)
+                return (false, $"Khu vực '{region}' hiện chưa có sân trống vào khung giờ {kickoffAt:HH:mm dd/MM/yyyy}.", null, null);
+
+            (venue, fieldCode) = availablePitch.Value;
+            pitchFee = venue.IndicativePricePerHour.HasValue && venue.IndicativePricePerHour.Value > 0
+                ? MatchSplitBillService.RoundToNearest1000(venue.IndicativePricePerHour.Value)
+                : 600_000m;
+        }
 
         // 3. Referee assignment (only if IsProWithReferee == true)
         Referee? assignedReferee = null;
@@ -376,7 +417,7 @@ public class MatchConciergeService : IMatchConciergeService
 
         if (input.IsProWithReferee)
         {
-            var activeRefs = await _db.Referees.Where(r => r.IsActive).OrderBy(r => r.Name).ToListAsync();
+            var activeRefs = await _db.Referees.Where(r => r.IsActive && r.IsAvailable).OrderBy(r => r.Name).ToListAsync();
             var busyRefIds = await _db.RefereeAssignments
                 .Where(a => a.Proposal.Status == RefereeProposalStatus.Accepted
                             && a.Proposal.Request.Status == RefereeRequestStatus.Confirmed
@@ -397,8 +438,10 @@ public class MatchConciergeService : IMatchConciergeService
         }
 
         // 4. Create Matchday room, confirmed Pitch booking, Referee assignment (if Pro) & Split-Bill pre-fill
+        string dealTag = claimedFlashDeal != null ? $" [FLASH DEAL -{claimedFlashDeal.DiscountPercent}%]" : string.Empty;
         var match = new MatchGame
         {
+            Id = preMatchId,
             Category = MatchCategory.Friendly,
             Status = MatchStatus.Scheduled,
             MatchDateTime = kickoffAt,
@@ -409,8 +452,8 @@ public class MatchConciergeService : IMatchConciergeService
             RsvpToken = Guid.NewGuid().ToString("N")[..8],
             IsPublic = true,
             Notes = input.IsProWithReferee
-                ? $"Thi đấu trọn gói Chuyên nghiệp (Sân: {venue.Name} · Trọng tài: {assignedReferee!.Name})"
-                : $"Thi đấu trọn gói Nghiệp dư (Sân: {venue.Name} · Không thuê trọng tài)"
+                ? $"Thi đấu trọn gói Chuyên nghiệp{dealTag} (Sân: {venue.Name} · Trọng tài: {assignedReferee!.Name})"
+                : $"Thi đấu trọn gói Nghiệp dư{dealTag} (Sân: {venue.Name} · Không thuê trọng tài)"
         };
         _db.Matches.Add(match);
 
@@ -427,7 +470,9 @@ public class MatchConciergeService : IMatchConciergeService
             BudgetVND = pitchFee,
             Status = PitchBookingStatus.Confirmed,
             ConfirmedFieldCode = fieldCode,
-            Notes = "Giữ sân tự động qua AloBall Concierge A–Z"
+            Notes = claimedFlashDeal != null
+                ? $"⚡ Flash Deal -{claimedFlashDeal.DiscountPercent}% qua AloBall Concierge A–Z"
+                : "Giữ sân tự động qua AloBall Concierge A–Z"
         };
         var pitchOffer = new PitchBookingOffer
         {
@@ -483,38 +528,18 @@ public class MatchConciergeService : IMatchConciergeService
         }
 
         // Pre-fill MatchExpense (Split-Bill VietQR, 50-50 default)
-        decimal teamPayable = Math.Round((pitchFee + refereeFee) * 0.50m, 0, MidpointRounding.AwayFromZero);
         var activePlayers = await _db.Players.Where(p => p.TeamId == team.Id && p.IsActive).ToListAsync();
-        decimal perPerson = activePlayers.Count > 0
-            ? MatchSplitBillService.RoundToNearest1000(teamPayable / activePlayers.Count)
-            : teamPayable;
-
-        var expense = new MatchExpense
-        {
-            MatchId = match.Id,
-            TeamId = team.Id,
-            PitchFee = pitchFee,
-            WaterFee = 0m,
-            RefereeFee = refereeFee,
-            SplitRatio = "50-50",
-            MatchTotalPayable = teamPayable,
-            MatchPerPersonShare = perPerson,
-            Tang2PerPersonShare = 0m,
-            Notes = "Dự toán tự động từ Thi đấu trọn gói A–Z",
-            CreatedByUserId = managerUserId
-        };
-        foreach (var p in activePlayers)
-        {
-            expense.Shares.Add(new MatchExpenseShare
-            {
-                MatchExpenseId = expense.Id,
-                PlayerId = p.Id,
-                LinkedUserId = p.LinkedUserId,
-                ParticipatesInMatch = true,
-                MatchAmount = perPerson,
-                TotalAmount = perPerson
-            });
-        }
+        var expense = MatchSplitBillService.BuildPreFilledExpense(
+            match.Id,
+            team.Id,
+            pitchFee,
+            refereeFee,
+            "50-50",
+            claimedFlashDeal != null
+                ? $"Dự toán từ Thi đấu trọn gói A–Z (Ưu đãi Flash Deal -{claimedFlashDeal.DiscountPercent}%)"
+                : "Dự toán tự động từ Thi đấu trọn gói A–Z",
+            managerUserId,
+            activePlayers);
         _db.MatchExpenses.Add(expense);
 
         var order = new MatchConciergeOrder

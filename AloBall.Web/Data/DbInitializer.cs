@@ -50,6 +50,9 @@ public static class DbInitializer
 
             // 9. Chợ Cầu Thủ 2 chiều & Lịch cố định xếp cặp tự động (Phase 3A/3B)
             await EnsureLoanMarketAndRecurringSchedulesAsync(db, teams, users);
+
+            // 10. Đối tác Chủ sân, Trọng tài & Flash Deals giờ chót (Phase 4B)
+            await EnsurePartnerAndFlashDealsAsync(db, users);
         }
         catch (Exception ex)
         {
@@ -246,6 +249,31 @@ public static class DbInitializer
                         ""RespondedAt"" timestamp with time zone NULL
                     );
                     CREATE INDEX IF NOT EXISTS ""IX_PlayerLoanApplications_ListingId_Status"" ON ""PlayerLoanApplications"" (""ListingId"", ""Status"");
+
+                    ALTER TABLE ""PitchVenues"" ADD COLUMN IF NOT EXISTS ""OwnerUserId"" text NULL;
+                    ALTER TABLE ""Referees"" ADD COLUMN IF NOT EXISTS ""UserId"" text NULL;
+                    ALTER TABLE ""Referees"" ADD COLUMN IF NOT EXISTS ""IsAvailable"" boolean NOT NULL DEFAULT TRUE;
+
+                    CREATE TABLE IF NOT EXISTS ""PitchFlashDeals"" (
+                        ""Id"" uuid NOT NULL PRIMARY KEY,
+                        ""PitchId"" uuid NOT NULL REFERENCES ""PitchVenues""(""Id"") ON DELETE CASCADE,
+                        ""FieldCode"" VARCHAR(50) NULL,
+                        ""Region"" VARCHAR(100) NOT NULL DEFAULT '',
+                        ""KickoffAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""DurationMinutes"" integer NOT NULL DEFAULT 90,
+                        ""OriginalPriceVnd"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""DealPriceVnd"" numeric(18,2) NOT NULL DEFAULT 0,
+                        ""DiscountPercent"" integer NOT NULL DEFAULT 0,
+                        ""Note"" VARCHAR(500) NULL,
+                        ""ClaimedByTeamId"" uuid NULL REFERENCES ""Teams""(""Id"") ON DELETE SET NULL,
+                        ""ClaimedMatchId"" uuid NULL REFERENCES ""Matches""(""Id"") ON DELETE SET NULL,
+                        ""Status"" integer NOT NULL DEFAULT 0,
+                        ""CreatedByUserId"" text NOT NULL DEFAULT '',
+                        ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                        ""ClaimedAt"" timestamp with time zone NULL,
+                        ""ClaimVersion"" integer NOT NULL DEFAULT 0
+                    );
+                    CREATE INDEX IF NOT EXISTS ""IX_PitchFlashDeals_Status_Region_KickoffAt"" ON ""PitchFlashDeals"" (""Status"", ""Region"", ""KickoffAt"");
                 ");
             }
             catch { }
@@ -769,6 +797,34 @@ public static class DbInitializer
 
         try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Matches"" ADD COLUMN ""TournamentId"" TEXT NULL;"); } catch { }
         try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Matches"" ADD COLUMN ""RoundLabel"" TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""PitchVenues"" ADD COLUMN ""OwnerUserId"" TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Referees"" ADD COLUMN ""UserId"" TEXT NULL;"); } catch { }
+        try { await db.Database.ExecuteSqlRawAsync(@"ALTER TABLE ""Referees"" ADD COLUMN ""IsAvailable"" INTEGER NOT NULL DEFAULT 1;"); } catch { }
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS ""PitchFlashDeals"" (
+                    ""Id"" TEXT NOT NULL PRIMARY KEY,
+                    ""PitchId"" TEXT NOT NULL,
+                    ""FieldCode"" TEXT NULL,
+                    ""Region"" TEXT NOT NULL DEFAULT '',
+                    ""KickoffAt"" TEXT NOT NULL,
+                    ""DurationMinutes"" INTEGER NOT NULL DEFAULT 90,
+                    ""OriginalPriceVnd"" TEXT NOT NULL DEFAULT '0',
+                    ""DealPriceVnd"" TEXT NOT NULL DEFAULT '0',
+                    ""DiscountPercent"" INTEGER NOT NULL DEFAULT 0,
+                    ""Note"" TEXT NULL,
+                    ""ClaimedByTeamId"" TEXT NULL,
+                    ""ClaimedMatchId"" TEXT NULL,
+                    ""Status"" INTEGER NOT NULL DEFAULT 0,
+                    ""CreatedByUserId"" TEXT NOT NULL DEFAULT '',
+                    ""CreatedAt"" TEXT NOT NULL,
+                    ""ClaimedAt"" TEXT NULL,
+                    ""ClaimVersion"" INTEGER NOT NULL DEFAULT 0
+                );
+            ");
+        }
+        catch { }
     }
 
 
@@ -1921,6 +1977,78 @@ public static class DbInitializer
                     Status = LoanListingStatus.Open
                 }
             );
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task EnsurePartnerAndFlashDealsAsync(ApplicationDbContext db, SeededUsers users)
+    {
+        var thanhPhat = await db.PitchVenues.FirstOrDefaultAsync(v => v.Name.Contains("Thành Phát"));
+        if (thanhPhat != null && string.IsNullOrEmpty(thanhPhat.OwnerUserId))
+        {
+            thanhPhat.OwnerUserId = users.KlbOwner.Id;
+        }
+
+        var phumyHung = await db.PitchVenues.FirstOrDefaultAsync(v => v.City == "TP.HCM");
+        if (phumyHung != null && string.IsNullOrEmpty(phumyHung.OwnerUserId))
+        {
+            phumyHung.OwnerUserId = users.SaiGonUnitedCaptain.Id;
+        }
+
+        var firstRef = await db.Referees.OrderBy(r => r.Name).FirstOrDefaultAsync();
+        if (firstRef != null && string.IsNullOrEmpty(firstRef.UserId))
+        {
+            firstRef.UserId = users.KlbCaptain.Id;
+        }
+
+        await db.SaveChangesAsync();
+
+        if (!await db.PitchFlashDeals.AnyAsync())
+        {
+            var localNow = CompetitionRules.LocalNow;
+            var slot1Kickoff = localNow.AddHours(6);
+            slot1Kickoff = new DateTime(slot1Kickoff.Year, slot1Kickoff.Month, slot1Kickoff.Day, slot1Kickoff.Hour, 0, 0);
+            var slot2Kickoff = localNow.AddHours(9);
+            slot2Kickoff = new DateTime(slot2Kickoff.Year, slot2Kickoff.Month, slot2Kickoff.Day, slot2Kickoff.Hour, 30, 0);
+
+            if (thanhPhat != null)
+            {
+                db.PitchFlashDeals.Add(new PitchFlashDeal
+                {
+                    PitchId = thanhPhat.Id,
+                    FieldCode = "Sân 7 - Số 2",
+                    Region = "Cầu Giấy, Hà Nội",
+                    KickoffAt = slot1Kickoff,
+                    DurationMinutes = 90,
+                    OriginalPriceVnd = 700_000m,
+                    DealPriceVnd = 450_000m,
+                    DiscountPercent = 36,
+                    Note = "Sân 7 cỏ nhân tạo vừa hủy kèo, tặng kèm 1 thùng nước Lavie.",
+                    Status = PitchFlashDealStatus.Active,
+                    CreatedByUserId = users.KlbOwner.Id,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            if (phumyHung != null)
+            {
+                db.PitchFlashDeals.Add(new PitchFlashDeal
+                {
+                    PitchId = phumyHung.Id,
+                    FieldCode = "Sân 7 - A1",
+                    Region = "Quận 7, TP.HCM",
+                    KickoffAt = slot2Kickoff,
+                    DurationMinutes = 90,
+                    OriginalPriceVnd = 650_000m,
+                    DealPriceVnd = 390_000m,
+                    DiscountPercent = 40,
+                    Note = "Đội khách báo hủy gấp giờ chót, ưu đãi 40% + miễn phí áo bib.",
+                    Status = PitchFlashDealStatus.Active,
+                    CreatedByUserId = users.SaiGonUnitedCaptain.Id,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
             await db.SaveChangesAsync();
         }
     }

@@ -28,5 +28,9 @@ public class Referee
     public decimal? DefaultPriceVND { get; set; }
 
     // Soft‑delete / activation flag.
+    public string? UserId { get; set; }
+
+    public bool IsAvailable { get; set; } = true;
+
     public bool IsActive { get; set; } = true;
 }

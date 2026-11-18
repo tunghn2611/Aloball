@@ -1,0 +1,522 @@
+@model AloBall.Web.Models.PartnerPortalViewModel
+@using AloBall.Web.Data.Entities
+@{
+    ViewData["Title"] = "Đối tác B2B · Chủ sân & Trọng tài";
+    bool isRefTab = string.Equals(Model.ActiveTab, "referee", StringComparison.OrdinalIgnoreCase);
+}
+
+<style>
+    .pp-hero {
+        background: linear-gradient(135deg, #064E3B 0%, #0F172A 100%);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        border-radius: 18px;
+        padding: 1.5rem;
+        color: #F8FAFC;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.22);
+    }
+    .pp-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+        background: #0F172A;
+        padding: 0.4rem;
+        border-radius: 14px;
+        margin-bottom: 1.25rem;
+    }
+    .pp-tab {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 10px;
+        font-weight: 700;
+        color: #CBD5E1;
+        text-decoration: none;
+        padding: 0.5rem 0.9rem;
+    }
+    .pp-tab:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.08); }
+    .pp-tab.active {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: #FFFFFF;
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+    }
+    .pp-btn {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        font-weight: 700;
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+    }
+    .pp-kpi {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 1rem 1.15rem;
+    }
+    @@media (max-width: 767px) {
+        .pp-tabs { grid-template-columns: 1fr; }
+    }
+</style>
+
+<section class="pp-hero">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <span class="badge bg-warning text-dark fw-bold mb-2">PHASE 4B · B2B PARTNER PORTAL</span>
+            <h1 class="h2 fw-bold text-white mb-1"><i class="bi bi-building-check text-warning me-2"></i>Cổng Đối Tác B2B &amp; Săn Sân Giờ Chót</h1>
+            <p class="small text-white-50 mb-0">Chủ sân phát hành Flash Deal bù lấp sân trống 15 giây · Trọng tài quản lý lịch phân công &amp; thu nhập · Đội trưởng săn sân 1 chạm.</p>
+        </div>
+        @if (!Model.IsAuthenticated)
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn btn-warning text-dark pp-btn shadow-sm">
+                <i class="bi bi-box-arrow-in-right"></i> Đăng nhập để quản lý
+            </a>
+        }
+    </div>
+</section>
+
+<nav class="pp-tabs" aria-label="Phân khu Đối tác B2B">
+    <a class="pp-tab @(!isRefTab ? "active" : "")" asp-action="Index" asp-route-tab="pitch">
+        <i class="bi bi-lightning-charge-fill"></i> Chủ sân &amp; Flash Deals (@Model.MarketplaceFlashDeals.Count đang mở)
+    </a>
+    <a class="pp-tab @(isRefTab ? "active" : "")" asp-action="Index" asp-route-tab="referee">
+        <i class="bi bi-flag-fill"></i> Trọng tài (@Model.UpcomingAssignments.Count sắp tới)
+    </a>
+</nav>
+
+@if (!isRefTab)
+{
+    <!-- SÀN FLASH DEALS ĐANG MỞ (DÀNH CHO ĐỘI TRƯỞNG SĂN 1 CHẠM) -->
+    <section class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 fw-bold text-dark mb-0"><i class="bi bi-lightning-fill text-warning me-1"></i>⚡ Săn sân hủy kèo giờ chót (Flash Deals)</h2>
+            <span class="badge bg-danger-subtle text-danger border border-danger">@Model.MarketplaceFlashDeals.Count suất ưu đãi</span>
+        </div>
+
+        @if (!Model.MarketplaceFlashDeals.Any())
+        {
+            <div class="empty-state mb-3">
+                <i class="bi bi-lightning-charge"></i>
+                <h3>Hiện chưa có Flash Deal giờ chót nào</h3>
+                <p class="mb-0">Chủ sân có thể đăng suất vừa bị hủy kèo trong 24h tới ở bảng quản lý bên dưới.</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                @foreach (var d in Model.MarketplaceFlashDeals)
+                {
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="arena-card p-3 h-100 d-flex flex-column justify-content-between gap-2 border-warning">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-danger fw-bold">-@d.DiscountPercent%</span>
+                                    <span class="badge bg-success-subtle text-success border">@d.Region</span>
+                                </div>
+                                <h3 class="h6 fw-bold text-dark mb-1">@d.PitchName</h3>
+                                <div class="small text-muted mb-2">
+                                    @if (!string.IsNullOrWhiteSpace(d.FieldCode)) { <span class="badge bg-light text-dark border me-1">@d.FieldCode</span> }
+                                    <i class="bi bi-clock-fill text-warning me-1"></i><strong>@d.KickoffAt.ToString("HH:mm · dd/MM/yyyy")</strong> (@d.DurationMinutes')
+                                </div>
+                                <div class="d-flex align-items-baseline gap-2 mb-2">
+                                    <strong class="h4 text-success fw-bold mb-0">@d.DealPriceVnd.ToString("N0")đ</strong>
+                                    <span class="small text-muted text-decoration-line-through">@d.OriginalPriceVnd.ToString("N0")đ</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(d.Note))
+                                {
+                                    <p class="small text-secondary mb-2">@d.Note</p>
+                                }
+                            </div>
+                            <div class="d-grid gap-2">
+                                @if (Model.IsAuthenticated && Model.ManagedTeams.Any())
+                                {
+                                    <form asp-action="ClaimFlashDeal" method="post" class="d-flex gap-2">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="dealId" value="@d.Id" />
+                                        <select name="teamId" class="form-select" style="min-height:48px;">
+                                            @foreach (var mt in Model.ManagedTeams)
+                                            {
+                                                <option value="@mt.Id">@mt.Name</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="btn btn-arena-primary pp-btn flex-shrink-0">
+                                            ⚡ Chốt sân 1 chạm
+                                        </button>
+                                    </form>
+                                }
+                                else if (Model.IsAuthenticated)
+                                {
+                                    <a asp-controller="Teams" asp-action="Create" class="btn btn-outline-success pp-btn">Tạo CLB để chốt sân</a>
+                                }
+                                else
+                                {
+                                    <a asp-controller="Account" asp-action="Login" class="btn btn-arena-primary pp-btn">Đăng nhập để chốt sân</a>
+                                }
+                                <button type="button" class="btn btn-outline-success pp-btn btn-sm"
+                                        onclick="navigator.clipboard?.writeText(this.dataset.zalo).then(()=>{this.innerText='✅ Đã copy tin nhắn Zalo!'});"
+                                        data-zalo="@d.ZaloShareText">
+                                    <i class="bi bi-chat-dots-fill"></i> Copy tin nhắn săn sân giờ chót Zalo
+                                </button>
+                            </div>
+                        </article>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    @if (Model.IsAuthenticated && Model.OwnedVenues.Any())
+    {
+        <!-- DASHBOARD CHỦ SÂN -->
+        <section class="mb-4">
+            <h2 class="h5 fw-bold text-dark mb-3"><i class="bi bi-bar-chart-line-fill text-success me-2"></i>Tổng quan vận hành Chủ sân</h2>
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                    <div class="pp-kpi">
+                        <span class="eyebrow">CỤM SÂN QUẢN LÝ</span>
+                        <div class="h3 fw-bold text-dark mb-0 mt-1">@Model.OwnedVenues.Count</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="pp-kpi">
+                        <span class="eyebrow">LỊCH ĐẶT TUẦN NÀY</span>
+                        <div class="h3 fw-bold text-success mb-0 mt-1">@Model.WeeklyBookingCount <small class="fs-6 text-muted">suất</small></div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="pp-kpi">
+                        <span class="eyebrow">TỔNG DOANH THU (GROSS)</span>
+                        <div class="h3 fw-bold text-primary mb-0 mt-1">@Model.GrossRevenueVnd.ToString("N0")đ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-12 col-lg-5">
+                    <div class="arena-card p-3 bg-white">
+                        <h3 class="h6 fw-bold text-dark mb-1"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>Tạo Flash Deal hủy kèo giờ chót (15s)</h3>
+                        <p class="small text-muted mb-3">Chỉ áp dụng cho khung giờ trong 24 giờ tới (theo giờ Việt Nam). % giảm giá được tính tự động.</p>
+
+                        <form asp-action="CreateFlashDeal" method="post" class="row g-2">
+                            @Html.AntiForgeryToken()
+                            <div class="col-12">
+                                <label class="form-label mb-1">Cụm sân *</label>
+                                <select name="PitchId" class="form-select" style="min-height:48px;" required>
+                                    @foreach (var pv in Model.OwnedVenues)
+                                    {
+                                        <option value="@pv.Id" selected="@(Model.SelectedPitchId == pv.Id)">@pv.Name (@pv.District)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label mb-1">Sân con</label>
+                                <input type="text" name="FieldCode" class="form-control" style="min-height:48px;" placeholder="VD: Sân 7 - Số 2" />
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label mb-1">Thời lượng (phút)</label>
+                                <input type="number" name="DurationMinutes" value="90" min="30" max="240" class="form-control" style="min-height:48px;" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label mb-1">Giờ bóng lăn (trong 24h tới) *</label>
+                                <input type="datetime-local" name="KickoffAt" value="@Model.CreateDealInput.KickoffAt.ToString("yyyy-MM-ddTHH:mm")" class="form-control" style="min-height:48px;" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1">Giá gốc (VNĐ) *</label>
+                                <input type="number" id="origPrice" name="OriginalPriceVnd" value="@Model.CreateDealInput.OriginalPriceVnd" min="10000" step="10000" class="form-control" style="min-height:48px;" oninput="updateFlashDiscount()" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1">Giá Flash Deal (VNĐ) * <span id="discountPreview" class="badge bg-danger ms-1">-35%</span></label>
+                                <input type="number" id="dealPrice" name="DealPriceVnd" value="@Model.CreateDealInput.DealPriceVnd" min="10000" step="10000" class="form-control" style="min-height:48px;" oninput="updateFlashDiscount()" required />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label mb-1">Ghi chú ưu đãi</label>
+                                <input type="text" name="Note" class="form-control" style="min-height:48px;" placeholder="VD: Sân 7 cỏ nhân tạo vừa hủy kèo, tặng kèm 1 thùng nước" />
+                            </div>
+                            <div class="col-12 pt-2">
+                                <button type="submit" class="btn btn-warning text-dark pp-btn w-100">
+                                    <i class="bi bi-send-fill"></i> Phát hành Flash Deal ngay
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-7">
+                    <div class="arena-card p-3 bg-white mb-3">
+                        <h3 class="h6 fw-bold text-dark mb-3"><i class="bi bi-calendar-check-fill text-success me-1"></i>Lịch đặt khung giờ sân (@Model.Bookings.Count)</h3>
+                        @if (!Model.Bookings.Any())
+                        {
+                            <p class="small text-muted mb-0">Chưa có yêu cầu đặt sân nào cho cụm sân của bạn.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Đội</th>
+                                            <th>Khung giờ</th>
+                                            <th>Trạng thái</th>
+                                            <th>Xử lý</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var bk in Model.Bookings.Take(12))
+                                        {
+                                            <tr>
+                                                <td><strong>@bk.TeamName</strong><br /><small class="text-muted">@bk.PitchName · @bk.PitchFormat</small></td>
+                                                <td>@bk.ServiceDate.ToString("dd/MM") · @bk.StartTime.ToString(@"hh\:mm")–@bk.EndTime.ToString(@"hh\:mm")</td>
+                                                <td>
+                                                    <span class="badge @(bk.Status == PitchBookingStatus.Confirmed ? "bg-success" : bk.Status == PitchBookingStatus.UnableToFulfill ? "bg-secondary" : "bg-warning text-dark")">
+                                                        @bk.Status
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    @if (bk.Status == PitchBookingStatus.Pending || bk.Status == PitchBookingStatus.UnderReview)
+                                                    {
+                                                        <form asp-action="UpdateBookingStatus" method="post" class="d-inline">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="requestId" value="@bk.RequestId" />
+                                                            <input type="hidden" name="approve" value="true" />
+                                                            <button type="submit" class="btn btn-sm btn-success" style="min-height:38px;">Nhận sân</button>
+                                                        </form>
+                                                    }
+                                                    else if (bk.AcceptedPriceVnd.HasValue)
+                                                    {
+                                                        <span class="small fw-bold text-primary">@bk.AcceptedPriceVnd.Value.ToString("N0")đ</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+
+                    @if (Model.OwnerFlashDeals.Any())
+                    {
+                        <div class="arena-card p-3 bg-white">
+                            <h3 class="h6 fw-bold text-dark mb-2">Lịch sử Flash Deals đã tạo</h3>
+                            <div class="list-group list-group-flush">
+                                @foreach (var od in Model.OwnerFlashDeals.Take(8))
+                                {
+                                    <div class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                                        <div>
+                                            <strong>@od.PitchName</strong> · @od.KickoffAt.ToString("HH:mm dd/MM")
+                                            <span class="badge bg-danger ms-1">-@od.DiscountPercent%</span>
+                                            <div class="small text-muted">@od.DealPriceVnd.ToString("N0")đ @(od.ClaimedByTeamName != null ? $"· Đã chốt bởi {od.ClaimedByTeamName}" : "")</div>
+                                        </div>
+                                        @if (od.Status == PitchFlashDealStatus.Active)
+                                        {
+                                            <form asp-action="CancelFlashDeal" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="dealId" value="@od.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Đóng</button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge @(od.Status == PitchFlashDealStatus.Claimed ? "bg-success" : "bg-secondary")">@od.Status</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
+    else if (Model.IsAuthenticated)
+    {
+        <section class="arena-card p-4 bg-white">
+            <h2 class="h5 fw-bold text-dark mb-1"><i class="bi bi-building-add text-success me-2"></i>Đăng ký Cụm sân Đối tác B2B</h2>
+            <p class="small text-muted mb-3">Bạn là chủ sân bóng phủi? Đăng ký cụm sân của bạn để quản lý lịch đặt và phát hành Flash Deal giờ chót.</p>
+            <form asp-action="RegisterPartnerVenue" method="post" class="row g-2">
+                @Html.AntiForgeryToken()
+                <div class="col-12 col-md-4">
+                    <label class="form-label mb-1">Tên cụm sân *</label>
+                    <input name="Name" class="form-control" style="min-height:48px;" placeholder="VD: Sân bóng Mỹ Đình 2" required />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label mb-1">Quận / Huyện *</label>
+                    <input name="District" class="form-control" style="min-height:48px;" value="Cầu Giấy" required />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label mb-1">Thành phố *</label>
+                    <input name="City" class="form-control" style="min-height:48px;" value="Hà Nội" required />
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label mb-1">SĐT liên hệ *</label>
+                    <input name="ContactPhone" class="form-control" style="min-height:48px;" placeholder="09xx.xxx.xxx" required />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label mb-1">Địa chỉ chi tiết *</label>
+                    <input name="FullAddress" class="form-control" style="min-height:48px;" required />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label mb-1">Giá niêm yết (đ/trận)</label>
+                    <input type="number" name="IndicativePricePerHour" value="600000" min="100000" step="50000" class="form-control" style="min-height:48px;" />
+                </div>
+                <div class="col-6 col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-arena-primary pp-btn w-100">Kích hoạt Chủ sân</button>
+                </div>
+            </form>
+        </section>
+    }
+}
+else
+{
+    <!-- TAB TRỌNG TÀI ĐỐI TÁC -->
+    @if (!Model.IsAuthenticated)
+    {
+        <div class="empty-state">
+            <i class="bi bi-flag"></i>
+            <h3>Đăng nhập tài khoản Trọng tài đối tác</h3>
+            <p class="mb-3">Theo dõi lịch phân công trận từ Matchmaking, Concierge Pro &amp; Giải đấu, bật/tắt trạng thái rảnh và tổng hợp thu nhập.</p>
+            <a asp-controller="Account" asp-action="Login" class="btn btn-arena-primary pp-btn">Đăng nhập ngay</a>
+        </div>
+    }
+    else if (Model.ActiveRefereeProfile == null)
+    {
+        <section class="arena-card p-4 bg-white">
+            <h2 class="h5 fw-bold text-dark mb-1"><i class="bi bi-person-badge-fill text-success me-2"></i>Đăng ký Hồ sơ Trọng tài Đối tác</h2>
+            <p class="small text-muted mb-3">Tạo hồ sơ trọng tài liên kết tài khoản để nhận lịch bắt chính từ Matchmaking, Concierge Pro và Giải đấu phủi.</p>
+            <form asp-action="RegisterRefereePartner" method="post" class="row g-2">
+                @Html.AntiForgeryToken()
+                <div class="col-12 col-md-4">
+                    <label class="form-label mb-1">Họ và tên trọng tài *</label>
+                    <input name="Name" class="form-control" style="min-height:48px;" required />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label mb-1">Số điện thoại / Liên hệ *</label>
+                    <input name="ContactInfo" class="form-control" style="min-height:48px;" required />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label mb-1">Thù lao mặc định (VNĐ/trận)</label>
+                    <input type="number" name="DefaultPriceVND" value="350000" min="100000" step="50000" class="form-control" style="min-height:48px;" />
+                </div>
+                <div class="col-12 col-md-9">
+                    <label class="form-label mb-1">Kinh nghiệm điều hành</label>
+                    <input name="ExperienceSummary" class="form-control" style="min-height:48px;" value="Trọng tài bóng đá phong trào sân 5, 7, 11." />
+                </div>
+                <div class="col-12 col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-arena-primary pp-btn w-100">Đăng ký Trọng tài</button>
+                </div>
+            </form>
+        </section>
+    }
+    else
+    {
+        var refProf = Model.ActiveRefereeProfile;
+        <section class="arena-card p-3 mb-3 bg-white d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge @(refProf.IsAvailable ? "bg-success" : "bg-secondary")">@(refProf.IsAvailable ? "🟢 Đang sẵn sàng nhận kèo" : "⏸ Tạm ngưng nhận kèo")</span>
+                    <span class="small text-muted">@refProf.SupportedFormats</span>
+                </div>
+                <h2 class="h5 fw-bold text-dark mb-0">@refProf.Name</h2>
+                <small class="text-muted">@refProf.ExperienceSummary</small>
+            </div>
+            <form asp-action="ToggleRefereeAvailability" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="refereeId" value="@refProf.Id" />
+                <button type="submit" class="btn @(refProf.IsAvailable ? "btn-outline-secondary" : "btn-success") pp-btn">
+                    <i class="bi bi-toggle-on"></i> @(refProf.IsAvailable ? "Tạm chuyển sang Bận" : "Bật Sẵn sàng nhận kèo")
+                </button>
+            </form>
+        </section>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+                <div class="pp-kpi">
+                    <span class="eyebrow">TRẬN SẮP BẮT CHÍNH</span>
+                    <div class="h3 fw-bold text-dark mb-0 mt-1">@Model.UpcomingAssignments.Count</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <div class="pp-kpi">
+                    <span class="eyebrow">TRẬN ĐÃ HOÀN THÀNH</span>
+                    <div class="h3 fw-bold text-success mb-0 mt-1">@Model.CompletedRefereeMatches</div>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="pp-kpi">
+                    <span class="eyebrow">TỔNG THÙ LAO TRỌNG TÀI</span>
+                    <div class="h3 fw-bold text-primary mb-0 mt-1">@Model.RefereeTotalEarningsVnd.ToString("N0")đ</div>
+                </div>
+            </div>
+        </div>
+
+        <section class="arena-card p-3 bg-white">
+            <h3 class="h6 fw-bold text-dark mb-3"><i class="bi bi-calendar2-check-fill text-success me-2"></i>Lịch phân công điều hành trận đấu</h3>
+            @{
+                var allRefItems = Model.UpcomingAssignments.Concat(Model.PastAssignments).ToList();
+            }
+            @if (!allRefItems.Any())
+            {
+                <div class="empty-state">
+                    <i class="bi bi-flag"></i>
+                    <h3>Chưa có trận phân công mới</h3>
+                    <p class="mb-0">Khi Ban quản trị hoặc hệ thống Concierge Pro gán trận cho bạn, lịch sẽ hiển thị ngay tại đây.</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-2">
+                    @foreach (var item in allRefItems)
+                    {
+                        <div class="col-12 col-lg-6">
+                            <div class="p-3 rounded-3 border bg-light d-flex flex-column justify-content-between gap-2 h-100">
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="badge bg-dark">@item.SourceTag</span>
+                                        <span class="badge @(item.IsCompleted ? "bg-success" : "bg-warning text-dark")">@item.StatusLabel</span>
+                                    </div>
+                                    <strong class="text-dark d-block">@item.MatchTitle</strong>
+                                    <div class="small text-muted">
+                                        <i class="bi bi-clock me-1"></i>@item.KickoffAt.ToString("HH:mm · dd/MM/yyyy") ·
+                                        <i class="bi bi-geo-alt me-1"></i>@item.VenueName
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                    <span class="fw-bold text-primary small">Thù lao: @item.FeeVnd.ToString("N0")đ</span>
+                                    @if (item.MatchId.HasValue)
+                                    {
+                                        <a asp-controller="Matches" asp-action="Detail" asp-route-id="@item.MatchId" class="btn btn-sm btn-arena-primary" style="min-height:40px;">
+                                            Vào Matchday Center <i class="bi bi-arrow-up-right"></i>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+}
+
+@section Scripts {
+    <script>
+        function updateFlashDiscount() {
+            const orig = parseFloat(document.getElementById('origPrice')?.value || '0');
+            const deal = parseFloat(document.getElementById('dealPrice')?.value || '0');
+            const badge = document.getElementById('discountPreview');
+            if (!badge) return;
+            if (orig > 0 && deal > 0 && deal < orig) {
+                const pct = Math.round((orig - deal) / orig * 100);
+                badge.textContent = '-' + pct + '%';
+                badge.className = 'badge bg-danger ms-1';
+            } else {
+                badge.textContent = 'Không hợp lệ';
+                badge.className = 'badge bg-secondary ms-1';
+            }
+        }
+    </script>
+}

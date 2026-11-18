@@ -1,4 +1,4 @@
-﻿@model AloBall.Web.Controllers.HomeViewModel
+@model AloBall.Web.Controllers.HomeViewModel
 @using AloBall.Web.Data.Entities
 @{ ViewData["Title"] = "Khám phá sân chơi"; }
 <div class="discovery-kicker"><strong>⚡ HỆ SINH THÁI BÓNG ĐÁ PHỦI VIỆT NAM</strong><span>CÁP KÈO CÂN TRÌNH · ĐIỂM DANH ZALO · THẺ CHỈ SỐ FIFA</span></div>
@@ -32,6 +32,7 @@
 </form>
 
 <section id="lich-dau-ket-qua">
+    @await Component.InvokeAsync("FlashDealsBanner")
     <div class="section-heading">
         <h2><span class="section-no">01</span>Nhịp đập sân cỏ</h2>
         <span class="badge bg-success-subtle text-success border border-success-subtle">LỊCH ĐẤU &amp; KẾT QUẢ</span>

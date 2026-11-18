@@ -50,9 +50,12 @@ public class PitchVenue
 
     public int TotalPitches { get; set; } = 4;
 
+    public string? OwnerUserId { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<PitchBookingRequest> BookingRequests { get; set; } = new List<PitchBookingRequest>();
+    public ICollection<PitchFlashDeal> FlashDeals { get; set; } = new List<PitchFlashDeal>();
 }

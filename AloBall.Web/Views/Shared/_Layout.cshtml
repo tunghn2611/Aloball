@@ -1,7 +1,7 @@
 @{
     var section = ViewContext.RouteData.Values["controller"]?.ToString() ?? "Home";
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "Index";
-    var sectionName = section switch { "Teams" => "Đội bóng", "Matches" => "Thi đấu", "Attendance" => "Sinh hoạt", "FireKeeping" => "Giữ Lửa", "Matchmaking" => "Kết nối", "LoanMarket" => "Mượn cầu thủ", "Concierge" => "Thi đấu trọn gói", "Leaderboard" => "Bảng xếp hạng", "Tournaments" => "Giải đấu", "Account" => "Tài khoản", "Admin" => "Quản trị", "Sheets" => "Dữ liệu đội", "Contact" => "Liên hệ", _ => "Khám phá" };
+    var sectionName = section switch { "Teams" => "Đội bóng", "Matches" => "Thi đấu", "Attendance" => "Sinh hoạt", "FireKeeping" => "Giữ Lửa", "Matchmaking" => "Kết nối", "LoanMarket" => "Mượn cầu thủ", "Concierge" => "Thi đấu trọn gói", "Leaderboard" => "Bảng xếp hạng", "Tournaments" => "Giải đấu", "PartnerPortal" => "Đối tác B2B", "Account" => "Tài khoản", "Admin" => "Quản trị", "Sheets" => "Dữ liệu đội", "Contact" => "Liên hệ", _ => "Khám phá" };
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -41,8 +41,9 @@
             <a class="@(section == "Concierge" ? "active" : "")" asp-controller="Concierge" asp-action="Index"><i class="bi bi-stars"></i><span>Thi đấu trọn gói</span><span class="nav-index">05</span></a>
             <a class="@(section == "Leaderboard" ? "active" : "")" asp-controller="Leaderboard" asp-action="Index"><i class="bi bi-trophy"></i><span>Bảng xếp hạng</span><span class="nav-index">06</span></a>
             <a class="@(section == "Tournaments" ? "active" : "")" asp-controller="Tournaments" asp-action="Index"><i class="bi bi-diagram-3"></i><span>Giải đấu</span><span class="nav-index">07</span></a>
-            <a class="@(section == "Contact" ? "active" : "")" asp-controller="Contact" asp-action="Index"><i class="bi bi-geo-alt"></i><span>Đặt sân &amp; Trọng tài</span><span class="nav-index">08</span></a>
-            <a href="/kham-pha#lich-dau-ket-qua"><i class="bi bi-calendar2-event"></i><span>Lịch đấu &amp; kết quả</span><span class="nav-index">09</span></a>
+            <a class="@(section == "PartnerPortal" ? "active" : "")" asp-controller="PartnerPortal" asp-action="Index"><i class="bi bi-lightning-charge"></i><span>Đối tác B2B</span><span class="nav-index">08</span></a>
+            <a class="@(section == "Contact" ? "active" : "")" asp-controller="Contact" asp-action="Index"><i class="bi bi-geo-alt"></i><span>Đặt sân &amp; Trọng tài</span><span class="nav-index">09</span></a>
+            <a href="/kham-pha#lich-dau-ket-qua"><i class="bi bi-calendar2-event"></i><span>Lịch đấu &amp; kết quả</span><span class="nav-index">10</span></a>
         </nav>
         <div class="sidebar-callout">
             <span class="eyebrow">⚡ MỘT ĐỘI. MỘT ĐAM MÊ.</span>

@@ -520,4 +520,50 @@ public class MatchSplitBillService : IMatchSplitBillService
 
         return sb.ToString();
     }
+
+    public static MatchExpense BuildPreFilledExpense(
+        Guid matchId,
+        Guid teamId,
+        decimal pitchFee,
+        decimal refereeFee,
+        string splitRatio,
+        string notes,
+        string createdByUserId,
+        IEnumerable<Player> activePlayers)
+    {
+        var playersList = activePlayers.ToList();
+        var normRatio = NormalizeSplitRatio(splitRatio);
+        decimal teamShare = Math.Round((pitchFee + refereeFee) * GetTeamShareMultiplier(normRatio), 0, MidpointRounding.AwayFromZero);
+        decimal perPerson = playersList.Count > 0 ? RoundToNearest1000(teamShare / playersList.Count) : teamShare;
+
+        var expense = new MatchExpense
+        {
+            MatchId = matchId,
+            TeamId = teamId,
+            PitchFee = pitchFee,
+            WaterFee = 0m,
+            RefereeFee = refereeFee,
+            SplitRatio = normRatio,
+            MatchTotalPayable = teamShare,
+            MatchPerPersonShare = perPerson,
+            Tang2PerPersonShare = 0m,
+            Notes = notes,
+            CreatedByUserId = createdByUserId
+        };
+
+        foreach (var p in playersList)
+        {
+            expense.Shares.Add(new MatchExpenseShare
+            {
+                MatchExpenseId = expense.Id,
+                PlayerId = p.Id,
+                LinkedUserId = p.LinkedUserId,
+                ParticipatesInMatch = true,
+                MatchAmount = perPerson,
+                TotalAmount = perPerson
+            });
+        }
+
+        return expense;
+    }
 }

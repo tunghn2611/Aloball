@@ -219,6 +219,8 @@
             </div>
         }
 
+        @await Component.InvokeAsync("FlashDealsBanner", new { region = team.ActivityArea })
+
         <nav class="cg-tabs" aria-label="Chế độ Thi đấu trọn gói">
             <a class="cg-tab-link @(!isAutoPairTab ? "active" : "")"
                asp-controller="Concierge" asp-action="Index" asp-route-teamId="@team.Id" asp-route-tab="concierge">

@@ -1,0 +1,85 @@
+@model AloBall.Web.Models.FlashDealBannerViewModel
+
+@if (Model.Deals.Any())
+{
+    <section class="mb-4 p-3 rounded-4 border border-warning bg-white shadow-sm" style="background: linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 65%, #ECFDF5 100%) !important;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+                <span class="badge bg-warning text-dark fw-bold mb-1">⚡ SĂN SÂN GIỜ CHÓT</span>
+                <h2 class="h5 fw-bold text-dark mb-0">⚡ Săn sân hủy kèo giờ chót (Flash Deals)</h2>
+                @if (!string.IsNullOrWhiteSpace(Model.PreferredRegion))
+                {
+                    <small class="text-muted">Ưu tiên khu vực của bạn: <strong>@Model.PreferredRegion</strong></small>
+                }
+            </div>
+            <a asp-controller="PartnerPortal" asp-action="Index" asp-route-tab="pitch" class="btn btn-sm btn-outline-dark fw-bold" style="min-height:40px;">
+                Xem tất cả / Mở B2B Portal <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var d in Model.Deals.Take(3))
+            {
+                <div class="col-12 col-lg-4">
+                    <div class="p-3 rounded-3 border bg-white h-100 d-flex flex-column justify-content-between gap-2 @(d.IsUserRegionMatch ? "border-success border-2" : "")">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                <span class="badge bg-danger fw-bold">-@d.DiscountPercent%</span>
+                                <span class="small fw-semibold text-success">@d.Region</span>
+                            </div>
+                            <div class="fw-bold text-dark">@d.PitchName @(!string.IsNullOrWhiteSpace(d.FieldCode) ? $"· {d.FieldCode}" : "")</div>
+                            <div class="small text-muted mb-2">
+                                <i class="bi bi-clock-fill text-warning me-1"></i><strong>@d.KickoffAt.ToString("HH:mm · dd/MM")</strong> (@d.DurationMinutes phút)
+                            </div>
+                            <div class="d-flex align-items-baseline gap-2 mb-1">
+                                <span class="h5 fw-bold text-success mb-0">@d.DealPriceVnd.ToString("N0")đ</span>
+                                <span class="small text-muted text-decoration-line-through">@d.OriginalPriceVnd.ToString("N0")đ</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(d.Note))
+                            {
+                                <p class="small text-secondary mb-2">@d.Note</p>
+                            }
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            @if (Model.IsAuthenticated && Model.ManagedTeams.Any())
+                            {
+                                <form asp-controller="PartnerPortal" asp-action="ClaimFlashDeal" method="post" class="d-flex gap-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="dealId" value="@d.Id" />
+                                    @if (Model.ManagedTeams.Count == 1)
+                                    {
+                                        <input type="hidden" name="teamId" value="@Model.ManagedTeams[0].Id" />
+                                    }
+                                    else
+                                    {
+                                        <select name="teamId" class="form-select form-select-sm" style="min-height:48px;">
+                                            @foreach (var mt in Model.ManagedTeams)
+                                            {
+                                                <option value="@mt.Id">@mt.Name</option>
+                                            }
+                                        </select>
+                                    }
+                                    <button type="submit" class="btn btn-arena-primary fw-bold flex-shrink-0" style="min-height:48px;">
+                                        ⚡ Chốt sân 1 chạm
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-controller="PartnerPortal" asp-action="Index" class="btn btn-arena-primary fw-bold" style="min-height:48px;">
+                                    ⚡ Chốt sân ngay
+                                </a>
+                            }
+                            <button type="button" class="btn btn-outline-success btn-sm fw-bold" style="min-height:44px;"
+                                    onclick="navigator.clipboard?.writeText(this.dataset.zalo).then(()=>{this.innerText='✅ Đã copy tin nhắn Zalo!'});"
+                                    data-zalo="@d.ZaloShareText">
+                                <i class="bi bi-chat-dots-fill me-1"></i>Copy tin nhắn săn sân giờ chót Zalo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+}

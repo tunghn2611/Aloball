@@ -209,6 +209,7 @@
 else
 {
     <!-- TAB SÂN BÓNG (PITCH DISCOVERY & BOOKING) -->
+    @await Component.InvokeAsync("FlashDealsBanner")
     @if (pitchBookings.Any())
     {
         <section class="mb-5">
